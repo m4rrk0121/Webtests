@@ -10,6 +10,7 @@
 
 .dark-mode {
   --background-primary: url('./images/background2.png') center/cover no-repeat, #000000;
+  color: #000000;
   --text-primary: #ffb300;
   --text-secondary: #ffffff;
 }
@@ -41,6 +42,7 @@
 
 .theme-toggle-button:hover {
   background-color: #e6a200;
+  color: #000000;
   transform: scale(1.05);
   box-shadow: 0 3px 7px rgba(0,0,0,0.2);
 }
@@ -234,6 +236,7 @@ body {
   padding: 8px 16px;
   background-color: #ffb300;
   border: 1px solid #ffb300;
+  color: #000000;
   border-radius: 3px;
   cursor: pointer;
   transition: background-color 0.3s ease;
@@ -242,11 +245,13 @@ body {
 
 .sorting-controls button.active {
   background-color: #ffb300;
+  color: #000000;
   font-weight: bold;
 }
 
 .sorting-controls button:hover {
   background-color: #666666;
+  color: #000000;
 }
 
 .loading-overlay {

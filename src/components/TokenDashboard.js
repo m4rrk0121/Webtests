@@ -251,7 +251,7 @@ function TokenDashboard() {
         {/* Logo positioned absolutely over the background */}
         <div className="logo-container">
           <img 
-            src="/images/logo.png" 
+            src="../images/logo.png" 
             alt="Logo" 
           />
         </div>
@@ -395,7 +395,7 @@ function TokenDashboard() {
 
             {/* Logo above social button */}
             <div className="logo-above-socials">
-              <img src="/images/logo.png" alt="Logo" />
+              <img src="../images/logo.png" alt="Logo" />
             </div>
             
             {/* Social Button - added below pagination controls */}

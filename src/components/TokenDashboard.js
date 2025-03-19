@@ -293,7 +293,7 @@ function TokenDashboard() {
             {[...Array(Math.floor(monkeyCount / 2))].map((_, index) => (
               <img 
                 key={`left-${index}`} 
-                src="/images/7.png" 
+                src="https://i.postimg.cc/442Y1Byj/7.png" 
                 alt="Monkey divider" 
                 style={{ height: getMonkeyHeight() }}
               />
@@ -310,7 +310,7 @@ function TokenDashboard() {
             {[...Array(Math.floor(monkeyCount / 2))].map((_, index) => (
               <img 
                 key={`right-${index}`} 
-                src="/images/7.png" 
+                src="https://i.postimg.cc/442Y1Byj/7.png"
                 alt="Monkey divider" 
                 style={{ height: getMonkeyHeight() }}
               />

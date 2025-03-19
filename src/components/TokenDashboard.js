@@ -396,10 +396,8 @@ function TokenDashboard() {
 
             {/* Logo above social button */}
             <div className="logo-above-socials">
-              <img src="/images/logo.png" alt="Logo" />
-            </div>
-            
-            {/* Social Button - added below pagination controls */}
+            <img src="https://i.postimg.cc/mDgvXZqN/LOGO.png" alt="Logo" />
+                        {/* Social Button - added below pagination controls */}
             <div className="social-button-container">
               <a 
                 href="https://linktr.ee/kingofapesbase" 

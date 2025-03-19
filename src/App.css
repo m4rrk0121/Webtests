@@ -1182,3 +1182,258 @@ body.on-token-detail-page {
     font-size: 0.8rem;
   }
 }
+
+/* Height Responsiveness Improvements for 14-inch screens */
+
+/* Use viewport units for height-based elements */
+.static-top-section {
+  height: auto !important; /* Remove fixed height */
+  min-height: 80vh !important; /* Use viewport height instead of fixed pixels */
+  max-height: none !important; /* Allow content to determine height if needed */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Adjust token dashboard positioning */
+.token-dashboard {
+  padding-top: max(80px, 10vh) !important; /* Responsive padding based on viewport height */
+  padding-bottom: max(20px, 3vh) !important;
+}
+
+/* Make the top tokens section more compact */
+.top-tokens-section {
+  margin-bottom: clamp(150px, 25vh, 350px) !important; /* Responsive margin */
+}
+
+/* Adjust monkey divider scaling */
+.monkey-divider {
+  height: auto !important;
+  padding: 0 !important;
+  bottom: 0 !important;
+}
+
+.monkey-divider img {
+  height: clamp(120px, 20vh, 213px) !important; /* Responsive height based on viewport */
+  width: auto !important;
+}
+
+/* Optimize highlighted token cards */
+.token-card.highlight-card {
+  transform: scale(1.1) !important; /* Slightly smaller scale than original */
+  margin: 20px !important;
+}
+
+.token-card.highlight-card:hover {
+  transform: scale(1.1) !important; /* Keep consistent on hover */
+}
+
+/* Better spacing for different screen heights */
+@media screen and (max-height: 800px) {
+  .static-top-section {
+    min-height: 70vh !important; /* Smaller percentage on shorter screens */
+  }
+  
+  .monkey-divider img {
+    height: clamp(90px, 18vh, 160px) !important; /* Smaller monkeys */
+  }
+  
+  .top-tokens-section {
+    margin-bottom: 120px !important; /* Smaller fixed spacing */
+  }
+  
+  .top-tokens-titles {
+    gap: clamp(150px, 30vw, 400px) !important; /* Responsive gap */
+  }
+  
+  .top-tokens-grid {
+    gap: clamp(150px, 25vw, 350px) !important; /* Responsive gap */
+  }
+  
+  /* Optimize for laptop screens */
+  .token-card.highlight-card {
+    transform: scale(1) !important; /* No scaling on smaller heights */
+  }
+  
+  .token-card.highlight-card:hover {
+    transform: scale(1) !important;
+  }
+}
+
+/* For very short screens like 14-inch laptops */
+@media screen and (max-height: 700px) {
+  .static-top-section {
+    min-height: 60vh !important;
+  }
+  
+  .top-tokens-section {
+    margin-bottom: 80px !important;
+  }
+  
+  .logo-container img {
+    height: clamp(40px, 8vh, 60px) !important;
+  }
+  
+  .monkey-divider img {
+    height: clamp(70px, 15vh, 120px) !important;
+  }
+  
+  /* Adjust spacing between token cards and titles */
+  .top-tokens-titles {
+    margin-bottom: 10px !important;
+  }
+  
+  /* Make token cards more compact */
+  .token-card {
+    min-height: 0 !important;
+    padding: 10px !important;
+  }
+  
+  .token-card p {
+    margin: 4px 0 !important;
+  }
+}
+
+/* For extremely constrained heights */
+@media screen and (max-height: 600px) {
+  .static-top-section {
+    min-height: 50vh !important;
+  }
+  
+  .top-tokens-section {
+    margin-bottom: 50px !important;
+  }
+  
+  .token-dashboard {
+    padding-top: 60px !important;
+  }
+  
+  .monkey-divider {
+    display: none !important; /* Hide monkeys on very short screens */
+  }
+  
+  /* Minimal token card style */
+  .token-card h3 {
+    font-size: 1rem !important;
+    padding-bottom: 5px !important;
+    margin-top: 0 !important;
+    margin-bottom: 5px !important;
+  }
+  
+  .token-card p {
+    font-size: 0.8rem !important;
+    margin: 2px 0 !important;
+  }
+  
+  .token-card small {
+    margin-top: 5px !important;
+    font-size: 0.7rem !important;
+  }
+}
+
+/* Fix for Safari and some Chrome versions */
+html, body, #root, .app-container {
+  height: 100%;
+  min-height: 100%;
+  min-height: -webkit-fill-available;
+}
+
+/* Use this to diagnose height issues */
+.height-debug {
+  position: fixed;
+  top: 0;
+  right: 0;
+  background: rgba(255, 0, 0, 0.8);
+  color: white;
+  padding: 4px;
+  font-size: 12px;
+  z-index: 10000;
+}
+/* 
+ * Balanced CSS updates to fix the logo and sort buttons spacing
+ * (in between the previous two solutions)
+ */
+
+/* Adjust logo positioning to be slightly higher */
+.logo-container {
+  top: 15px !important; /* Not as high as last version, but higher than original */
+  z-index: 25 !important; /* Ensure logo stays on top */
+}
+
+.logo-container img {
+  height: 80px !important; /* Slightly reduced from 90px but larger than last version */
+  width: auto;
+}
+
+/* Create moderate space before the sort buttons */
+.token-dashboard {
+  padding-top: 160px !important; /* Between the 100px and 220px of previous versions */
+}
+
+/* Add a little extra space before the sorting controls */
+.sorting-controls {
+  margin-top: 10px !important;
+  margin-bottom: 40px !important;
+}
+
+/* Media queries for different screen heights */
+@media screen and (max-height: 800px) {
+  .token-dashboard {
+    padding-top: 140px !important;
+  }
+  
+  .logo-container img {
+    height: 70px !important;
+  }
+}
+
+@media screen and (max-height: 700px) {
+  .token-dashboard {
+    padding-top: 120px !important;
+  }
+  
+  .logo-container img {
+    height: 60px !important;
+  }
+  
+  .sorting-controls {
+    margin-top: 10px !important;
+    margin-bottom: 30px !important;
+  }
+}
+
+@media screen and (max-height: 600px) {
+  .token-dashboard {
+    padding-top: 100px !important;
+  }
+  
+  .logo-container img {
+    height: 50px !important;
+  }
+  
+  .sorting-controls {
+    margin-top: 5px !important;
+    margin-bottom: 25px !important;
+  }
+}
+
+/* Mobile and small screen adjustments */
+@media screen and (max-width: 768px) {
+  .token-dashboard {
+    padding-top: 140px !important; /* Between 120px and 170px */
+  }
+  
+  .logo-container img {
+    height: 70px !important;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .token-dashboard {
+    padding-top: 120px !important; /* Between 100px and 150px */
+  }
+  
+  .logo-container img {
+    height: 55px !important;
+  }
+}

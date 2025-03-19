@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // Theme Toggle Component
@@ -121,21 +121,52 @@ function TokenDashboard() {
   const [sortDirection, setSortDirection] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  // Track if we're on mobile for spacing
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  
+  // Enhanced screen dimensions tracking with height classes
+  const [screenDimensions, setScreenDimensions] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight
+  });
+  
+  // More granular height breakpoints for 14-inch screens
+  const isMobile = screenDimensions.width <= 768;
+  const isShortScreen = screenDimensions.height <= 800;
+  const isVeryShortScreen = screenDimensions.height <= 700; // Targeting 14-inch screens
+  const isExtremelyShortScreen = screenDimensions.height <= 600;
   
   // Banner text for scrolling banner
   const bannerText = "WELCOME TO THE JUNGLE • WELCOME TO THE JUNGLE • WELCOME TO THE JUNGLE • ";
 
-  // Check for mobile screen size on resize
+  // Check screen dimensions on resize
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
+      setScreenDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
     };
     
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Apply more specific height-based classes
+  useEffect(() => {
+    const appContainer = document.querySelector('.app-container');
+    if (appContainer) {
+      // Reset all height classes
+      appContainer.classList.remove('short-screen', 'very-short-screen', 'extremely-short-screen');
+      
+      // Apply appropriate class based on current height
+      if (isExtremelyShortScreen) {
+        appContainer.classList.add('extremely-short-screen');
+      } else if (isVeryShortScreen) {
+        appContainer.classList.add('very-short-screen');
+      } else if (isShortScreen) {
+        appContainer.classList.add('short-screen');
+      }
+    }
+  }, [isShortScreen, isVeryShortScreen, isExtremelyShortScreen]);
 
   const fetchGlobalTopTokens = useCallback(async () => {
     try {
@@ -189,8 +220,30 @@ function TokenDashboard() {
     }
   };
 
+  // Adjust monkey count based on screen dimensions
+  const getMonkeyCount = () => {
+    // First consider height constraints
+    if (isExtremelyShortScreen) return 0; // No monkeys on very small screens
+    if (isVeryShortScreen) return 2; // Fewer monkeys on 14-inch screens
+    
+    // Then consider width constraints
+    if (screenDimensions.width <= 576) return 3;
+    if (screenDimensions.width <= 768) return 4;
+    if (screenDimensions.width <= 992) return 5;
+    return 8; // Default for larger screens
+  };
+
+  const monkeyCount = getMonkeyCount();
+
+  // Get height-responsive styles for monkey images
+  const getMonkeyHeight = () => {
+    if (isVeryShortScreen) return '120px';
+    if (isShortScreen) return '160px';
+    return '213px'; // Default height
+  };
+
   return (
-    <div className="app-container">
+    <div className={`app-container ${isShortScreen ? 'short-screen' : ''} ${isVeryShortScreen ? 'very-short-screen' : ''} ${isExtremelyShortScreen ? 'extremely-short-screen' : ''}`}>
       {/* Theme Toggle Component */}
       <ThemeToggle />
 
@@ -235,31 +288,37 @@ function TokenDashboard() {
           )}
         </div>
 
-        {/* Monkey Divider with center monkeys removed */}
-        <div className="monkey-divider">
-          {/* First set of monkeys (left side) */}
-          {[...Array(4)].map((_, index) => (
-            <img 
-              key={`left-${index}`} 
-              src="/images/7.png" 
-              alt="Monkey divider" 
-            />
-          ))}
-          
-          {/* Empty space for the 4 center positions */}
-          {[...Array(4)].map((_, index) => (
-            <div key={`empty-${index}`} style={{ width: '213px' }}></div>
-          ))}
-          
-          {/* Second set of monkeys (right side) */}
-          {[...Array(4)].map((_, index) => (
-            <img 
-              key={`right-${index}`} 
-              src="/images/7.png" 
-              alt="Monkey divider" 
-            />
-          ))}
-        </div>
+        {/* Conditionally render monkey divider based on screen height */}
+        {monkeyCount > 0 && (
+          <div className="monkey-divider">
+            {/* First set of monkeys (left side) */}
+            {[...Array(Math.floor(monkeyCount / 2))].map((_, index) => (
+              <img 
+                key={`left-${index}`} 
+                src="/images/7.png" 
+                alt="Monkey divider" 
+                style={{ height: getMonkeyHeight() }}
+              />
+            ))}
+            
+            {/* Empty space for the center */}
+            {!isMobile && !isVeryShortScreen && (
+              [...Array(isShortScreen ? 2 : 4)].map((_, index) => (
+                <div key={`empty-${index}`} style={{ width: isShortScreen ? '100px' : '213px' }}></div>
+              ))
+            )}
+            
+            {/* Second set of monkeys (right side) */}
+            {[...Array(Math.floor(monkeyCount / 2))].map((_, index) => (
+              <img 
+                key={`right-${index}`} 
+                src="/images/7.png" 
+                alt="Monkey divider" 
+                style={{ height: getMonkeyHeight() }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="content-wrapper">

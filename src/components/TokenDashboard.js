@@ -251,8 +251,7 @@ function TokenDashboard() {
       <div className="static-top-section">
         {/* Logo positioned absolutely over the background */}
         <div className="logo-container">
-          <img 
-            <img src="https://i.postimg.cc/mDgvXZqN/LOGO.png" alt="Logo" />
+                      <img src="https://i.postimg.cc/mDgvXZqN/LOGO.png" alt="Logo" />
         </div>
 
         <div className="token-dashboard">

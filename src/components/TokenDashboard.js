@@ -1,7 +1,7 @@
 import axios from 'axios';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import logoImage from '../images/logo.png';
+
 
 // Theme Toggle Component
 const ThemeToggle = () => {
@@ -251,7 +251,9 @@ function TokenDashboard() {
       <div className="static-top-section">
         {/* Logo positioned absolutely over the background */}
         <div className="logo-container">
-        <img src={logoImage} alt="Logo" 
+          <img 
+            src="/images/logo.png" 
+            alt="Logo" 
           />
         </div>
 
@@ -394,7 +396,7 @@ function TokenDashboard() {
 
             {/* Logo above social button */}
             <div className="logo-above-socials">
-            <img src={logoImage} alt="Logo" />
+              <img src="/images/logo.png" alt="Logo" />
             </div>
             
             {/* Social Button - added below pagination controls */}

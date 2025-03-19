@@ -1,35 +1,186 @@
-body {
-  background-color: #fffae6; /* Light pastel yellow */
+@import url('https://fonts.googleapis.com/css2?family=Chewy&display=swap');
+
+/* Theme Toggle Styles */
+:root {
+  --background-primary: url('./images/background2.png') center/cover no-repeat, #ffdd8d;
+  --background-secondary: url('./images/background2.png') center/cover no-repeat, #000000;
+  --text-primary: #000000;
+  --text-secondary: #ffb300;
+}
+
+.dark-mode {
+  --background-primary: url('./images/background2.png') center/cover no-repeat, #000000;
+  --text-primary: #ffb300;
+  --text-secondary: #ffffff;
+}
+
+.content-wrapper {
+  background: var(--background-primary);
+  background-blend-mode: overlay;
+  color: var(--text-primary);
+}
+
+.theme-toggle-button {
+  background-color: #ffb300;
+  color: #000000;
+  font-family: 'Chewy', cursive;
+  font-size: 0.9rem;
+  font-weight: bold;
+  padding: 8px 16px;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.theme-toggle-button:hover {
+  background-color: #e6a200;
+  transform: scale(1.05);
+  box-shadow: 0 3px 7px rgba(0,0,0,0.2);
+}
+
+/* Dark mode additional theme-specific adjustments */
+.dark-mode .token-card {
+  background-color: #1a1a1a;
+  border-color: #ffb300;
+}
+
+.dark-mode .token-card h3 {
+  color: #ffb300;
+  border-bottom-color: #ffb300;
+}
+
+.dark-mode .token-card p,
+.dark-mode .token-card small {
+  color: #ffb300;
+}
+
+.dark-mode .sorting-controls button {
+  background-color: #ffb300;
+  color: #000000;
+}
+
+.dark-mode .sorting-controls button:hover {
+  background-color: #666666;
+}
+
+html, body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  padding: 0;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+#root, .app-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+body {
+  /* Removed the background-image from body */
+  font-family: 'Chewy', cursive;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.static-top-section {
+  width: 100%;
+  height: 87vh;
+  background: 
+    url('./images/jungle-background.png') center/cover no-repeat,
+    rgba(0, 0, 0, 0.7);
+  background-blend-mode: none;
+  position: relative;
+  z-index: 10;
+  margin-bottom: 0px; /* Add space for the monkey divider */
+}
+
+/* Logo positioning with absolute placement */
+.logo-container {
+  position: absolute;
+  top: 30px; /* Positioned higher up on the page */
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  z-index: 20;
+  background: transparent;
+}
+
+.logo-container img {
+  height: 90px; /* Slightly larger logo */
+  width: auto;
+}
+
+.monkey-divider {
+  position: absolute;
+  bottom: 0;  /* Position at the bottom of the static-top-section */
+  left: 0;
+  width: 100%;
+  height: 100px;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: flex-end; /* Align to bottom */
+  z-index: 15;
+}
+
+.monkey-divider img {
+  height: 213px;  /* Size from your updated code */
+  width: auto;
+}
+
+.content-wrapper {
+  flex-grow: 1;
+  overflow-y: auto;
+  background: 
+    url('./images/background2.png') center/cover no-repeat,
+    #fee495; /* Your updated gold color */
+  background-blend-mode: overlay;
+  position: relative;
+  z-index: 5;
+  padding-top: 0; /* Changed from 60px to 0 to allow banner at the top */
 }
 
 .token-dashboard {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding-top: 160px; /* Increased top padding to make room for logo */
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-bottom: 50px;
+  position: relative;
 }
 
 .token-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr)); /* 4 columns */
+  grid-template-rows: repeat(5, auto); /* 5 rows */
   gap: 20px;
+  padding: 0 200px;
+  margin-top: 60px; /* Space below banner */
+  margin-bottom: 0; /* Remove bottom margin completely */
 }
 
+
 .token-card {
-  border: 5px solid #f1c40f; /* Bright yellow border */
+  border: 3px solid #ffb300;
   border-radius: 8px;
   padding: 15px;
-  background-color: #2dbded;
+  background-color: #0a0a0a;
   box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   display: flex;
   flex-direction: column;
   position: relative;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  min-height: 200px;
 }
 
 .token-card:hover {
@@ -39,47 +190,64 @@ body {
 
 .token-card h3 {
   margin-top: 0;
-  color: #333;
-  border-bottom: 1px solid #057af8;
+  color: #ffb300;
+  border-bottom: 1px solid #ffb300;
   padding-bottom: 10px;
+  font-family: 'Chewy', cursive;
 }
+
+
+
+/* Update these styles in your CSS file */
 
 .token-card p {
   margin: 8px 0;
   display: flex;
   justify-content: space-between;
+  font-family: 'Chewy', cursive;
+  color: #ffb300;
+  font-size: 70%; /* Reduced by 30% from default size */
+}
+
+/* Also ensure any value text matches the reduced size */
+.token-card p span {
+  color: #ffb300;
+  font-size: 100%; /* 100% of parent, which is already reduced */
 }
 
 .token-card small {
   margin-top: auto;
-  font-size: 0.7em;
-  color: #000000;
+  font-size: 0.9em;
+  color: #ffb300;
   word-break: break-all;
+  font-family: 'Chewy', cursive;
 }
 
+/* Sorting controls with balanced spacing */
 .sorting-controls {
   display: flex;
   justify-content: center;
-  margin-bottom: 20px;
+  margin-bottom: 40px; /* Increased for better visual hierarchy */
 }
 
 .sorting-controls button {
   margin: 0 10px;
   padding: 8px 16px;
-  background-color: #f0f0f0;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  background-color: #ffb300;
+  border: 1px solid #ffb300;
+  border-radius: 3px;
   cursor: pointer;
   transition: background-color 0.3s ease;
+  font-family: 'Chewy', cursive;
 }
 
 .sorting-controls button.active {
-  background-color: #e0e0e0;
+  background-color: #ffb300;
   font-weight: bold;
 }
 
 .sorting-controls button:hover {
-  background-color: #e0e0e0;
+  background-color: #666666;
 }
 
 .loading-overlay {
@@ -88,7 +256,7 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(131, 131, 131, 0.7);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -96,8 +264,8 @@ body {
 }
 
 .loading-spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
+  border: 4px solid #000000;
+  border-top: 4px solid #ffb300;
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -110,38 +278,146 @@ body {
 }
 
 .top-tokens-section {
-  margin-bottom: 70px;
-  max-width: 793px;
-  margin-left: 200px;
-  
+  margin-bottom: 350px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
+/* Updated Top Tokens Titles Spacing */
 .top-tokens-titles {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 565px; /* Match the same gap as the token cards for perfect alignment */
+  width: 100%;
+  margin-bottom: 20px; /* Slightly increased spacing below titles */
 }
 
 .top-token-title {
   text-align: center;
-  color: #333;
+  color: #ffb300;
   font-size: 1.5rem;
   font-weight: bold;
+  width: 240px; /* Increased width to accommodate longer titles */
+  font-family: 'Chewy', cursive;
 }
 
+/* Updated Top Tokens Grid Spacing */
 .top-tokens-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 430px; /* Increased from 50px for more spacing between token cards */
+  width: 100%;
 }
 
+/* Increased size for highlight cards by 20% */
 .token-card.highlight-card {
-  border: 5px solid #27ae60; /* Green border for highlighted cards */
-  background-color: #f0f9f0; /* Light green background */
+  border: 5px solid #ffb300;
+  background-color: #0a0a0a;
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  height: 100%; /* Ensure consistent height */
+  height: 100%;
+  transform: scale(1.2); /* Added 20% size increase */
+  margin: 30px; /* Added margin to prevent overlap after scaling */
 }
+
+/* Prevent hover scaling for highlighted cards since they're already scaled */
+.token-card.highlight-card:hover {
+  transform: scale(1.2);
+}
+
+.token-card-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.dexscreener-link {
+  display: inline-block;
+  padding: 6px 12px;
+  background-color: #ffb300;
+  color: rgb(0, 0, 0);
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+  font-family: 'Chewy', cursive;
+}
+
+.dexscreener-link:hover {
+  background-color: #ffb300;
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 0; /* Remove top margin completely */
+  margin-bottom: 30px; 
+  padding-bottom: 20px;
+  gap: 10px;
+}
+
+.pagination-controls button {
+  padding: 8px 12px;
+  background-color: #ffb300;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Chewy', cursive;
+}
+
+.pagination-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.page-info {
+  margin: 0 10px;
+  font-family: 'Chewy', cursive;
+}
+
+/* FIXED: Added missing period to token-detail-page class selector */
+.token-detail-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Chewy', cursive;
+  color: #ffb300;
+  background-color: #000000 !important;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
+
+.token-detail-header {
+  margin-bottom: 20px;
+}
+
+.token-details-summary {
+  display: flex;
+  justify-content: space-between;
+  background-color: #ffb300;
+  padding: 10px;
+  border-radius: 5px;
+  font-family: 'Chewy', cursive;
+}
+
+.token-chart-container {
+  width: 80%;
+  height:700px;
+}
+
+.token-card {
+  transition: transform 0.2s;
+}
+
+.token-card:hover {
+  transform: scale(1.03);
+}
+
 .loading-overlay {
   position: fixed;
   top: 0;
@@ -157,89 +433,747 @@ body {
 
 .loading-spinner {
   border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
+  border-top: 4px solid #ffb300;
   border-radius: 50%;
   width: 40px;
   height: 40px;
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-.token-card-actions {
-  margin-top: 10px;
-  display: flex;
-  justify-content: center;
+/* Updated Scrolling Banner Styles */
+.scrolling-banner-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background-color: #121212;
+  border-top: 3px solid #ffb300;
+  border-bottom: 3px solid #ffb300;
+  z-index: 100;
+  top: 0;
+  margin-top: 0;
+  margin-bottom: 20px;
 }
 
-.dexscreener-link {
+.scrolling-banner {
+  width: 100%;
+  overflow: hidden;
+}
+
+.scrolling-banner-content {
   display: inline-block;
-  padding: 6px 12px;
-  background-color: #1890ff;
-  color: white;
-  text-decoration: none;
-  border-radius: 4px;
-  transition: background-color 0.3s ease;
+  white-space: nowrap;
+  padding-left: 100%;
+  animation: scrollBanner 70s linear infinite;
+  color: #ffb300;
+  font-family: 'Chewy', cursive;
+  font-size: 2.2rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  line-height: 70px;
 }
 
-.dexscreener-link:hover {
-  background-color: #40a9ff;
-}
-
-.pagination-controls {
+.social-button-container {
   display: flex;
   justify-content: center;
-  align-items: center;
-  margin-top: 20px;
-  gap: 10px;
+  margin-top: 140px; /* Moved up by 50px */
+  margin-bottom: 20px;
+  width: 100%;
 }
 
-.pagination-controls button {
-  padding: 8px 12px;
-  background-color: #f0f0f0;
-  border: 1px solid #ddd;
+.social-button {
+  background-color: #ffb300;
+  color: #000000;
+  font-family: 'Chewy', cursive;
+  font-size: 0.9rem;
+  font-weight: bold;
+  padding: 8px 16px;
+  border: 1px solid #000000;
   border-radius: 4px;
   cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background-color 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-.pagination-controls button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
+.social-button:hover {
+  background-color: #e6a200;
+  transform: scale(1.05);
+  box-shadow: 0 3px 7px rgba(0,0,0,0.2);
+}
+.logo-above-socials {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  height: auto;
+  margin: -90px 0; /* Reduced space around logo by 70% */
+  padding: 0;
+  position: relative;
+  z-index: 11;
 }
 
-.page-info {
-  margin: 0 10px;
+.logo-above-socials img {
+  height: 49px; /* Increased by 40% from previous mobile sizes */
+  width: auto;
 }
 
+@keyframes scrollBanner {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+/* Responsive adjustments for logo above socials */
+@media screen and (max-width: 768px) {
+  .logo-above-socials {
+    position: relative;
+    top: -40px;
+    margin: -70px 0;
+  }
+}
+
+/* Mobile adjustments for social button container */
+@media screen and (max-width: 768px) {
+  .social-button-container {
+    display: flex;
+    justify-content: center;
+    margin-top: -160px; /* Moved up by 50px only on mobile */
+    margin-bottom: 20px;
+    width: 100%;
+  }
+}
+@media screen and (max-width: 576px) {
+  .logo-above-socials {
+    top: -150px;
+    margin: -70px 0;
+  }
+  
+  .logo-above-socials img {
+    height: 49px;
+  }
+}
+
+@media screen and (max-width: 380px) {
+  .logo-above-socials {
+    top: -100px;
+    margin: -70px 0;
+  }
+  
+  .logo-above-socials img {
+    height: 42px;
+  }
+}
+
+/* Large tablets and smaller desktops */
+@media screen and (max-width: 1200px) {
+  .token-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    padding: 0 40px !important;
+  }
+  
+  .top-tokens-titles {
+    gap: 300px !important;
+  }
+  
+  .top-tokens-grid {
+    gap: 300px !important;
+  }
+}
+
+/* Medium tablets */
+@media screen and (max-width: 992px) {
+  .token-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    padding: 0 30px !important;
+  }
+  
+  .top-tokens-titles {
+    gap: 200px !important;
+  }
+  
+  .top-tokens-grid {
+    gap: 200px !important;
+  }
+  
+  .scrolling-banner-content {
+    font-size: 1.2rem !important;
+    line-height: 60px !important;
+  }
+  
+  .token-card.highlight-card {
+    transform: scale(1.1) !important;
+    margin: 15px !important;
+  }
+  
+  .token-card.highlight-card:hover {
+    transform: scale(1.1) !important;
+  }
+  
+  .sorting-controls {
+    flex-wrap: wrap !important;
+  }
+  
+  .sorting-controls button {
+    margin: 5px !important;
+  }
+}
+
+/* Mobile adjustments */
+@media screen and (max-width: 768px) {
+  .logo-above-socials {
+    position: relative;
+    top: -65px;
+    margin-bottom: -40px;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .logo-above-socials {
+    top: -200px;
+    margin-bottom: -40px;
+  }
+  
+  .logo-above-socials img {
+    height: 35px;
+  }
+}
+
+@media screen and (max-width: 380px) {
+  .logo-above-socials {
+    top: -122px;
+  }
+  
+  .logo-above-socials img {
+    height: 30px;
+  }
+}
+
+/* Small tablets and large smartphones */
+@media screen and (max-width: 768px) {
+  /* Token grid spacing adjustment for tablets */
+  .token-grid {
+    margin-bottom: 0 !important; /* No bottom margin */
+  }
+  
+  /* Pagination spacing adjustment for tablets */
+  .pagination-controls {
+    margin-top: 0 !important; /* No top margin */
+  }
+
+  /* Add black overlay to top background section on mobile */
+  .static-top-section::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.3); /* 30% opacity black (changed from 0.2) */
+    z-index: 1; /* Above the background but below other elements */
+    pointer-events: none; /* Allow clicks to pass through */
+  }
+  
+  /* Make sure content appears above the overlay */
+  .logo-container {
+    z-index: 21 !important; /* Above the overlay */
+  }
+  
+  .token-dashboard {
+    position: relative;
+    z-index: 11 !important; /* Above the overlay */
+  }
+  
+  .monkey-divider {
+    z-index: 16 !important; /* Above the overlay */
+  }
+  
+  /* Existing mobile styles with adjustments */
+  .static-top-section {
+    height: auto !important; 
+    min-height:90vh !important; /* Reduced from 70vh */
+    padding-bottom: 10px !important; /* Add some padding at bottom */
+  }
+  
+  .logo-container img {
+    height: 80px !important;
+  }
+  
+  /* Move top tokens section closer together */
+  .top-tokens-section {
+    margin-bottom: 90px !important; /* Further reduced from 90px */
+    position: relative !important;
+  }
+  
+  /* Update title alignment and spacing */
+  .top-tokens-titles {
+    display: none !important; /* Hide the original titles container */
+  }
+  
+  /* Add visible titles directly into the grid section */
+  .top-tokens-grid {
+    flex-direction: column !important;
+    gap: 60px !important; /* Reduced from 200px */
+    align-items: center !important;
+    margin-top: 50px !important; /* Space from the top */
+    position: relative !important;
+  }
+  
+  /* Add pseudo-elements for the titles */
+  .top-tokens-grid .token-card.highlight-card:first-child::before {
+    content: "KING OF THE MOUNTAIN";
+    display: block !important;
+    position: absolute !important;
+    top: -40px !important; /* Moved closer to card */
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    text-align: center !important;
+    color: #ffb300 !important;
+    font-family: 'Chewy', cursive !important;
+    font-size: 1.5rem !important;
+    font-weight: bold !important;
+    width: 100% !important;
+    z-index: 3 !important; /* Ensure it's above the overlay */
+  }
+  
+  .top-tokens-grid .token-card.highlight-card:last-child::before {
+    content: "KING OF THE JUNGLE";
+    display: block !important;
+    position: absolute !important;
+    top: -40px !important; /* Moved closer to card */
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    text-align: center !important;
+    color: #ffb300 !important;
+    font-family: 'Chewy', cursive !important;
+    font-size: 1.5rem !important;
+    font-weight: bold !important;
+    width: 100% !important;
+    z-index: 3 !important; /* Ensure it's above the overlay */
+  }
+  
+  /* Make the token cards slightly smaller on mobile */
+  .token-card.highlight-card {
+    transform: scale(0.9) !important;
+    width: 88% !important;
+    max-width: 320px !important;
+    margin: 0 auto !important;
+    position: relative !important; /* Ensure position for pseudo-elements */
+    z-index: 2 !important; /* Ensure it's above the overlay */
+  }
+  
+  .token-card.highlight-card:hover {
+    transform: scale(0.9) !important;
+  }
+  
+  /* Make token dashboard more compact */
+  .token-dashboard {
+    padding-top: 120px !important;
+    padding-bottom: 0px !important;
+  }
+  
+  /* Make the monkey divider more compact */
+  .monkey-divider {
+    height: 105px !important;
+  }
+  
+  .monkey-divider img {
+    height: 160px !important;
+  }
+  
+  .monkey-divider img:nth-child(n+5) {
+    display: none !important;
+  }
+  
+  /* Mobile spacer */
+  .mobile-spacer {
+    display: block !important;
+    height: 80px !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: transparent !important;
+  }
+  
+  /* Completely redesigned chart container for mobile */
+  .token-chart-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 400px !important;
+    margin: 10px 0 !important;
+    padding: 5px !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    border-width: 2px !important; /* Thinner border on mobile */
+  }
+  
+  /* Force the iframe to fit properly */
+  .token-chart-container iframe {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    border: none !important;
+    overflow: hidden !important;
+    display: block !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* Ensure the token detail page has proper layout */
+  .token-detail-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 10px !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+  
+  /* Make sure content doesn't overflow on mobile */
+  .token-detail-header,
+  .token-details-summary {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    word-break: break-word !important;
+  }
+  
+  .token-details-summary {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .token-links {
+    justify-content: center;
+  }
+  
+  /* Extra adjustments for portrait orientation */
+  @supports (orientation: portrait) {
+    .token-chart-container {
+      width: 100vw !important;
+      margin-left: -10px !important;
+      margin-right: -10px !important;
+      border-left: none !important;
+      border-right: none !important;
+      border-radius: 0 !important;
+    }
+  }
+  
+  /* Add additional space for pagination controls on mobile */
+  .pagination-controls {
+    margin-top: 80px !important; /* More space on mobile devices */
+    margin-bottom: 80px !important;
+  }
+}
+
+/* Smartphones */
+@media screen and (max-width: 576px) {
+  .token-grid {
+    grid-template-columns: 1fr !important;
+    padding: 0 20px !important;
+    margin-bottom: 0 !important; /* No bottom margin */
+  }
+  
+  .logo-container img {
+    height: 60px !important;
+  }
+  
+  .token-dashboard {
+    padding-top: 100px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+  
+  .sorting-controls {
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+  
+  .sorting-controls button {
+    width: 100% !important;
+    max-width: 250px !important;
+    margin: 5px 0 !important;
+  }
+  
+  .scrolling-banner-content {
+    font-size: 1rem !important; 
+    line-height: 50px !important;
+  }
+  
+  .pagination-controls {
+    flex-wrap: wrap !important;
+    gap: 5px !important;
+    margin-top: 0 !important; /* No top margin */
+    position: relative !important;
+    top: -110px !important; /* Pull pagination controls up */
+  }
+  
+  .pagination-controls button {
+    padding: 6px 8px !important;
+    font-size: 0.9rem !important;
+  }
+  
+  .monkey-divider {
+    justify-content: center !important;
+  }
+  
+  .monkey-divider img:nth-child(n+4) {
+    display: none !important;
+  }
+  
+  .token-card {
+    min-height: 180px !important;
+    padding: 12px !important;
+  }
+  
+  .token-card h3 {
+    font-size: 1.2rem !important;
+    padding-bottom: 8px !important;
+  }
+  
+  /* Additional chart adjustments for small screens */
+  .token-chart-container {
+    height: 350px !important;
+  }
+}
+
+/* Extra small devices */
+@media screen and (max-width: 380px) {
+  .logo-container img {
+    height: 50px !important;
+  }
+  
+  .token-dashboard {
+    padding-top: 80px !important;
+  }
+  
+  .scrolling-banner-content {
+    font-size: 0.9rem !important;
+    line-height: 40px !important;
+  }
+  
+  .pagination-controls button:nth-child(1),
+  .pagination-controls button:nth-child(4) {
+    display: none !important;
+  }
+  
+  /* Minimal spacing on very small screens */
+  .pagination-controls {
+    margin-top: 0 !important; /* No top margin */
+    margin-bottom: 30px !important;
+    position: relative !important;
+    top: -30px !important; /* Pull controls up even more on smallest screens */
+  }
+  
+  /* Even smaller chart for tiny screens */
+  .token-chart-container {
+    height: 300px !important;
+  }
+  
+  /* More spacing for the smallest screens */
+  .top-tokens-section {
+    margin-bottom: 280px !important;
+  }
+  
+  /* Reduce scaling even more on tiny screens to ensure fit */
+  .token-card.highlight-card {
+    transform: scale(0.85) !important;
+  }
+  
+  .token-card.highlight-card:hover {
+    transform: scale(0.85) !important;
+  }
+  
+  /* Add an extra-large bottom spacer for the smallest screens */
+  .content-wrapper::after {
+    content: "";
+    display: block;
+    height: 150px;
+    width: 100%;
+  }
+}
+
+/* Additional debug styles - add temporarily to troubleshoot */
+.debug-responsive:after {
+  content: "Original";
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: red;
+  color: white;
+  padding: 5px;
+  z-index: 9999;
+}
+
+@media screen and (max-width: 1200px) {
+  .debug-responsive:after { content: "Desktop (<1200px)"; }
+}
+
+@media screen and (max-width: 992px) {
+  .debug-responsive:after { content: "Tablet (<992px)"; }
+}
+
+@media screen and (max-width: 768px) {
+  .debug-responsive:after { content: "Small Tablet (<768px)"; }
+}
+
+@media screen and (max-width: 576px) {
+  .debug-responsive:after { content: "Mobile (<576px)"; }
+}
+
+@media screen and (max-width: 380px) {
+  .debug-responsive:after { content: "Small Mobile (<380px)"; }
+}
+/* Token Detail Page Styles - Add to the end of your CSS file */
 .token-detail-page {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  font-family: 'Chewy', cursive;
+  color: #ffb300;
+  background-color: #000000 !important;
 }
 
 .token-detail-header {
   margin-bottom: 20px;
+  background-color: #121212;
+  border: 3px solid #ffb300;
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.token-detail-title {
+  color: #ffb300;
+  font-size: 2rem;
+  margin-top: 0;
+  border-bottom: 1px solid #ffb300;
+  padding-bottom: 10px;
 }
 
 .token-details-summary {
   display: flex;
   justify-content: space-between;
-  background-color: #f4f4f4;
-  padding: 10px;
-  border-radius: 5px;
+  background-color: #000000;
+  border: 3px solid #ffb300;
+  padding: 15px;
+  border-radius: 8px;
+  font-family: 'Chewy', cursive;
+  color: #ffb300;
+  margin-bottom: 20px;
+}
+
+.token-detail-data {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.token-detail-label {
+  font-weight: bold;
+  font-size: 1.2rem;
+}
+
+.token-detail-value {
+  font-size: 1.1rem;
 }
 
 .token-chart-container {
   width: 100%;
   height: 800px;
+  background-color: #000000;
+  border: 3px solid #ffb300;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
 }
 
-.token-card {
-  transition: transform 0.2s;
+.chart-title {
+  color: #ffb300;
+  font-size: 1.8rem;
+  margin-top: 0;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #ffb300;
+  padding-bottom: 10px;
 }
 
-.token-card:hover {
-  transform: scale(1.03);
+.back-button {
+  background-color: #ffb300;
+  color: #000000;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-family: 'Chewy', cursive;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.back-button:hover {
+  background-color: #e6a200;
+}
+
+.token-links {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.token-link {
+  background-color: #ffb300;
+  color: #000000;
+  padding: 10px 20px;
+  border-radius: 5px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.token-link:hover {
+  background-color: #e6a200;
+}
+
+/* Make sure the token detail page has the scrolling banner */
+.token-detail-page .scrolling-banner-container {
+  margin-bottom: 20px;
+}
+
+/* New background overrides specifically for token detail page */
+body.on-token-detail-page {
+  background-color: #000000 !important;
+  background-image: none !important;
+}
+
+.content-wrapper.on-token-detail-page {
+  background-color: #000000 !important;
+  background-image: none !important;
+}
+
+.token-detail-page-container {
+  background-color: #000000 !important;
+  min-height: 100vh;
+}
+
+/* Full viewport black background */
+.token-detail-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #000000;
+  z-index: -1;
+}
+
+/* Responsive adjustments for theme toggle */
+@media screen and (max-width: 768px) {
+  .theme-toggle-button {
+    bottom: 10px;
+    right: 10px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
 }

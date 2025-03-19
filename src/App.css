@@ -368,6 +368,7 @@ body {
   padding: 8px 12px;
   background-color: #ffb300;
   border: 1px solid #000000;
+  color: #000000;
   border-radius: 4px;
   cursor: pointer;
   font-family: 'Chewy', cursive;
@@ -375,11 +376,13 @@ body {
 
 .pagination-controls button:disabled {
   cursor: not-allowed;
+  color: #000000;
   opacity: 0.6;
 }
 
 .page-info {
   margin: 0 10px;
+  color: #000000;
   font-family: 'Chewy', cursive;
 }
 

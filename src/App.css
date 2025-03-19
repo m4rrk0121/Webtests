@@ -357,6 +357,7 @@ body {
 .pagination-controls {
   display: flex;
   justify-content: center;
+  color: #000000;
   align-items: center;
   margin-top: 0; /* Remove top margin completely */
   margin-bottom: 30px; 
@@ -483,6 +484,7 @@ body {
   display: flex;
   justify-content: center;
   margin-top: 50px; /* Moved up by 50px */
+  
   margin-bottom: 50px;
   width: 100%;
 }
@@ -875,6 +877,7 @@ body {
   /* Add additional space for pagination controls on mobile */
   .pagination-controls {
     margin-top: 80px !important; /* More space on mobile devices */
+    color: #000000;
     margin-bottom: 80px !important;
   }
 }
@@ -923,6 +926,7 @@ body {
   
   .pagination-controls button {
     padding: 6px 8px !important;
+    color: #000000;
     font-size: 0.9rem !important;
   }
   
@@ -973,6 +977,7 @@ body {
   /* Minimal spacing on very small screens */
   .pagination-controls {
     margin-top: 0 !important; /* No top margin */
+    color: #000000;
     margin-bottom: 30px !important;
     position: relative !important;
     top: -30px !important; /* Pull controls up even more on smallest screens */

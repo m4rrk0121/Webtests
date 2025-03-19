@@ -14,10 +14,9 @@
   --text-secondary: #ffffff;
 }
 
-.content-wrapper {
-  background: var(--background-primary);
-  background-blend-mode: overlay;
-  color: var(--text-primary);
+.dark-mode .content-wrapper {
+  background-color: #000000;
+  color: #ffb300;
 }
 
 .theme-toggle-button {
@@ -475,8 +474,8 @@ body {
 .social-button-container {
   display: flex;
   justify-content: center;
-  margin-top: 140px; /* Moved up by 50px */
-  margin-bottom: 20px;
+  margin-top: 50px; /* Moved up by 50px */
+  margin-bottom: 50px;
   width: 100%;
 }
 
@@ -506,14 +505,15 @@ body {
   justify-content: center;
   width: 100%;
   height: auto;
-  margin: -90px 0; /* Reduced space around logo by 70% */
+  margin: -10px 0; /* Reduced from -90px to move it down */
   padding: 0;
   position: relative;
   z-index: 11;
 }
 
+
 .logo-above-socials img {
-  height: 49px; /* Increased by 40% from previous mobile sizes */
+  height: 60px; /* Increased by 40% from previous mobile sizes */
   width: auto;
 }
 
@@ -526,44 +526,49 @@ body {
   }
 }
 
-/* Responsive adjustments for logo above socials */
+/* Mobile adjustments for logo and social button */
 @media screen and (max-width: 768px) {
   .logo-above-socials {
     position: relative;
-    top: -40px;
-    margin: -70px 0;
+    top: -70px; /* Significantly moved up */
+    margin-bottom: -40px;
+    z-index: 12; /* Ensure it's above other elements */
+  }
+
+  .social-button-container {
+    margin-top: -40px; /* Pull social button up to compensate */
+    position: relative;
+    z-index: 11;
   }
 }
 
-/* Mobile adjustments for social button container */
-@media screen and (max-width: 768px) {
-  .social-button-container {
-    display: flex;
-    justify-content: center;
-    margin-top: -160px; /* Moved up by 50px only on mobile */
-    margin-bottom: 20px;
-    width: 100%;
-  }
-}
 @media screen and (max-width: 576px) {
   .logo-above-socials {
-    top: -150px;
-    margin: -70px 0;
+    top: -200px; /* More aggressive move for smaller screens */
+    margin-bottom: -40px;
   }
-  
+
   .logo-above-socials img {
-    height: 49px;
+    height: 35px;
+  }
+
+  .social-button-container {
+    margin-top: -80px; /* Further adjustment for smaller screens */
   }
 }
 
 @media screen and (max-width: 380px) {
   .logo-above-socials {
-    top: -100px;
-    margin: -70px 0;
+    top: -150px; /* Adjusted for smallest screens */
+    margin-bottom: -40px;
   }
   
   .logo-above-socials img {
-    height: 42px;
+    height: 30px;
+  }
+
+  .social-button-container {
+    margin-top: -100px; /* Even more pull-up for smallest screens */
   }
 }
 
@@ -625,25 +630,25 @@ body {
 @media screen and (max-width: 768px) {
   .logo-above-socials {
     position: relative;
-    top: -65px;
+    top: -75px;
     margin-bottom: -40px;
   }
 }
 
 @media screen and (max-width: 576px) {
   .logo-above-socials {
-    top: -200px;
+    top: -180px;
     margin-bottom: -40px;
   }
   
   .logo-above-socials img {
-    height: 35px;
+    height: 55px;
   }
 }
 
 @media screen and (max-width: 380px) {
   .logo-above-socials {
-    top: -122px;
+    top: -22px;
   }
   
   .logo-above-socials img {

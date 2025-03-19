@@ -1,8 +1,52 @@
-import axios from 'axios';
 import React, { useCallback, useEffect, useState } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
+// Theme Toggle Component
+const ThemeToggle = () => {
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
+  // Effect to apply theme class to body and content-wrapper
+  useEffect(() => {
+    const contentWrapper = document.querySelector('.content-wrapper');
+    
+    if (isDarkMode) {
+      document.body.classList.add('dark-mode');
+      if (contentWrapper) contentWrapper.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+      if (contentWrapper) contentWrapper.classList.remove('dark-mode');
+    }
+  }, [isDarkMode]);
+
+  // Toggle theme function
+  const toggleTheme = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    
+    // Save preference in localStorage
+    localStorage.setItem('theme', newMode ? 'dark' : 'light');
+  };
+
+  // Check for saved theme preference on component mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      setIsDarkMode(true);
+    }
+  }, []);
+
+  return (
+    <button 
+      className="theme-toggle-button" 
+      onClick={toggleTheme}
+    >
+      {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+    </button>
+  );
+};
+
+// Currency Formatting Utility
 const formatCurrency = (value) => {
   if (value === null || value === undefined) return 'N/A';
   
@@ -28,6 +72,7 @@ const formatCurrency = (value) => {
   }
 };
 
+// Token Card Component
 function TokenCard({ token, highlight = false }) {
   const navigate = useNavigate();
   const dexScreenerLink = `https://dexscreener.com/base/${token.contractAddress}`;
@@ -65,6 +110,7 @@ function TokenCard({ token, highlight = false }) {
   );
 }
 
+// Main Token Dashboard Component
 function TokenDashboard() {
   const [tokens, setTokens] = useState([]);
   const [highestMarketCapToken, setHighestMarketCapToken] = useState(null);
@@ -145,6 +191,9 @@ function TokenDashboard() {
 
   return (
     <div className="app-container">
+      {/* Theme Toggle Component */}
+      <ThemeToggle />
+
       <div className="static-top-section">
         {/* Logo positioned absolutely over the background */}
         <div className="logo-container">
@@ -222,9 +271,7 @@ function TokenDashboard() {
             </div>
           </div>
         </div>
-        
 
-        
         {loading && tokens.length > 0 ? (
           <div className="loading-overlay">
             <div className="loading-spinner"></div>
@@ -251,7 +298,7 @@ function TokenDashboard() {
               <div style={{ height: '80px', width: '100%' }}></div>
             )}
 
-            {/* Pagination Controls with increased margin for mobile */}
+            {/* Pagination Controls */}
             <div 
               className="pagination-controls"
               style={{ 
@@ -287,15 +334,10 @@ function TokenDashboard() {
               </button>
             </div>
 
-            {/* Pagination Controls */}
-<div className="pagination-controls" style={{ marginTop: isMobile ? '80px' : '20px' }}>
-  {/* Your pagination buttons */}
-</div>
-
-{/* Logo above social button */}
-<div className="logo-above-socials">
-  <img src="/images/logo.png" alt="Logo" />
-</div>
+            {/* Logo above social button */}
+            <div className="logo-above-socials">
+              <img src="/images/logo.png" alt="Logo" />
+            </div>
             
             {/* Social Button - added below pagination controls */}
             <div className="social-button-container">
@@ -314,7 +356,5 @@ function TokenDashboard() {
     </div>
   );
 }
-
-
 
 export default TokenDashboard;

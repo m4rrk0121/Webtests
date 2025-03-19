@@ -1349,3 +1349,91 @@ html, body, #root, .app-container {
   font-size: 12px;
   z-index: 10000;
 }
+/* 
+ * Balanced CSS updates to fix the logo and sort buttons spacing
+ * (in between the previous two solutions)
+ */
+
+/* Adjust logo positioning to be slightly higher */
+.logo-container {
+  top: 15px !important; /* Not as high as last version, but higher than original */
+  z-index: 25 !important; /* Ensure logo stays on top */
+}
+
+.logo-container img {
+  height: 80px !important; /* Slightly reduced from 90px but larger than last version */
+  width: auto;
+}
+
+/* Create moderate space before the sort buttons */
+.token-dashboard {
+  padding-top: 160px !important; /* Between the 100px and 220px of previous versions */
+}
+
+/* Add a little extra space before the sorting controls */
+.sorting-controls {
+  margin-top: 10px !important;
+  margin-bottom: 40px !important;
+}
+
+/* Media queries for different screen heights */
+@media screen and (max-height: 800px) {
+  .token-dashboard {
+    padding-top: 140px !important;
+  }
+  
+  .logo-container img {
+    height: 70px !important;
+  }
+}
+
+@media screen and (max-height: 700px) {
+  .token-dashboard {
+    padding-top: 120px !important;
+  }
+  
+  .logo-container img {
+    height: 60px !important;
+  }
+  
+  .sorting-controls {
+    margin-top: 10px !important;
+    margin-bottom: 30px !important;
+  }
+}
+
+@media screen and (max-height: 600px) {
+  .token-dashboard {
+    padding-top: 100px !important;
+  }
+  
+  .logo-container img {
+    height: 50px !important;
+  }
+  
+  .sorting-controls {
+    margin-top: 5px !important;
+    margin-bottom: 25px !important;
+  }
+}
+
+/* Mobile and small screen adjustments */
+@media screen and (max-width: 768px) {
+  .token-dashboard {
+    padding-top: 140px !important; /* Between 120px and 170px */
+  }
+  
+  .logo-container img {
+    height: 70px !important;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .token-dashboard {
+    padding-top: 120px !important; /* Between 100px and 150px */
+  }
+  
+  .logo-container img {
+    height: 55px !important;
+  }
+}

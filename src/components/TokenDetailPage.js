@@ -31,6 +31,7 @@ function TokenDetailPage() {
   const { contractAddress } = useParams();
   const navigate = useNavigate();
   const [tokenDetails, setTokenDetails] = useState(null);
+  const [poolAddress, setPoolAddress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -57,6 +58,15 @@ function TokenDetailPage() {
       try {
         const response = await axios.get(`https://website-4g84.onrender.com/api/tokens/${contractAddress}`);
         setTokenDetails(response.data);
+        
+        // Check if the response contains the main pool address
+        if (response.data.main_pool_address) {
+          setPoolAddress(response.data.main_pool_address);
+        } else {
+          // If no main pool address is available, fallback to the token contract address
+          setPoolAddress(contractAddress);
+        }
+        
         setLoading(false);
       } catch (err) {
         setError('Failed to fetch token details');
@@ -113,7 +123,11 @@ function TokenDetailPage() {
     </>
   );
 
-  const geckoTerminalEmbedUrl = `https://www.geckoterminal.com/base/pools/${contractAddress}?embed=1&info=0&swaps=1&grayscale=0&light_chart=0&chart_type=price&resolution=15m`;
+  // Use the poolAddress (from MongoDB) for the DexScreener embed URL
+  const dexScreenerEmbedUrl = `https://dexscreener.com/base/${poolAddress}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartDefaultOnMobile=1&chartTheme=dark&theme=light&chartStyle=0&chartType=usd&interval=15`;
+  
+  // Log the URL for debugging
+  console.log("DexScreener URL:", dexScreenerEmbedUrl);
 
   // Add the background div to the main return statement
   return (
@@ -145,16 +159,33 @@ function TokenDetailPage() {
           </div>
         </div>
         <div className="token-chart-container">
-          <iframe 
-            height="100%" 
-            width="100%" 
-            id="geckoterminal-embed" 
-            title="GeckoTerminal Embed" 
-            src={geckoTerminalEmbedUrl} 
-            frameBorder="0" 
-            allow="clipboard-write" 
-            allowFullScreen
-          ></iframe>
+          <style>
+            {`
+              #dexscreener-embed {
+                position: relative;
+                width: 100%;
+                padding-bottom: 125%;
+              }
+              @media(min-width:1400px) {
+                #dexscreener-embed {
+                  padding-bottom: 65%;
+                }
+              }
+              #dexscreener-embed iframe {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                top: 0;
+                left: 0;
+                border: 0;
+              }
+            `}
+          </style>
+          <div id="dexscreener-embed">
+            <iframe 
+              src={dexScreenerEmbedUrl}
+            ></iframe>
+          </div>
         </div>
       </div>
     </>

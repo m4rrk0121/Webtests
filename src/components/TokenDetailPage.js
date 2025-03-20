@@ -168,7 +168,7 @@ function TokenDetailPage() {
               }
               @media(min-width:1400px) {
                 #dexscreener-embed {
-                  padding-bottom: 65%;
+                  padding-bottom: 70%;
                 }
               }
               #dexscreener-embed iframe {

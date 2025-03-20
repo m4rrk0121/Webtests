@@ -106,7 +106,7 @@ function TokenCard({ token, highlight = false }) {
       <p>Price: {formatCurrency(token.price_usd)}</p>
       <p>Market Cap: {formatCurrency(token.fdv_usd)}</p>
       <p>24h Volume: {formatCurrency(token.volume_usd)}</p>
-      <small>Contract: {token.contractAddress}</small>
+      <small>CA: {token.contractAddress}</small>
     </div>
   );
 }

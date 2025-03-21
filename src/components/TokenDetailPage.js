@@ -1,6 +1,6 @@
 import axios from 'axios';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useWebSocket } from '../context/WebSocketContext';
 
 // Utility function for robust data caching
@@ -89,6 +89,7 @@ const formatCurrency = (value) => {
 function TokenDetailPage() {
   const { contractAddress } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const dataCache = useRef(createDataCache());
   
   // Get the WebSocket context
@@ -101,6 +102,7 @@ function TokenDetailPage() {
   const [error, setError] = useState(null);
   const [dataSource, setDataSource] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [refreshAttempted, setRefreshAttempted] = useState(false);
 
   // Refs for managing connection and data retrieval
   const isMounted = useRef(true);
@@ -109,6 +111,24 @@ function TokenDetailPage() {
   const tokenDetailHandler = useRef(null);
   const tokenUpdateHandler = useRef(null);
   const errorHandler = useRef(null);
+  const directLoad = useRef(true); // Track if this is a direct page load
+
+  // Track initial page load vs. navigation 
+  useEffect(() => {
+    // Check if we have state from navigation
+    if (location.state && location.state.fromDashboard) {
+      directLoad.current = false;
+    } else {
+      // This appears to be a direct page load or refresh
+      console.log('[TokenDetailPage] Direct page load or refresh detected');
+      directLoad.current = true;
+    }
+
+    // Cleanup
+    return () => {
+      directLoad.current = true; // Reset for next mount
+    };
+  }, [location]);
 
   // Fetch token data via direct HTTP as fallback
   const fetchTokenDataDirect = useCallback(async (address) => {
@@ -145,6 +165,23 @@ function TokenDetailPage() {
     };
   }, [removeListener]);
 
+  // Handle 404 Navigation
+  const handleNotFound = useCallback(() => {
+    if (directLoad.current && !refreshAttempted) {
+      console.log('[TokenDetailPage] No data found on direct load, navigating to dashboard');
+      
+      // Show a brief message before redirecting
+      setError('Token not found. Redirecting to dashboard...');
+      
+      // Delay redirection to show the message
+      setTimeout(() => {
+        if (isMounted.current) {
+          navigate('/', { replace: true });
+        }
+      }, 2000);
+    }
+  }, [navigate, refreshAttempted]);
+
   // Main effect for data loading
   useEffect(() => {
     // Reset state
@@ -155,10 +192,11 @@ function TokenDetailPage() {
     setConnectionStatus(isConnected ? 'connecting' : 'offline');
     reconnectAttempts.current = 0;
 
-    // No address or no connection, exit early
+    // No address, exit early with redirection
     if (!contractAddress) {
       setError('Invalid token address');
       setLoading(false);
+      handleNotFound();
       return;
     }
 
@@ -226,6 +264,13 @@ function TokenDetailPage() {
           setPoolAddress(tokenData.main_pool_address || contractAddress);
           setLoading(false);
           setConnectionStatus('connected');
+          setRefreshAttempted(true);
+        } else {
+          if (isMounted.current) {
+            setError('No data found for this token');
+            setLoading(false);
+            handleNotFound();
+          }
         }
       } catch (err) {
         console.error('[TokenDetailPage] All data retrieval methods failed:', err);
@@ -234,12 +279,22 @@ function TokenDetailPage() {
           setError('Unable to load token details');
           setLoading(false);
           setConnectionStatus('failed');
+          
+          // If this is a direct page load, handle the not found case
+          if (directLoad.current) {
+            handleNotFound();
+          }
         }
       }
     };
 
     loadData();
-  }, [contractAddress, isConnected, fetchTokenDataDirect]);
+    
+    // Cleanup function for timeouts
+    return () => {
+      clearTimeout(loadingTimeout.current);
+    };
+  }, [contractAddress, isConnected, fetchTokenDataDirect, handleNotFound]);
 
   // Function to get token data via WebSocket
   const getTokenDataViaWebSocket = (address) => {
@@ -308,6 +363,30 @@ function TokenDetailPage() {
     navigator.clipboard.writeText(text)
       .then(() => alert('Copied to clipboard'))
       .catch(err => console.error('Copy failed:', err));
+  };
+
+  // Retry loading the token
+  const handleRetryLoading = () => {
+    setLoading(true);
+    setError(null);
+    setConnectionStatus('connecting');
+    setRefreshAttempted(true);
+    
+    // Force reconnect if needed
+    if (!isConnected) {
+      reconnect();
+    }
+    
+    // Re-fetch data
+    if (contractAddress) {
+      // Clear cache to force a fresh fetch
+      dataCache.current.clear(contractAddress);
+      
+      // Re-emit the get-token-details event
+      if (isConnected) {
+        emit('get-token-details', { contractAddress });
+      }
+    }
   };
 
   // Render loading state
@@ -412,7 +491,7 @@ function TokenDetailPage() {
         
         <div style={{ display: 'flex', gap: '10px' }}>
           <button 
-            onClick={() => window.history.back()} 
+            onClick={() => navigate('/')} 
             style={{ 
               padding: '10px 20px', 
               background: '#ffb300', 
@@ -423,10 +502,10 @@ function TokenDetailPage() {
               fontSize: '16px'
             }}
           >
-            ← Go Back
+            ← Go to Dashboard
           </button>
           <button 
-            onClick={() => window.location.reload()} 
+            onClick={handleRetryLoading} 
             style={{ 
               padding: '10px 20px', 
               background: '#333', 
@@ -449,7 +528,7 @@ function TokenDetailPage() {
     <div className="token-detail-page" style={{ backgroundColor: '#000000', minHeight: '100vh', color: '#ffffff' }}>
       <div className="token-detail-header" style={{ padding: '20px' }}>
         <button 
-          onClick={() => window.history.back()} 
+          onClick={() => navigate('/')} 
           style={{ 
             background: 'none', 
             border: 'none', 
@@ -458,7 +537,7 @@ function TokenDetailPage() {
             cursor: 'pointer' 
           }}
         >
-          ← Back
+          ← Back to Dashboard
         </button>
         
         <h1 style={{ color: '#ffb300', fontFamily: "'Chewy', cursive" }}>
@@ -573,4 +652,5 @@ function TokenDetailPage() {
     </div>
   );
 }
+
 export default TokenDetailPage;

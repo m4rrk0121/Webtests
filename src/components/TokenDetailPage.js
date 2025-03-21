@@ -1,7 +1,7 @@
 import axios from 'axios';
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import io from 'socket.io-client';
+import { useWebSocket } from '../context/WebSocketContext';
 
 const formatCurrency = (value) => {
   if (value === null || value === undefined) return 'N/A';
@@ -37,9 +37,11 @@ function TokenDetailPage() {
   const [error, setError] = useState(null);
   const [isLoadingChart, setIsLoadingChart] = useState(true);
   
-  // Socket.io connection reference
-  const socketRef = useRef(null);
-  const socketConnected = useRef(false);
+  // Use the shared WebSocket context
+  const { isConnected, emit, addListener, removeListener } = useWebSocket();
+  
+  // Track if component is mounted
+  const isMounted = useRef(true);
   const dataRequested = useRef(false);
   
   // Add this effect to store current token in localStorage
@@ -73,8 +75,15 @@ function TokenDetailPage() {
       document.body.style.backgroundColor = originalBodyBackgroundColor;
     };
   }, []);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
-  // Main effect for loading token data - resets everything when contractAddress changes
+  // Main effect for loading token data
   useEffect(() => {
     console.log(`Loading token details for contract: ${contractAddress}`);
     
@@ -92,37 +101,10 @@ function TokenDetailPage() {
       return;
     }
     
-    // Try WebSocket connection first
-    const SOCKET_URL = process.env.NODE_ENV === 'production'
-      ? 'https://websocket-okv9.onrender.com'
-      : 'http://localhost:4003';
-    
-    console.log(`Connecting to WebSocket at ${SOCKET_URL}`);
-    
-    // Close any existing connection
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-    }
-    
-    socketRef.current = io(SOCKET_URL, {
-      withCredentials: false,
-      transports: ['polling', 'websocket']
-    });
-    
-    socketRef.current.on('connect', () => {
-      console.log('WebSocket connected');
-      socketConnected.current = true;
+    // Handler functions
+    const handleTokenDetails = (data) => {
+      if (!isMounted.current) return;
       
-      // Request token details if we haven't already
-      if (!dataRequested.current) {
-        console.log(`Requesting token details for ${contractAddress}`);
-        socketRef.current.emit('get-token-details', { contractAddress });
-        dataRequested.current = true;
-      }
-    });
-    
-    // Listen for token details response
-    socketRef.current.on('token-details', (data) => {
       console.log('Received token details:', data);
       setTokenDetails(data);
       
@@ -133,64 +115,96 @@ function TokenDetailPage() {
       }
       
       setLoading(false);
-    });
+    };
     
-    // Listen for token detail updates (real-time updates)
-    socketRef.current.on('token-details-update', (data) => {
+    const handleTokenUpdate = (data) => {
+      if (!isMounted.current) return;
+      
       if (data.contractAddress === contractAddress) {
         console.log('Received real-time token update:', data);
-        setTokenDetails(data);
+        setTokenDetails(prevDetails => ({
+          ...prevDetails,
+          ...data
+        }));
       }
-    });
+    };
     
-    // Listen for errors
-    socketRef.current.on('error', (err) => {
+    const handleError = (err) => {
+      if (!isMounted.current) return;
+      
       console.error('Socket error:', err);
       setError(err.message || 'An error occurred');
       setLoading(false);
-    });
+    };
     
-    socketRef.current.on('connect_error', (err) => {
-      console.error('Socket connection error:', err);
-      // Fall back to HTTP if WebSocket fails
-      fallbackToHttp();
-    });
+    // Add listeners
+    addListener('token-details', handleTokenDetails);
+    addListener('token-details-update', handleTokenUpdate);
+    addListener('error', handleError);
     
-    // Add a timeout to fall back to HTTP if WebSocket is taking too long
+    // Request token details if connected
+    if (isConnected && !dataRequested.current) {
+      console.log(`WebSocket connected, requesting token details for ${contractAddress}`);
+      dataRequested.current = true;
+      emit('get-token-details', { contractAddress });
+    } else if (!isConnected) {
+      console.log('WebSocket not connected, will retry or fallback to HTTP');
+      // Will try HTTP after timeout if WebSocket doesn't connect
+    }
+    
+    // Set timeout for fallback
     const timeoutId = setTimeout(() => {
-      if (loading && !tokenDetails && dataRequested.current) {
+      if (isMounted.current && loading && !tokenDetails) {
         console.log('WebSocket request timeout - falling back to HTTP');
         fallbackToHttp();
       }
-    }, 5000); // 5 second timeout
+    }, 5000);
     
-    // Clean up on unmount or when contract address changes
+    // Clean up
     return () => {
       clearTimeout(timeoutId);
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
+      removeListener('token-details', handleTokenDetails);
+      removeListener('token-details-update', handleTokenUpdate);
+      removeListener('error', handleError);
     };
-  }, [contractAddress]); // Depend on contractAddress so it reruns when that changes
+  }, [contractAddress, isConnected, emit, addListener, removeListener]);
+  
+  // Effect to request data when connection state changes
+  useEffect(() => {
+    if (isConnected && contractAddress && !tokenDetails && !dataRequested.current) {
+      console.log(`WebSocket connection established, requesting token details for ${contractAddress}`);
+      dataRequested.current = true;
+      emit('get-token-details', { contractAddress });
+    }
+  }, [isConnected, contractAddress, tokenDetails, emit]);
   
   // HTTP fallback function
   const fallbackToHttp = async () => {
     // Only proceed if we're still loading and don't have data yet
-    if (!loading || tokenDetails) return;
+    if (!isMounted.current || !loading || tokenDetails) return;
     
     console.log('Falling back to HTTP request');
     try {
       const response = await axios.get(`https://website-4g84.onrender.com/api/tokens/${contractAddress}`);
-      setTokenDetails(response.data);
       
-      if (response.data.main_pool_address) {
-        setPoolAddress(response.data.main_pool_address);
+      if (!isMounted.current) return;
+      
+      if (response && response.data) {
+        setTokenDetails(response.data);
+        
+        if (response.data.main_pool_address) {
+          setPoolAddress(response.data.main_pool_address);
+        } else {
+          setPoolAddress(contractAddress);
+        }
+        
+        setLoading(false);
       } else {
-        setPoolAddress(contractAddress);
+        throw new Error('No data received from API');
       }
-      
-      setLoading(false);
     } catch (err) {
+      if (!isMounted.current) return;
+      
       console.error('HTTP fallback error:', err);
       setError('Failed to fetch token details');
       setLoading(false);

@@ -4,8 +4,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useWebSocket } from '../context/WebSocketContext';
 
 // Force black background immediately
-document.body.style.background = 'none';
+document.documentElement.style.backgroundColor = '#000000';
 document.body.style.backgroundColor = '#000000';
+document.body.style.background = 'none';
 
 // Pre-loaded CSS for loading states
 const preloadStyles = `
@@ -62,6 +63,7 @@ function TokenDetailPage() {
   const [error, setError] = useState(null);
   const [isLoadingChart, setIsLoadingChart] = useState(true);
   const [dataSource, setDataSource] = useState(null);
+  const [loadingTimeExceeded, setLoadingTimeExceeded] = useState(false);
   
   // Use the shared WebSocket context
   const { isConnected, emit, addListener, removeListener } = useWebSocket();
@@ -71,6 +73,18 @@ function TokenDetailPage() {
   const dataRequested = useRef(false);
   const httpFallbackTimer = useRef(null);
   const fallbackAttempted = useRef(false);
+  const directHttpAttempted = useRef(false);
+  
+  // Add a timeout checker for very slow loading
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        setLoadingTimeExceeded(true);
+      }
+    }, 8000); // 8 seconds
+    
+    return () => clearTimeout(timeoutId);
+  }, [loading]);
   
   // LocalStorage cache functions
   const cacheTokenData = (address, data) => {
@@ -109,58 +123,21 @@ function TokenDetailPage() {
     }
   };
   
-  // Token data fetch with CORS proxy fallbacks
-  const fetchTokenData = async (address) => {
+  // Direct HTTP fetch without problematic headers
+  const fetchTokenDataDirect = async (address) => {
     try {
-      // Try direct endpoint first
-      try {
-        const response = await axios.get(
-          `https://website-4g84.onrender.com/api/tokens/${address}`,
-          { 
-            timeout: 8000,
-            headers: {
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache'
-            }
-          }
-        );
-        
-        if (response && response.data) {
-          return response.data;
-        }
-      } catch (directError) {
-        console.warn('Direct API call failed, trying alternatives');
+      console.log('Attempting direct HTTP fetch without headers');
+      const response = await axios.get(
+        `https://website-4g84.onrender.com/api/tokens/${address}`,
+        { timeout: 10000 } // No headers that cause CORS issues
+      );
+      
+      if (response && response.data) {
+        return response.data;
       }
-      
-      // Try alternative URLs with increasing timeouts
-      const alternativeUrls = [
-        { 
-          url: `https://website-4g84.onrender.com/api/tokens/${address}`,
-          timeout: 15000
-        }
-      ];
-      
-      for (const { url, timeout } of alternativeUrls) {
-        try {
-          const response = await axios.get(url, { 
-            timeout,
-            headers: {
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache'
-            }
-          });
-          
-          if (response && response.data) {
-            return response.data;
-          }
-        } catch (err) {
-          console.warn(`Alternative URL attempt failed: ${url}`);
-        }
-      }
-      
-      throw new Error("All fetch attempts failed");
+      throw new Error('No data received from direct HTTP fetch');
     } catch (error) {
-      console.error('All fetch attempts failed:', error);
+      console.error('Direct HTTP fetch failed:', error);
       throw error;
     }
   };
@@ -171,7 +148,7 @@ function TokenDetailPage() {
     
     console.log('Starting enhanced fallback process');
     
-    // Step 1: Try to load from cache first (immediate)
+    // Step 1: Try to load from cache (immediate)
     const cachedData = getCachedTokenData(contractAddress);
     if (cachedData && isMounted.current) {
       console.log('Using cached token data');
@@ -185,35 +162,21 @@ function TokenDetailPage() {
       }
       
       setLoading(false);
-      
-      // Still try to update in the background
-      fetchTokenData(contractAddress)
-        .then(freshData => {
-          if (isMounted.current) {
-            setTokenDetails(freshData);
-            setDataSource('http');
-            
-            if (freshData.main_pool_address) {
-              setPoolAddress(freshData.main_pool_address);
-            }
-            
-            cacheTokenData(contractAddress, freshData);
-          }
-        })
-        .catch(err => console.warn('Background refresh failed:', err));
-        
       return;
     }
     
-    // Step 2: If no valid cache, try HTTP with retries
-    try {
-      setDataSource('http');
-      const data = await fetchTokenData(contractAddress);
-      
-      if (!isMounted.current) return;
-      
-      if (data) {
+    // Step 2: If no valid cache, try direct HTTP without headers
+    if (!directHttpAttempted.current) {
+      directHttpAttempted.current = true;
+      try {
+        console.log('No cache found - trying direct HTTP without headers');
+        const data = await fetchTokenDataDirect(contractAddress);
+        
+        if (!isMounted.current) return;
+        
+        console.log('Direct HTTP successful!');
         setTokenDetails(data);
+        setDataSource('http');
         
         if (data.main_pool_address) {
           setPoolAddress(data.main_pool_address);
@@ -223,18 +186,18 @@ function TokenDetailPage() {
         
         setLoading(false);
         
-        // Cache the successful result
+        // Cache the data for future use
         cacheTokenData(contractAddress, data);
-      } else {
-        throw new Error('No data received');
+        return;
+      } catch (err) {
+        console.error('Direct HTTP failed:', err);
+        // Continue to error state
       }
-    } catch (err) {
-      if (!isMounted.current) return;
-      
-      console.error('Enhanced fallback failed:', err);
-      setError('Unable to load token data. Please try again later.');
-      setLoading(false);
     }
+    
+    // If everything fails, show error with retry option
+    setError('Unable to load token data. Please try again.');
+    setLoading(false);
   };
   
   // Store current token in localStorage
@@ -261,20 +224,66 @@ function TokenDetailPage() {
     };
   }, []);
 
-  // Immediate HTTP fallback on page load/refresh
+  // Immediate direct HTTP on page load/refresh if no cache
   useEffect(() => {
-    // This is a page refresh detection - try cached data immediately
-    const pageRefresh = performance.navigation && 
+    // Skip if we already have data, aren't loading, or don't have an address
+    if (!loading || tokenDetails || !contractAddress || directHttpAttempted.current) {
+      return;
+    }
+
+    const isPageRefresh = performance.navigation && 
                        (performance.navigation.type === 1 || 
                         window.performance.getEntriesByType('navigation')[0]?.type === 'reload');
     
-    if (loading && contractAddress && !tokenDetails && !fallbackAttempted.current && 
-       (pageRefresh || document.referrer === '' || !isConnected)) {
-      console.log('Page direct load/refresh detected - immediately trying cache/HTTP');
-      enhancedFallback();
-      fallbackAttempted.current = true;
+    // If this is a direct load or refresh, try immediate HTTP load without headers
+    if (isPageRefresh || document.referrer === '') {
+      console.log('Initial page load detected - trying direct HTTP without headers');
+      directHttpAttempted.current = true;
+      
+      // First check if we have cached data
+      const cachedData = getCachedTokenData(contractAddress);
+      if (cachedData) {
+        console.log('Found cached data on initial load');
+        setTokenDetails(cachedData);
+        setDataSource('cache');
+        setLoading(false);
+        
+        if (cachedData.main_pool_address) {
+          setPoolAddress(cachedData.main_pool_address);
+        } else {
+          setPoolAddress(contractAddress);
+        }
+        
+        // Still try WebSocket connection in the background
+        return;
+      }
+      
+      // No cached data, try direct HTTP
+      fetchTokenDataDirect(contractAddress)
+        .then(data => {
+          if (!isMounted.current) return;
+          
+          console.log('Initial HTTP load successful');
+          setTokenDetails(data);
+          setDataSource('http');
+          
+          if (data.main_pool_address) {
+            setPoolAddress(data.main_pool_address);
+          } else {
+            setPoolAddress(contractAddress);
+          }
+          
+          setLoading(false);
+          
+          // Cache the data for future use
+          cacheTokenData(contractAddress, data);
+        })
+        .catch(err => {
+          console.error('Initial HTTP load failed:', err);
+          // Will continue with normal WebSocket flow
+        });
     }
-  }, []);
+  }, [contractAddress]);
   
   // Main effect for loading token data
   useEffect(() => {
@@ -326,7 +335,9 @@ function TokenDetailPage() {
         }));
         
         // Update cache with latest data
-        cacheTokenData(contractAddress, {...tokenDetails, ...data});
+        if (tokenDetails) {
+          cacheTokenData(contractAddress, {...tokenDetails, ...data});
+        }
       }
     };
     
@@ -408,7 +419,7 @@ function TokenDetailPage() {
       });
   };
 
-  // Improved loading state with better UX
+  // Improved loading state with retry button for long loads
   if (loading) {
     return (
       <div style={{
@@ -432,6 +443,26 @@ function TokenDetailPage() {
           </div>
         )}
         <div className="loading-spinner" style={{ width: '40px', height: '40px' }}></div>
+        
+        {/* Add retry button for slow loads */}
+        {loadingTimeExceeded && (
+          <button 
+            onClick={() => window.location.reload()} 
+            style={{ 
+              padding: '10px 20px', 
+              background: '#ffb300', 
+              color: '#000000', 
+              border: 'none', 
+              borderRadius: '6px', 
+              cursor: 'pointer',
+              marginTop: '20px',
+              fontSize: '16px',
+              fontFamily: "'Chewy', cursive"
+            }}
+          >
+            Retry Loading
+          </button>
+        )}
       </div>
     );
   }
@@ -455,22 +486,38 @@ function TokenDetailPage() {
       }}>
         <div style={{ fontSize: '20px', marginBottom: '15px', color: '#ff4466' }}>Error Loading Token</div>
         <div style={{ fontSize: '16px', marginBottom: '20px', maxWidth: '80%', textAlign: 'center' }}>{error}</div>
-        <button 
-          onClick={() => window.history.back()} 
-          style={{ 
-            padding: '10px 20px', 
-            background: '#ffb300', 
-            color: '#000000', 
-            border: 'none', 
-            borderRadius: '6px', 
-            cursor: 'pointer',
-            marginTop: '20px',
-            fontSize: '16px',
-            fontFamily: "'Chewy', cursive"
-          }}
-        >
-          ← Go Back
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            onClick={() => window.history.back()} 
+            style={{ 
+              padding: '10px 20px', 
+              background: '#ffb300', 
+              color: '#000000', 
+              border: 'none', 
+              borderRadius: '6px', 
+              cursor: 'pointer',
+              fontSize: '16px',
+              fontFamily: "'Chewy', cursive"
+            }}
+          >
+            ← Go Back
+          </button>
+          <button 
+            onClick={() => window.location.reload()} 
+            style={{ 
+              padding: '10px 20px', 
+              background: '#333', 
+              color: '#ffb300', 
+              border: '1px solid #ffb300', 
+              borderRadius: '6px', 
+              cursor: 'pointer',
+              fontSize: '16px',
+              fontFamily: "'Chewy', cursive"
+            }}
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
@@ -496,22 +543,38 @@ function TokenDetailPage() {
         <div style={{ fontSize: '16px', marginBottom: '20px', maxWidth: '80%', textAlign: 'center' }}>
           We couldn't find data for this token.
         </div>
-        <button 
-          onClick={() => window.history.back()} 
-          style={{ 
-            padding: '10px 20px', 
-            background: '#ffb300', 
-            color: '#000000', 
-            border: 'none', 
-            borderRadius: '6px', 
-            cursor: 'pointer',
-            marginTop: '20px',
-            fontSize: '16px',
-            fontFamily: "'Chewy', cursive"
-          }}
-        >
-          ← Go Back
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            onClick={() => window.history.back()} 
+            style={{ 
+              padding: '10px 20px', 
+              background: '#ffb300', 
+              color: '#000000', 
+              border: 'none', 
+              borderRadius: '6px', 
+              cursor: 'pointer',
+              fontSize: '16px',
+              fontFamily: "'Chewy', cursive"
+            }}
+          >
+            ← Go Back
+          </button>
+          <button 
+            onClick={() => window.location.reload()} 
+            style={{ 
+              padding: '10px 20px', 
+              background: '#333', 
+              color: '#ffb300', 
+              border: '1px solid #ffb300', 
+              borderRadius: '6px', 
+              cursor: 'pointer',
+              fontSize: '16px',
+              fontFamily: "'Chewy', cursive"
+            }}
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }

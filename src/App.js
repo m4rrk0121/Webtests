@@ -1,5 +1,6 @@
 import React from 'react';
 import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
+import './App.css';
 import ServerStatusMonitor from './components/ServerStatusMonitor';
 import TokenDashboard from './components/TokenDashboard';
 import TokenDetailPage from './components/TokenDetailPage';

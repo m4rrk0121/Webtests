@@ -70,7 +70,7 @@ const formatCurrency = (value) => {
   }
 };
 
-// Token Card Component
+// Token Card Component - Updated with state navigation
 function TokenCard({ token, highlight = false }) {
   const navigate = useNavigate();
   const dexScreenerLink = `https://dexscreener.com/base/${token.contractAddress}`;
@@ -78,7 +78,22 @@ function TokenCard({ token, highlight = false }) {
   const handleCardClick = (e) => {
     // Prevent navigation if DexScreener link is clicked
     if (e.target.closest('.dexscreener-link')) return;
-    navigate(`/token/${token.contractAddress}`);
+    
+    // Navigate with state information to indicate this came from the dashboard
+    navigate(`/token/${token.contractAddress}`, {
+      state: { 
+        fromDashboard: true,
+        // Optionally pass minimal token data to show immediately
+        tokenPreview: {
+          name: token.name,
+          symbol: token.symbol,
+          price_usd: token.price_usd,
+          fdv_usd: token.fdv_usd,
+          volume_usd: token.volume_usd,
+          contractAddress: token.contractAddress
+        }
+      }
+    });
   };
 
   return (

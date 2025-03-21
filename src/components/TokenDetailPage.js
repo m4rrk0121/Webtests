@@ -628,7 +628,7 @@ function TokenDetailPage() {
             src={`https://dexscreener.com/base/${poolAddress || contractAddress}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartDefaultOnMobile=1&chartTheme=dark&theme=light&chartStyle=0&chartType=usd&interval=15`}
             style={{
               width: '100%',
-              height: '500px',
+              height: '800px',
               border: 'none',
               backgroundColor: '#000000'
             }}

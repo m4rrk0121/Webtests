@@ -213,12 +213,12 @@ body {
 /* Also ensure any value text matches the reduced size */
 .token-card p span {
   color: #ffb300;
-  font-size: 100%; /* 100% of parent, which is already reduced */
+  font-size: 90%; /* 100% of parent, which is already reduced */
 }
 
 .token-card small {
   margin-top: auto;
-  font-size: 0.9em;
+  font-size: 0.85em;
   color: #ffb300;
   word-break: break-all;
   font-family: 'Chewy', cursive;

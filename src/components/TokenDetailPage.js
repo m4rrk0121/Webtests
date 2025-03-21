@@ -1,6 +1,7 @@
 import axios from 'axios';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import io from 'socket.io-client';
 
 const formatCurrency = (value) => {
   if (value === null || value === undefined) return 'N/A';
@@ -35,6 +36,10 @@ function TokenDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // Socket.io connection reference
+  const socketRef = useRef(null);
+  const socketConnected = useRef(false);
+  
   // Add this effect to apply the black background to the page
   useEffect(() => {
     // Save the original background
@@ -53,29 +58,95 @@ function TokenDetailPage() {
     };
   }, []);
 
+  // Modified to use WebSockets with fallback to HTTP
   useEffect(() => {
-    const fetchTokenDetails = async () => {
-      try {
-        const response = await axios.get(`https://website-4g84.onrender.com/api/tokens/${contractAddress}`);
-        setTokenDetails(response.data);
-        
-        // Check if the response contains the main pool address
-        if (response.data.main_pool_address) {
-          setPoolAddress(response.data.main_pool_address);
-        } else {
-          // If no main pool address is available, fallback to the token contract address
-          setPoolAddress(contractAddress);
-        }
-        
-        setLoading(false);
-      } catch (err) {
-        setError('Failed to fetch token details');
-        setLoading(false);
+    // Try WebSocket connection first
+    const SOCKET_URL = process.env.NODE_ENV === 'production'
+      ? 'https://websocket-okv9.onrender.com'
+      : 'http://localhost:4003';
+    
+    console.log(`Connecting to WebSocket at ${SOCKET_URL}`);
+    
+    socketRef.current = io(SOCKET_URL, {
+      withCredentials: false,
+      transports: ['polling', 'websocket']
+    });
+    
+    socketRef.current.on('connect', () => {
+      console.log('WebSocket connected');
+      socketConnected.current = true;
+      
+      // Request token details
+      console.log(`Requesting token details for ${contractAddress}`);
+      socketRef.current.emit('get-token-details', { contractAddress });
+    });
+    
+    // Listen for token details response
+    socketRef.current.on('token-details', (data) => {
+      console.log('Received token details:', data);
+      setTokenDetails(data);
+      
+      if (data.main_pool_address) {
+        setPoolAddress(data.main_pool_address);
+      } else {
+        setPoolAddress(contractAddress);
+      }
+      
+      setLoading(false);
+    });
+    
+    // Listen for errors
+    socketRef.current.on('error', (err) => {
+      console.error('Socket error:', err);
+      setError(err.message || 'An error occurred');
+      setLoading(false);
+    });
+    
+    socketRef.current.on('connect_error', (err) => {
+      console.error('Socket connection error:', err);
+      // Fall back to HTTP if WebSocket fails
+      fallbackToHttp();
+    });
+    
+    // Add a timeout to fall back to HTTP if WebSocket is taking too long
+    const timeoutId = setTimeout(() => {
+      if (loading && !tokenDetails) {
+        console.log('WebSocket request timeout - falling back to HTTP');
+        fallbackToHttp();
+      }
+    }, 5000); // 5 second timeout
+    
+    // Clean up on unmount
+    return () => {
+      clearTimeout(timeoutId);
+      if (socketRef.current) {
+        socketRef.current.disconnect();
       }
     };
-
-    fetchTokenDetails();
   }, [contractAddress]);
+  
+  // HTTP fallback function
+  const fallbackToHttp = async () => {
+    // Only proceed if we're still loading and don't have data yet
+    if (!loading || tokenDetails) return;
+    
+    console.log('Falling back to HTTP request');
+    try {
+      const response = await axios.get(`https://website-4g84.onrender.com/api/tokens/${contractAddress}`);
+      setTokenDetails(response.data);
+      
+      if (response.data.main_pool_address) {
+        setPoolAddress(response.data.main_pool_address);
+      } else {
+        setPoolAddress(contractAddress);
+      }
+      
+      setLoading(false);
+    } catch (err) {
+      setError('Failed to fetch token details');
+      setLoading(false);
+    }
+  };
 
   // Wrap the loading, error, and empty states to include the background div
   if (loading) return (

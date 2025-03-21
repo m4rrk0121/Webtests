@@ -12,8 +12,10 @@ export function useWebSocket() {
 // Provider component
 export function WebSocketProvider({ children }) {
   const [isConnected, setIsConnected] = useState(false);
+  const [reconnectAttempts, setReconnectAttempts] = useState(0);
   const socketRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+  const MAX_RECONNECT_ATTEMPTS = 5;
 
   useEffect(() => {
     // Connection URL based on environment
@@ -23,13 +25,15 @@ export function WebSocketProvider({ children }) {
     
     console.log(`Setting up WebSocket connection to ${SOCKET_URL}`);
     
-    // Create socket connection
+    // Create socket connection with better reconnection options
     const socket = io(SOCKET_URL, {
       withCredentials: false,
-      transports: ['polling', 'websocket'],
+      transports: ['websocket', 'polling'], // Try websocket first, fallback to polling
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000
     });
     
     socketRef.current = socket;
@@ -38,6 +42,7 @@ export function WebSocketProvider({ children }) {
     socket.on('connect', () => {
       console.log('WebSocket connected');
       setIsConnected(true);
+      setReconnectAttempts(0);
       
       // Clear any reconnect timeout if it exists
       if (reconnectTimeoutRef.current) {
@@ -46,31 +51,64 @@ export function WebSocketProvider({ children }) {
       }
     });
     
-    socket.on('disconnect', () => {
-      console.log('WebSocket disconnected');
+    socket.on('disconnect', (reason) => {
+      console.log(`WebSocket disconnected: ${reason}`);
       setIsConnected(false);
       
-      // Set up reconnect timeout
-      reconnectTimeoutRef.current = setTimeout(() => {
-        console.log('Attempting to reconnect...');
+      // These reasons will trigger a reconnect by Socket.IO
+      if (reason === 'io server disconnect' || reason === 'transport close') {
+        // Server disconnected us, need to manually reconnect
         socket.connect();
-      }, 2000);
+      }
+      
+      // Set up additional manual reconnect as backup
+      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        reconnectTimeoutRef.current = setTimeout(() => {
+          setReconnectAttempts(prev => prev + 1);
+          console.log(`Manual reconnect attempt ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS}`);
+          socket.connect();
+        }, 2000);
+      } else {
+        console.log('Falling back to HTTP polling');
+      }
     });
     
     socket.on('connect_error', (err) => {
       console.error('WebSocket connection error:', err);
       setIsConnected(false);
+      
+      // Similar manual reconnect as backup
+      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        reconnectTimeoutRef.current = setTimeout(() => {
+          setReconnectAttempts(prev => prev + 1);
+          console.log(`Manual reconnect attempt after error ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS}`);
+          socket.connect();
+        }, 2000);
+      }
     });
+    
+    // Ping the server regularly to keep connection alive
+    const pingInterval = setInterval(() => {
+      if (socket.connected) {
+        socket.emit('ping');
+      }
+    }, 30000); // 30 seconds
     
     // Clean up on unmount
     return () => {
       console.log('Cleaning up WebSocket connection');
+      clearInterval(pingInterval);
+      
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
-      socket.disconnect();
+      
+      // Only disconnect if we have a connection
+      if (socket.connected) {
+        socket.disconnect();
+      }
     };
-  }, []);
+  }, [reconnectAttempts]);
   
   // Methods to interact with the socket
   const emit = (event, data) => {
@@ -114,6 +152,7 @@ export function WebSocketProvider({ children }) {
   const value = {
     socket: socketRef.current,
     isConnected,
+    reconnectAttempts,
     emit,
     addListener,
     removeListener,

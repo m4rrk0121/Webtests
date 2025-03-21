@@ -1,12 +1,8 @@
 import axios from 'axios';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useWebSocket } from '../context/WebSocketContext';
 
-const TOKEN_API_BASE_URL = 'https://website-4g84.onrender.com/api/tokens';
-const HTTP_FALLBACK_TIMEOUT = 3000; // Reduced from 5000ms to 3000ms
-
-// Format currency values with appropriate suffixes and decimal places
 const formatCurrency = (value) => {
   if (value === null || value === undefined) return 'N/A';
   
@@ -32,19 +28,6 @@ const formatCurrency = (value) => {
   }
 };
 
-// Calculate percentage change with color indicator
-const formatPercentageChange = (value) => {
-  if (value === undefined || value === null) return { text: 'N/A', color: 'white' };
-  
-  const num = parseFloat(value);
-  if (isNaN(num)) return { text: 'N/A', color: 'white' };
-  
-  const formatted = `${num >= 0 ? '+' : ''}${num.toFixed(2)}%`;
-  const color = num >= 0 ? '#00ff88' : '#ff4466';
-  
-  return { text: formatted, color };
-};
-
 function TokenDetailPage() {
   const { contractAddress } = useParams();
   const navigate = useNavigate();
@@ -53,93 +36,29 @@ function TokenDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isLoadingChart, setIsLoadingChart] = useState(true);
-  const [dataSource, setDataSource] = useState(null); // 'websocket' or 'http'
   
   // Use the shared WebSocket context
-  const { isConnected, emit, addListener, removeListener, reconnectAttempts } = useWebSocket();
+  const { isConnected, emit, addListener, removeListener } = useWebSocket();
   
-  // Track if component is mounted and if data has been requested
+  // Track if component is mounted
   const isMounted = useRef(true);
   const dataRequested = useRef(false);
-  const httpFallbackTimer = useRef(null);
   
-  // Memoize the contract address to avoid unnecessary rerenders
-  const normalizedContractAddress = useMemo(() => {
-    return contractAddress ? contractAddress.toLowerCase() : null;
-  }, [contractAddress]);
-  
-  // Format percentage change for display
-  const percentageChangeFormatted = useMemo(() => {
-    return formatPercentageChange(tokenDetails?.price_change_percentage_24h);
-  }, [tokenDetails?.price_change_percentage_24h]);
-  
-  // HTTP fallback function
-  const fetchTokenDataHttp = useCallback(async () => {
-    // Only proceed if we're still loading and don't have data yet
-    if (!isMounted.current || !loading || tokenDetails || !normalizedContractAddress) return;
-    
-    console.log(`[${new Date().toISOString()}] Fetching token data via HTTP`);
-    try {
-      setDataSource('http');
-      const response = await axios.get(`${TOKEN_API_BASE_URL}/${normalizedContractAddress}`);
-      
-      if (!isMounted.current) return;
-      
-      if (response?.data) {
-        console.log(`[${new Date().toISOString()}] HTTP data received:`, response.data);
-        setTokenDetails(response.data);
-        
-        if (response.data.main_pool_address) {
-          setPoolAddress(response.data.main_pool_address);
-        } else {
-          setPoolAddress(normalizedContractAddress);
-        }
-        
-        setLoading(false);
-      } else {
-        throw new Error('No data received from API');
-      }
-    } catch (err) {
-      if (!isMounted.current) return;
-      
-      console.error(`[${new Date().toISOString()}] HTTP error:`, err);
-      setError('Failed to fetch token details');
-      setLoading(false);
-    }
-  }, [normalizedContractAddress, loading, tokenDetails]);
-  
-  // Request token details via WebSocket
-  const requestTokenViaWebSocket = useCallback(() => {
-    if (isConnected && normalizedContractAddress && !dataRequested.current) {
-      console.log(`[${new Date().toISOString()}] Requesting token details via WebSocket for ${normalizedContractAddress}`);
-      dataRequested.current = true;
-      setDataSource('websocket');
-      emit('get-token-details', { contractAddress: normalizedContractAddress });
-      
-      // Set up HTTP fallback timer
-      clearTimeout(httpFallbackTimer.current);
-      httpFallbackTimer.current = setTimeout(() => {
-        if (isMounted.current && loading && !tokenDetails) {
-          console.log(`[${new Date().toISOString()}] WebSocket response timeout - falling back to HTTP`);
-          fetchTokenDataHttp();
-        }
-      }, HTTP_FALLBACK_TIMEOUT);
-    }
-  }, [isConnected, normalizedContractAddress, emit, loading, tokenDetails, fetchTokenDataHttp]);
-  
-  // Store/retrieve current token in localStorage
+  // Add this effect to store current token in localStorage
   useEffect(() => {
-    if (tokenDetails?.contractAddress) {
+    if (tokenDetails && tokenDetails.contractAddress) {
       localStorage.setItem('currentTokenAddress', tokenDetails.contractAddress);
     }
-    
-    // Recover from localStorage if needed
-    if (!normalizedContractAddress && localStorage.getItem('currentTokenAddress')) {
+  }, [tokenDetails]);
+  
+  // Add this effect to recover from localStorage if needed
+  useEffect(() => {
+    if (!contractAddress && localStorage.getItem('currentTokenAddress')) {
       navigate(`/token/${localStorage.getItem('currentTokenAddress')}`);
     }
-  }, [tokenDetails, normalizedContractAddress, navigate]);
+  }, [contractAddress, navigate]);
   
-  // Apply dark background to the page
+  // Add this effect to apply the black background to the page
   useEffect(() => {
     // Save the original background
     const originalBodyBackground = document.body.style.background;
@@ -161,25 +80,22 @@ function TokenDetailPage() {
   useEffect(() => {
     return () => {
       isMounted.current = false;
-      clearTimeout(httpFallbackTimer.current);
     };
   }, []);
 
   // Main effect for loading token data
   useEffect(() => {
-    console.log(`[${new Date().toISOString()}] Loading token details for contract: ${normalizedContractAddress}`);
+    console.log(`Loading token details for contract: ${contractAddress}`);
     
     // Reset states when contract address changes
     setTokenDetails(null);
     setPoolAddress(null);
     setLoading(true);
     setError(null);
-    setDataSource(null);
     dataRequested.current = false;
-    clearTimeout(httpFallbackTimer.current);
     
     // If no contract address, exit early
-    if (!normalizedContractAddress) {
+    if (!contractAddress) {
       setError('Invalid token address');
       setLoading(false);
       return;
@@ -189,28 +105,23 @@ function TokenDetailPage() {
     const handleTokenDetails = (data) => {
       if (!isMounted.current) return;
       
-      console.log(`[${new Date().toISOString()}] Received token details via WebSocket:`, data);
+      console.log('Received token details:', data);
+      setTokenDetails(data);
       
-      // Only update if this is for our token
-      if (data.contractAddress?.toLowerCase() === normalizedContractAddress) {
-        setTokenDetails(data);
-        
-        if (data.main_pool_address) {
-          setPoolAddress(data.main_pool_address);
-        } else {
-          setPoolAddress(normalizedContractAddress);
-        }
-        
-        setLoading(false);
-        clearTimeout(httpFallbackTimer.current);
+      if (data.main_pool_address) {
+        setPoolAddress(data.main_pool_address);
+      } else {
+        setPoolAddress(contractAddress);
       }
+      
+      setLoading(false);
     };
     
     const handleTokenUpdate = (data) => {
       if (!isMounted.current) return;
       
-      if (data.contractAddress?.toLowerCase() === normalizedContractAddress) {
-        console.log(`[${new Date().toISOString()}] Received real-time token update:`, data);
+      if (data.contractAddress === contractAddress) {
+        console.log('Received real-time token update:', data);
         setTokenDetails(prevDetails => ({
           ...prevDetails,
           ...data
@@ -221,11 +132,9 @@ function TokenDetailPage() {
     const handleError = (err) => {
       if (!isMounted.current) return;
       
-      console.error(`[${new Date().toISOString()}] Socket error:`, err);
-      // Don't set error state here, as we'll try HTTP fallback
-      
-      // Trigger HTTP fallback immediately on socket error
-      fetchTokenDataHttp();
+      console.error('Socket error:', err);
+      setError(err.message || 'An error occurred');
+      setLoading(false);
     };
     
     // Add listeners
@@ -234,60 +143,81 @@ function TokenDetailPage() {
     addListener('error', handleError);
     
     // Request token details if connected
-    if (isConnected) {
-      requestTokenViaWebSocket();
-    } else {
-      // Set timer for HTTP fallback if WebSocket doesn't connect quickly
-      httpFallbackTimer.current = setTimeout(() => {
-        if (isMounted.current && loading && !tokenDetails) {
-          console.log(`[${new Date().toISOString()}] WebSocket not connected - falling back to HTTP`);
-          fetchTokenDataHttp();
-        }
-      }, HTTP_FALLBACK_TIMEOUT);
+    if (isConnected && !dataRequested.current) {
+      console.log(`WebSocket connected, requesting token details for ${contractAddress}`);
+      dataRequested.current = true;
+      emit('get-token-details', { contractAddress });
+    } else if (!isConnected) {
+      console.log('WebSocket not connected, will retry or fallback to HTTP');
+      // Will try HTTP after timeout if WebSocket doesn't connect
     }
+    
+    // Set timeout for fallback
+    const timeoutId = setTimeout(() => {
+      if (isMounted.current && loading && !tokenDetails) {
+        console.log('WebSocket request timeout - falling back to HTTP');
+        fallbackToHttp();
+      }
+    }, 5000);
     
     // Clean up
     return () => {
-      clearTimeout(httpFallbackTimer.current);
+      clearTimeout(timeoutId);
       removeListener('token-details', handleTokenDetails);
       removeListener('token-details-update', handleTokenUpdate);
       removeListener('error', handleError);
     };
-  }, [normalizedContractAddress, isConnected, addListener, removeListener, fetchTokenDataHttp, requestTokenViaWebSocket]);
+  }, [contractAddress, isConnected, emit, addListener, removeListener]);
   
   // Effect to request data when connection state changes
   useEffect(() => {
-    if (isConnected && normalizedContractAddress && !tokenDetails && !dataRequested.current) {
-      requestTokenViaWebSocket();
+    if (isConnected && contractAddress && !tokenDetails && !dataRequested.current) {
+      console.log(`WebSocket connection established, requesting token details for ${contractAddress}`);
+      dataRequested.current = true;
+      emit('get-token-details', { contractAddress });
     }
-  }, [isConnected, normalizedContractAddress, tokenDetails, requestTokenViaWebSocket]);
+  }, [isConnected, contractAddress, tokenDetails, emit]);
   
-  // Effect to retry HTTP if WebSocket fails after multiple attempts
-  useEffect(() => {
-    if (reconnectAttempts >= 3 && loading && !tokenDetails && !dataSource) {
-      console.log(`[${new Date().toISOString()}] WebSocket reconnect attempts exhausted - trying HTTP`);
-      fetchTokenDataHttp();
+  // HTTP fallback function
+  const fallbackToHttp = async () => {
+    // Only proceed if we're still loading and don't have data yet
+    if (!isMounted.current || !loading || tokenDetails) return;
+    
+    console.log('Falling back to HTTP request');
+    try {
+      const response = await axios.get(`https://website-4g84.onrender.com/api/tokens/${contractAddress}`);
+      
+      if (!isMounted.current) return;
+      
+      if (response && response.data) {
+        setTokenDetails(response.data);
+        
+        if (response.data.main_pool_address) {
+          setPoolAddress(response.data.main_pool_address);
+        } else {
+          setPoolAddress(contractAddress);
+        }
+        
+        setLoading(false);
+      } else {
+        throw new Error('No data received from API');
+      }
+    } catch (err) {
+      if (!isMounted.current) return;
+      
+      console.error('HTTP fallback error:', err);
+      setError('Failed to fetch token details');
+      setLoading(false);
     }
-  }, [reconnectAttempts, loading, tokenDetails, dataSource, fetchTokenDataHttp]);
+  };
 
   // Handler for chart loading
   const handleChartLoad = () => {
-    console.log(`[${new Date().toISOString()}] Chart iframe loaded`);
+    console.log('Chart iframe loaded');
     setIsLoadingChart(false);
   };
 
-  // Copy address to clipboard function
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text)
-      .then(() => {
-        alert('Copied to clipboard');
-      })
-      .catch(err => {
-        console.error('Failed to copy: ', err);
-      });
-  };
-
-  // Improved loading state
+  // Improved loading state with better UX
   if (loading) {
     return (
       <div style={{
@@ -304,10 +234,7 @@ function TokenDetailPage() {
         alignItems: 'center',
         zIndex: 999
       }}>
-        <div style={{ fontSize: '20px', marginBottom: '15px', fontWeight: 'bold' }}>Loading Token Data</div>
-        <div style={{ fontSize: '14px', marginBottom: '20px', opacity: 0.8 }}>
-          {normalizedContractAddress ? `Contract: ${normalizedContractAddress?.slice(0, 6)}...${normalizedContractAddress?.slice(-4)}` : ''}
-        </div>
+        <div style={{ fontSize: '18px', marginBottom: '10px' }}>Loading token data...</div>
         <div className="loading-spinner" style={{ width: '40px', height: '40px' }}></div>
       </div>
     );
@@ -329,19 +256,17 @@ function TokenDetailPage() {
         alignItems: 'center',
         zIndex: 999
       }}>
-        <div style={{ fontSize: '20px', marginBottom: '15px', color: '#ff4466' }}>Error Loading Token</div>
-        <div style={{ fontSize: '16px', marginBottom: '20px', maxWidth: '80%', textAlign: 'center' }}>{error}</div>
+        <div style={{ fontSize: '18px', marginBottom: '10px' }}>Error: {error}</div>
         <button 
           onClick={() => window.history.back()} 
           style={{ 
-            padding: '10px 20px', 
+            padding: '8px 16px', 
             background: '#333', 
             color: 'white', 
             border: 'none', 
-            borderRadius: '6px', 
+            borderRadius: '4px', 
             cursor: 'pointer',
-            marginTop: '20px',
-            fontSize: '16px'
+            marginTop: '20px'
           }}
         >
           ← Go Back
@@ -366,21 +291,17 @@ function TokenDetailPage() {
         alignItems: 'center',
         zIndex: 999
       }}>
-        <div style={{ fontSize: '20px', marginBottom: '15px', color: '#ff9900' }}>No Token Details Found</div>
-        <div style={{ fontSize: '16px', marginBottom: '20px', maxWidth: '80%', textAlign: 'center' }}>
-          We couldn't find data for this token.
-        </div>
+        <div style={{ fontSize: '18px', marginBottom: '10px' }}>No token details found</div>
         <button 
           onClick={() => window.history.back()} 
           style={{ 
-            padding: '10px 20px', 
+            padding: '8px 16px', 
             background: '#333', 
             color: 'white', 
             border: 'none', 
-            borderRadius: '6px', 
+            borderRadius: '4px', 
             cursor: 'pointer',
-            marginTop: '21px',
-            fontSize: '16px'
+            marginTop: '20px'
           }}
         >
           ← Go Back
@@ -389,10 +310,13 @@ function TokenDetailPage() {
     );
   }
 
-  // Use the poolAddress for DexScreener embed URL
+  // Use the poolAddress (from MongoDB) for the DexScreener embed URL
   const dexScreenerEmbedUrl = `https://dexscreener.com/base/${poolAddress}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartDefaultOnMobile=1&chartTheme=dark&theme=light&chartStyle=0&chartType=usd&interval=15`;
+  
+  // Log the URL for debugging
+  console.log("DexScreener URL:", dexScreenerEmbedUrl);
 
-  // Main content with enhanced design
+  // Main content with enhanced loading states
   return (
     <>
       <div style={{
@@ -405,136 +329,23 @@ function TokenDetailPage() {
         zIndex: -1
       }}></div>
       
-      <div className="token-detail-page" style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
-        <div className="token-detail-header" style={{ marginBottom: '20px' }}>
+      <div className="token-detail-page">
+        <div className="token-detail-header">
           <button 
             onClick={() => window.history.back()} 
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: '16px',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '5px 0',
-              marginBottom: '15px'
-            }}
+            className="back-button"
           >
-            <span style={{ marginRight: '5px' }}>←</span> Back to Tokens
+            ← Back
           </button>
-          
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '10px',
-            marginBottom: '15px'
-          }}>
-            <h1 style={{ 
-              margin: 0, 
-              fontSize: '28px', 
-              color: 'white',
-              fontFamily: "'Chewy', sans-serif" 
-            }}>
-              {tokenDetails.name} <span style={{ opacity: 0.7 }}>({tokenDetails.symbol})</span>
-            </h1>
-            
-            <div style={{ 
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px' 
-            }}>
-              <div style={{ 
-                background: percentageChangeFormatted.color,
-                padding: '5px 10px',
-                borderRadius: '6px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                color: '#000'
-              }}>
-                {percentageChangeFormatted.text}
-              </div>
-              
-              <div style={{ 
-                background: '#333',
-                padding: '5px 10px',
-                borderRadius: '6px',
-                fontSize: '16px',
-                color: '#fff',
-                display: dataSource ? 'flex' : 'none',
-                alignItems: 'center',
-                gap: '5px'
-              }}>
-                <span style={{ 
-                  width: '8px', 
-                  height: '8px', 
-                  borderRadius: '50%',
-                  background: dataSource === 'websocket' ? '#00ff88' : '#ff9900',
-                  display: 'inline-block'
-                }}></span>
-                {dataSource === 'websocket' ? 'Live' : 'Static'}
-              </div>
-            </div>
-          </div>
-          
-          <div className="token-details-summary" style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '15px',
-            backgroundColor: '#111',
-            borderRadius: '10px',
-            padding: '15px',
-            marginBottom: '20px'
-          }}>
-            <div>
-              <div style={{ fontSize: '14px', color: '#999', marginBottom: '5px' }}>Price</div>
-              <div style={{ fontSize: '24px', color: 'white', fontWeight: 'bold' }}>{formatCurrency(tokenDetails.price_usd)}</div>
-            </div>
-            
-            <div>
-              <div style={{ fontSize: '14px', color: '#999', marginBottom: '5px' }}>Market Cap</div>
-              <div style={{ fontSize: '24px', color: 'white', fontWeight: 'bold' }}>{formatCurrency(tokenDetails.fdv_usd)}</div>
-            </div>
-            
-            <div>
-              <div style={{ fontSize: '14px', color: '#999', marginBottom: '5px' }}>24h Volume</div>
-              <div style={{ fontSize: '24px', color: 'white', fontWeight: 'bold' }}>{formatCurrency(tokenDetails.volume_usd)}</div>
-            </div>
-          </div>
-          
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center',
-            backgroundColor: '#111',
-            borderRadius: '6px',
-            padding: '10px 15px',
-            marginBottom: '20px'
-          }}>
-            <div style={{ flexGrow: 1, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-              <div style={{ fontSize: '14px', color: '#999', marginBottom: '5px' }}>Contract Address</div>
-              <div style={{ fontSize: '14px', color: 'white' }}>{tokenDetails.contractAddress}</div>
-            </div>
-            
-            <button
-              onClick={() => copyToClipboard(tokenDetails.contractAddress)}
-              style={{
-                background: '#333',
-                border: 'none',
-                color: 'white',
-                borderRadius: '4px',
-                padding: '5px 10px',
-                marginLeft: '10px',
-                cursor: 'pointer'
-              }}
-            >
-              Copy
-            </button>
+          <h1>{tokenDetails.name} ({tokenDetails.symbol})</h1>
+          <div className="token-details-summary">
+            <p>Price: {formatCurrency(tokenDetails.price_usd)}</p>
+            <p>Market Cap: {formatCurrency(tokenDetails.fdv_usd)}</p>
+            <p>24h Volume: {formatCurrency(tokenDetails.volume_usd)}</p>
+            <p>Contract: {tokenDetails.contractAddress}</p>
           </div>
         </div>
-        
-        <div className="token-chart-container" style={{ position: 'relative', marginBottom: '20px' }}>
+        <div className="token-chart-container">
           {isLoadingChart && (
             <div style={{
               position: 'absolute',
@@ -543,39 +354,24 @@ function TokenDetailPage() {
               transform: 'translate(-50%, -50%)',
               color: 'white',
               zIndex: 5,
-              textAlign: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center'
+              textAlign: 'center'
             }}>
-              <div style={{ fontSize: '18px', marginBottom: '15px' }}>Loading price chart...</div>
-              <div className="loading-spinner" style={{ margin: '0 auto', width: '30px', height: '30px' }}></div>
+              <div>Loading chart...</div>
+              <div className="loading-spinner" style={{ margin: '20px auto', width: '30px', height: '30px' }}></div>
             </div>
           )}
-          
           <style>
             {`
               #dexscreener-embed {
                 position: relative;
                 width: 100%;
-                padding-bottom: 75%;
-                background-color: #111;
-                border-radius: 10px;
-                overflow: hidden;
+                padding-bottom: 125%;
               }
-              
               @media(min-width:1400px) {
                 #dexscreener-embed {
-                  padding-bottom: 65%;
+                  padding-bottom: 70%;
                 }
               }
-              
-              @media(max-width:767px) {
-                #dexscreener-embed {
-                  padding-bottom: 125%;
-                }
-              }
-              
               #dexscreener-embed iframe {
                 position: absolute;
                 width: 100%;
@@ -585,7 +381,6 @@ function TokenDetailPage() {
                 border: 0;
                 background-color: #000;
               }
-              
               .loading-spinner {
                 border: 4px solid rgba(255, 255, 255, 0.3);
                 border-radius: 50%;
@@ -594,30 +389,17 @@ function TokenDetailPage() {
                 height: 24px;
                 animation: spin 1s linear infinite;
               }
-              
               @keyframes spin {
                 0% { transform: rotate(0deg); }
                 100% { transform: rotate(360deg); }
               }
             `}
           </style>
-          
           <div id="dexscreener-embed">
             <iframe 
               src={dexScreenerEmbedUrl}
               onLoad={handleChartLoad}
-              title={`${tokenDetails.name} price chart`}
             ></iframe>
-          </div>
-          
-          <div style={{ 
-            fontSize: '12px', 
-            color: '#999', 
-            textAlign: 'center', 
-            marginTop: '10px',
-            display: dataSource ? 'block' : 'none'
-          }}>
-            Data source: {dataSource === 'websocket' ? 'Real-time WebSocket' : 'HTTP API'} | Chart: DexScreener
           </div>
         </div>
       </div>

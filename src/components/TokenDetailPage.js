@@ -379,7 +379,7 @@ function TokenDetailPage() {
             border: 'none', 
             borderRadius: '6px', 
             cursor: 'pointer',
-            marginTop: '20px',
+            marginTop: '21px',
             fontSize: '16px'
           }}
         >

@@ -35,10 +35,26 @@ function TokenDetailPage() {
   const [poolAddress, setPoolAddress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isLoadingChart, setIsLoadingChart] = useState(true);
   
   // Socket.io connection reference
   const socketRef = useRef(null);
   const socketConnected = useRef(false);
+  const dataRequested = useRef(false);
+  
+  // Add this effect to store current token in localStorage
+  useEffect(() => {
+    if (tokenDetails && tokenDetails.contractAddress) {
+      localStorage.setItem('currentTokenAddress', tokenDetails.contractAddress);
+    }
+  }, [tokenDetails]);
+  
+  // Add this effect to recover from localStorage if needed
+  useEffect(() => {
+    if (!contractAddress && localStorage.getItem('currentTokenAddress')) {
+      navigate(`/token/${localStorage.getItem('currentTokenAddress')}`);
+    }
+  }, [contractAddress, navigate]);
   
   // Add this effect to apply the black background to the page
   useEffect(() => {
@@ -58,14 +74,35 @@ function TokenDetailPage() {
     };
   }, []);
 
-  // Modified to use WebSockets with fallback to HTTP
+  // Main effect for loading token data - resets everything when contractAddress changes
   useEffect(() => {
+    console.log(`Loading token details for contract: ${contractAddress}`);
+    
+    // Reset states when contract address changes
+    setTokenDetails(null);
+    setPoolAddress(null);
+    setLoading(true);
+    setError(null);
+    dataRequested.current = false;
+    
+    // If no contract address, exit early
+    if (!contractAddress) {
+      setError('Invalid token address');
+      setLoading(false);
+      return;
+    }
+    
     // Try WebSocket connection first
     const SOCKET_URL = process.env.NODE_ENV === 'production'
       ? 'https://websocket-okv9.onrender.com'
       : 'http://localhost:4003';
     
     console.log(`Connecting to WebSocket at ${SOCKET_URL}`);
+    
+    // Close any existing connection
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+    }
     
     socketRef.current = io(SOCKET_URL, {
       withCredentials: false,
@@ -76,9 +113,12 @@ function TokenDetailPage() {
       console.log('WebSocket connected');
       socketConnected.current = true;
       
-      // Request token details
-      console.log(`Requesting token details for ${contractAddress}`);
-      socketRef.current.emit('get-token-details', { contractAddress });
+      // Request token details if we haven't already
+      if (!dataRequested.current) {
+        console.log(`Requesting token details for ${contractAddress}`);
+        socketRef.current.emit('get-token-details', { contractAddress });
+        dataRequested.current = true;
+      }
     });
     
     // Listen for token details response
@@ -93,6 +133,14 @@ function TokenDetailPage() {
       }
       
       setLoading(false);
+    });
+    
+    // Listen for token detail updates (real-time updates)
+    socketRef.current.on('token-details-update', (data) => {
+      if (data.contractAddress === contractAddress) {
+        console.log('Received real-time token update:', data);
+        setTokenDetails(data);
+      }
     });
     
     // Listen for errors
@@ -110,20 +158,20 @@ function TokenDetailPage() {
     
     // Add a timeout to fall back to HTTP if WebSocket is taking too long
     const timeoutId = setTimeout(() => {
-      if (loading && !tokenDetails) {
+      if (loading && !tokenDetails && dataRequested.current) {
         console.log('WebSocket request timeout - falling back to HTTP');
         fallbackToHttp();
       }
     }, 5000); // 5 second timeout
     
-    // Clean up on unmount
+    // Clean up on unmount or when contract address changes
     return () => {
       clearTimeout(timeoutId);
       if (socketRef.current) {
         socketRef.current.disconnect();
       }
     };
-  }, [contractAddress]);
+  }, [contractAddress]); // Depend on contractAddress so it reruns when that changes
   
   // HTTP fallback function
   const fallbackToHttp = async () => {
@@ -143,14 +191,21 @@ function TokenDetailPage() {
       
       setLoading(false);
     } catch (err) {
+      console.error('HTTP fallback error:', err);
       setError('Failed to fetch token details');
       setLoading(false);
     }
   };
 
-  // Wrap the loading, error, and empty states to include the background div
-  if (loading) return (
-    <>
+  // Handler for chart loading
+  const handleChartLoad = () => {
+    console.log('Chart iframe loaded');
+    setIsLoadingChart(false);
+  };
+
+  // Improved loading state with better UX
+  if (loading) {
+    return (
       <div style={{
         position: 'fixed',
         top: 0,
@@ -158,14 +213,21 @@ function TokenDetailPage() {
         right: 0,
         bottom: 0,
         backgroundColor: '#000000',
-        zIndex: -1
-      }}></div>
-      <div>Loading...</div>
-    </>
-  );
+        color: 'white',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 999
+      }}>
+        <div style={{ fontSize: '18px', marginBottom: '10px' }}>Loading token data...</div>
+        <div className="loading-spinner" style={{ width: '40px', height: '40px' }}></div>
+      </div>
+    );
+  }
   
-  if (error) return (
-    <>
+  if (error) {
+    return (
       <div style={{
         position: 'fixed',
         top: 0,
@@ -173,14 +235,34 @@ function TokenDetailPage() {
         right: 0,
         bottom: 0,
         backgroundColor: '#000000',
-        zIndex: -1
-      }}></div>
-      <div>{error}</div>
-    </>
-  );
+        color: 'white',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 999
+      }}>
+        <div style={{ fontSize: '18px', marginBottom: '10px' }}>Error: {error}</div>
+        <button 
+          onClick={() => window.history.back()} 
+          style={{ 
+            padding: '8px 16px', 
+            background: '#333', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '4px', 
+            cursor: 'pointer',
+            marginTop: '20px'
+          }}
+        >
+          ← Go Back
+        </button>
+      </div>
+    );
+  }
   
-  if (!tokenDetails) return (
-    <>
+  if (!tokenDetails) {
+    return (
       <div style={{
         position: 'fixed',
         top: 0,
@@ -188,11 +270,31 @@ function TokenDetailPage() {
         right: 0,
         bottom: 0,
         backgroundColor: '#000000',
-        zIndex: -1
-      }}></div>
-      <div>No token details found</div>
-    </>
-  );
+        color: 'white',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 999
+      }}>
+        <div style={{ fontSize: '18px', marginBottom: '10px' }}>No token details found</div>
+        <button 
+          onClick={() => window.history.back()} 
+          style={{ 
+            padding: '8px 16px', 
+            background: '#333', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '4px', 
+            cursor: 'pointer',
+            marginTop: '20px'
+          }}
+        >
+          ← Go Back
+        </button>
+      </div>
+    );
+  }
 
   // Use the poolAddress (from MongoDB) for the DexScreener embed URL
   const dexScreenerEmbedUrl = `https://dexscreener.com/base/${poolAddress}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartDefaultOnMobile=1&chartTheme=dark&theme=light&chartStyle=0&chartType=usd&interval=15`;
@@ -200,7 +302,7 @@ function TokenDetailPage() {
   // Log the URL for debugging
   console.log("DexScreener URL:", dexScreenerEmbedUrl);
 
-  // Add the background div to the main return statement
+  // Main content with enhanced loading states
   return (
     <>
       <div style={{
@@ -230,6 +332,20 @@ function TokenDetailPage() {
           </div>
         </div>
         <div className="token-chart-container">
+          {isLoadingChart && (
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              color: 'white',
+              zIndex: 5,
+              textAlign: 'center'
+            }}>
+              <div>Loading chart...</div>
+              <div className="loading-spinner" style={{ margin: '20px auto', width: '30px', height: '30px' }}></div>
+            </div>
+          )}
           <style>
             {`
               #dexscreener-embed {
@@ -249,12 +365,26 @@ function TokenDetailPage() {
                 top: 0;
                 left: 0;
                 border: 0;
+                background-color: #000;
+              }
+              .loading-spinner {
+                border: 4px solid rgba(255, 255, 255, 0.3);
+                border-radius: 50%;
+                border-top: 4px solid white;
+                width: 24px;
+                height: 24px;
+                animation: spin 1s linear infinite;
+              }
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
               }
             `}
           </style>
           <div id="dexscreener-embed">
             <iframe 
               src={dexScreenerEmbedUrl}
+              onLoad={handleChartLoad}
             ></iframe>
           </div>
         </div>

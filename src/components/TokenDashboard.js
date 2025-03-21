@@ -1,6 +1,7 @@
 import axios from 'axios';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import io from 'socket.io-client';
 
 
 // Theme Toggle Component
@@ -123,6 +124,10 @@ function TokenDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   
+  // Socket.io connection reference
+  const socketRef = useRef(null);
+  const socketConnected = useRef(false);
+  
   // Enhanced screen dimensions tracking with height classes
   const [screenDimensions, setScreenDimensions] = useState({
     width: window.innerWidth,
@@ -169,6 +174,117 @@ function TokenDashboard() {
     }
   }, [isShortScreen, isVeryShortScreen, isExtremelyShortScreen]);
 
+  // WebSocket setup and event handlers
+  useEffect(() => {
+    // Initialize socket connection
+    socketRef.current = io('http://localhost:4003');
+    
+    // Initial loading state
+    setLoading(true);
+    
+    // Connection event handlers
+    socketRef.current.on('connect', () => {
+      console.log('Connected to WebSocket server');
+      socketConnected.current = true;
+      
+      // Request data for current page/sort after connection is established
+      console.log(`Initial connection - Sending sort params: field=${sortField}, direction=${sortDirection}`);
+      
+      socketRef.current.emit('get-tokens', {
+        sort: sortField, // Send the actual sort field without transformation
+        direction: sortDirection, // Send the actual direction without transformation
+        page: currentPage
+      });
+    });
+    
+    // Handle top tokens updates
+    socketRef.current.on('top-tokens-update', (data) => {
+      setHighestMarketCapToken(data.topMarketCapToken);
+      setHighestVolumeToken(data.topVolumeToken);
+    });
+    
+    // Handle tokens list updates
+    socketRef.current.on('tokens-list-update', (data) => {
+      setTokens(data.tokens);
+      setTotalPages(data.totalPages);
+      setLoading(false);
+    });
+    
+    // Handle individual token updates
+    socketRef.current.on('token-update', (updatedToken) => {
+      // Update the token in our existing list if it's there
+      setTokens(currentTokens => 
+        currentTokens.map(token => 
+          token.contractAddress === updatedToken.contractAddress 
+            ? { ...token, ...updatedToken } 
+            : token
+        )
+      );
+      
+      // Check if we need to update highlighted tokens
+      if (highestMarketCapToken && 
+          highestMarketCapToken.contractAddress === updatedToken.contractAddress) {
+        setHighestMarketCapToken({ ...highestMarketCapToken, ...updatedToken });
+      }
+      
+      if (highestVolumeToken && 
+          highestVolumeToken.contractAddress === updatedToken.contractAddress) {
+        setHighestVolumeToken({ ...highestVolumeToken, ...updatedToken });
+      }
+    });
+    
+    socketRef.current.on('connect_error', (err) => {
+      console.error('Socket connection error:', err);
+      // Fall back to HTTP polling if WebSocket connection fails
+      fallbackToHttpPolling();
+    });
+    
+    socketRef.current.on('disconnect', () => {
+      console.log('Disconnected from WebSocket server');
+      socketConnected.current = false;
+      // Fall back to HTTP polling if WebSocket disconnects
+      fallbackToHttpPolling();
+    });
+    
+    // Clean up on unmount
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, []); // Empty dependency array ensures this runs only once on component mount
+  
+  // Fallback to HTTP polling if WebSocket fails
+  const fallbackToHttpPolling = useCallback(() => {
+    console.log('Falling back to HTTP polling');
+    
+    // Only proceed with HTTP polling if socket is not connected
+    if (!socketConnected.current) {
+      fetchGlobalTopTokens();
+      fetchTokens(sortField, sortDirection, currentPage);
+    }
+  }, [sortField, sortDirection, currentPage]);
+  
+  // Request updated data when sort or page changes via WebSocket
+  useEffect(() => {
+    if (socketRef.current && socketConnected.current) {
+      setLoading(true);
+      
+      // Send the actual sort field and direction values directly
+      console.log(`Sort/page changed - Sending params: field=${sortField}, direction=${sortDirection}, page=${currentPage}`);
+      
+      socketRef.current.emit('get-tokens', {
+        sort: sortField, // Send the actual sort field without transformation
+        direction: sortDirection, // Send the actual direction without transformation
+        page: currentPage
+      });
+    } else {
+      // If WebSocket is not connected, fall back to HTTP
+      fallbackToHttpPolling();
+    }
+  }, [sortField, sortDirection, currentPage, fallbackToHttpPolling]);
+
+  // Original HTTP methods kept as fallbacks
   const fetchGlobalTopTokens = useCallback(async () => {
     try {
       const response = await axios.get('https://website-4g84.onrender.com/api/global-top-tokens');
@@ -179,16 +295,6 @@ function TokenDashboard() {
       console.error('Failed to fetch global top tokens', err);
     }
   }, []);
-
-  const handleSort = (field) => {
-    if (field === sortField) {
-      setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc');
-    } else {
-      setSortField(field);
-      setSortDirection('desc');
-    }
-    setCurrentPage(1);
-  };
 
   const fetchTokens = useCallback(async (field, direction, page) => {
     try {
@@ -210,10 +316,15 @@ function TokenDashboard() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchGlobalTopTokens();
-    fetchTokens(sortField, sortDirection, currentPage);
-  }, [fetchGlobalTopTokens, fetchTokens, sortField, sortDirection, currentPage]);
+  const handleSort = (field) => {
+    if (field === sortField) {
+      setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+    setCurrentPage(1);
+  };
 
   const handlePageChange = (newPage) => {
     if (newPage > 0 && newPage <= totalPages) {
@@ -335,7 +446,7 @@ function TokenDashboard() {
           </div>
         ) : null}
 
-        {loading ? (
+        {loading && tokens.length === 0 ? (
           <div className="loading-message">Loading tokens...</div>
         ) : error ? (
           <div className="error-message">{error}</div>

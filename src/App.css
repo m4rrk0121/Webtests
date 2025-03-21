@@ -772,7 +772,7 @@ body {
   /* Make the token cards slightly smaller on mobile */
   .token-card.highlight-card {
     transform: scale(0.9) !important;
-    width: 88% !important;
+    width: 95% !important;
     max-width: 320px !important;
     margin: 0 auto !important;
     position: relative !important; /* Ensure position for pseudo-elements */

@@ -3,49 +3,24 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useWebSocket } from '../context/WebSocketContext';
 
-// Simple cache that doesn't use eval or JSON.parse
-const tokenCache = {
-  data: {},
-  set: function(key, value, expiresInMs = 24 * 60 * 60 * 1000) {
-    this.data[key] = {
-      value: value,
-      expires: Date.now() + expiresInMs
-    };
-    // No localStorage to avoid JSON.parse
-  },
+// Memory cache without complex operations
+const memoryCache = {
+  store: {},
   get: function(key) {
-    const item = this.data[key];
+    const item = this.store[key];
     if (!item) return null;
-    if (Date.now() > item.expires) {
-      delete this.data[key];
+    if (item.expires && item.expires < Date.now()) {
+      delete this.store[key];
       return null;
     }
     return item.value;
+  },
+  set: function(key, value, ttlMinutes = 60) {
+    this.store[key] = {
+      value: value,
+      expires: Date.now() + (ttlMinutes * 60 * 1000)
+    };
   }
-};
-
-// Currency formatting utility
-const formatCurrency = (value) => {
-  if (value === null || value === undefined) return 'N/A';
-  
-  const num = parseFloat(value);
-  if (isNaN(num)) return 'N/A';
-  
-  // Handle large numbers with abbreviated notation
-  if (num >= 1000000000) {
-    return `$${(num / 1000000000).toFixed(2)}B`;
-  } else if (num >= 1000000) {
-    return `$${(num / 1000000).toFixed(2)}M`;
-  } else if (num >= 1000) {
-    return `$${(num / 1000).toFixed(2)}K`;
-  }
-  
-  // Precise formatting for smaller values
-  return num >= 1 
-    ? `$${num.toFixed(2)}` 
-    : num >= 0.01 
-      ? `$${num.toFixed(4)}` 
-      : `$${num.toFixed(8)}`;
 };
 
 function TokenDetailPage() {
@@ -53,290 +28,370 @@ function TokenDetailPage() {
   const navigate = useNavigate();
   
   // Get the WebSocket context
-  const { isConnected, emit, addListener, removeListener, reconnect } = useWebSocket();
+  const { isConnected, emit, addListener, removeListener } = useWebSocket();
 
-  // State management with safer defaults
-  const [tokenDetails, setTokenDetails] = useState(() => {
-    // Try to get from in-memory cache
-    return tokenCache.get(contractAddress) || null;
-  });
+  // State management
+  const [tokenDetails, setTokenDetails] = useState(null);
   const [poolAddress, setPoolAddress] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [dataSource, setDataSource] = useState(null);
+  const [dataSource, setDataSource] = useState('loading');
   
-  // Refs for managing data loading
-  const isMounted = useRef(true);
-  const hasAttemptedLoad = useRef(false);
-  const tokenDetailHandler = useRef(null);
-  const tokenUpdateHandler = useRef(null);
-  const errorHandler = useRef(null);
-
-  // Fetch token data via HTTP without any eval
-  const fetchTokenDataHttp = useCallback(async (address) => {
-    try {
-      console.log('[TokenDetailPage] Fetching token data via HTTP');
-      const response = await axios.get(
-        `https://website-4g84.onrender.com/api/tokens/${address}`,
-        { timeout: 15000 }
-      );
-      
-      if (response.data) {
-        return response.data;
-      }
-      return null;
-    } catch (error) {
-      console.error('[TokenDetailPage] HTTP fetch failed:', error);
-      return null;
+  // Reference for event handlers and cleanup
+  const mounted = useRef(true);
+  const initialRender = useRef(true);
+  const initialLoadSource = useRef(null);
+  const eventHandlers = useRef({});
+  
+  // Safe data formatting utility
+  function formatCurrency(value) {
+    if (value == null) return 'N/A';
+    
+    const num = parseFloat(value);
+    if (isNaN(num)) return 'N/A';
+    
+    if (num >= 1000000000) {
+      return '$' + (num / 1000000000).toFixed(2) + 'B';
+    } else if (num >= 1000000) {
+      return '$' + (num / 1000000).toFixed(2) + 'M';
+    } else if (num >= 1000) {
+      return '$' + (num / 1000).toFixed(2) + 'K';
+    } else if (num >= 1) {
+      return '$' + num.toFixed(2);
+    } else if (num >= 0.01) {
+      return '$' + num.toFixed(4);
+    } else {
+      return '$' + num.toFixed(8);
     }
+  }
+  
+  // HTTP fetch utility
+  const fetchTokenDataHttp = useCallback(function(address) {
+    return new Promise(function(resolve, reject) {
+      axios.get('https://website-4g84.onrender.com/api/tokens/' + address, {
+        timeout: 15000
+      })
+      .then(function(response) {
+        if (response && response.data) {
+          resolve(response.data);
+        } else {
+          reject(new Error('Empty response'));
+        }
+      })
+      .catch(function(error) {
+        reject(error);
+      });
+    });
   }, []);
-
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      isMounted.current = false;
-      
-      // Clean up any event listeners
-      if (tokenDetailHandler.current) {
-        removeListener('token-details', tokenDetailHandler.current);
-        tokenDetailHandler.current = null;
-      }
-      if (tokenUpdateHandler.current) {
-        removeListener('token-details-update', tokenUpdateHandler.current);
-        tokenUpdateHandler.current = null;
-      }
-      if (errorHandler.current) {
-        removeListener('error', errorHandler.current);
-        errorHandler.current = null;
-      }
-    };
-  }, [removeListener]);
-
-  // Function to get token data via WebSocket
-  const getTokenDataViaWebSocket = useCallback((address) => {
-    return new Promise((resolve, reject) => {
+  
+  // WebSocket fetch utility
+  const fetchTokenDataWebSocket = useCallback(function(address) {
+    return new Promise(function(resolve, reject) {
       if (!isConnected) {
         reject(new Error('WebSocket not connected'));
         return;
       }
       
-      console.log(`[TokenDetailPage] Requesting token details for ${address} via WebSocket`);
-      
-      // Using regular functions instead of arrow functions
-      function detailHandler(data) {
-        console.log('[TokenDetailPage] Received token details via WebSocket');
+      // Create handler functions
+      function handleTokenDetails(data) {
+        console.log('[TokenDetailPage] WebSocket data received successfully');
+        // Remove listeners to avoid memory leaks
+        removeListener('token-details', handleTokenDetails);
+        removeListener('error', handleError);
+        
+        // Clear from tracking object
+        delete eventHandlers.current.tokenDetails;
+        delete eventHandlers.current.error;
+        
         resolve(data);
       }
       
-      function wsErrorHandler(errorData) {
-        console.error('[TokenDetailPage] WebSocket error:', errorData?.message || 'Unknown error');
-        reject(new Error('WebSocket error'));
+      function handleError(error) {
+        console.error('[TokenDetailPage] WebSocket error:', error);
+        // Remove listeners to avoid memory leaks
+        removeListener('token-details', handleTokenDetails);
+        removeListener('error', handleError);
+        
+        // Clear from tracking object
+        delete eventHandlers.current.tokenDetails;
+        delete eventHandlers.current.error;
+        
+        reject(error);
       }
       
-      // Store refs for cleanup
-      tokenDetailHandler.current = detailHandler;
-      errorHandler.current = wsErrorHandler;
+      // Track handlers for cleanup
+      eventHandlers.current.tokenDetails = handleTokenDetails;
+      eventHandlers.current.error = handleError;
       
-      // Add event listeners
-      addListener('token-details', detailHandler);
-      addListener('error', wsErrorHandler);
+      // Add listeners
+      addListener('token-details', handleTokenDetails);
+      addListener('error', handleError);
       
-      // Send request for token details
+      // Request data
+      console.log('[TokenDetailPage] Requesting data via WebSocket');
       emit('get-token-details', { contractAddress: address });
       
-      // Set timeout to prevent hanging
+      // Set timeout
       setTimeout(function() {
-        if (tokenDetailHandler.current === detailHandler) {
-          removeListener('token-details', detailHandler);
-          tokenDetailHandler.current = null;
+        if (eventHandlers.current.tokenDetails === handleTokenDetails) {
+          console.log('[TokenDetailPage] WebSocket request timed out');
+          removeListener('token-details', handleTokenDetails);
+          removeListener('error', handleError);
+          delete eventHandlers.current.tokenDetails;
+          delete eventHandlers.current.error;
+          reject(new Error('Request timed out'));
         }
-        if (errorHandler.current === wsErrorHandler) {
-          removeListener('error', wsErrorHandler);
-          errorHandler.current = null;
-        }
-        reject(new Error('WebSocket request timed out'));
       }, 10000);
     });
-  }, [isConnected, emit, addListener, removeListener, contractAddress]);
-
-  // Setup live updates
-  const setupLiveUpdates = useCallback((address) => {
+  }, [isConnected, addListener, removeListener, emit]);
+  
+  // Set up live updates
+  const setupLiveUpdates = useCallback(function(address) {
+    // Skip if not connected or missing address
     if (!isConnected || !address) return;
     
-    console.log(`[TokenDetailPage] Setting up live updates for ${address}`);
-    
-    // Remove any existing update handler
-    if (tokenUpdateHandler.current) {
-      removeListener('token-details-update', tokenUpdateHandler.current);
+    // Clean up any existing update handler
+    if (eventHandlers.current.update) {
+      removeListener('token-details-update', eventHandlers.current.update);
+      delete eventHandlers.current.update;
     }
     
-    // Create update handler using regular function
-    function updateHandler(updatedToken) {
-      if (updatedToken && updatedToken.contractAddress === address && isMounted.current) {
-        console.log('[TokenDetailPage] Received token update via WebSocket');
-        setTokenDetails(function(current) {
-          // Handle case where current is null
-          const baseToken = current || {};
-          const updated = {...baseToken, ...updatedToken};
+    // Create update handler
+    function handleUpdate(updatedToken) {
+      if (!mounted.current) return;
+      
+      if (updatedToken && updatedToken.contractAddress === address) {
+        console.log('[TokenDetailPage] Live update received');
+        
+        // Only update if this is a data-changing update
+        const hasChanges = 
+          !tokenDetails || 
+          updatedToken.price_usd !== tokenDetails.price_usd || 
+          updatedToken.fdv_usd !== tokenDetails.fdv_usd ||
+          updatedToken.volume_usd !== tokenDetails.volume_usd;
           
-          // Update memory cache
-          tokenCache.set(address, updated);
+        if (hasChanges) {
+          setTokenDetails(function(current) {
+            // Handle null case
+            if (!current) return updatedToken;
+            
+            // Create new object with updates
+            return {
+              ...current,
+              ...updatedToken
+            };
+          });
           
-          return updated;
-        });
-        setDataSource('websocket');
+          // Only update data source if it's not already websocket
+          if (dataSource !== 'websocket') {
+            setDataSource('websocket');
+          }
+          
+          // Update cache
+          memoryCache.set(address, updatedToken);
+        }
       }
     }
     
-    // Store ref and add listener
-    tokenUpdateHandler.current = updateHandler;
-    addListener('token-details-update', updateHandler);
+    // Track and add listener
+    eventHandlers.current.update = handleUpdate;
+    addListener('token-details-update', handleUpdate);
     
-    // Request initial data
+    // Initial request
     emit('get-token-details', { contractAddress: address });
-  }, [isConnected, emit, addListener, removeListener]);
-
-  // Main effect for loading token data
-  useEffect(() => {
-    // Skip if no address
+    
+    console.log('[TokenDetailPage] Live updates set up for', address);
+  }, [isConnected, addListener, removeListener, emit, dataSource, tokenDetails]);
+  
+  // Cleanup on unmount
+  useEffect(function() {
+    return function() {
+      mounted.current = false;
+      
+      // Clean up all listeners
+      Object.entries(eventHandlers.current).forEach(function([key, handler]) {
+        if (key === 'tokenDetails' || key === 'error') {
+          removeListener('token-details', handler);
+          removeListener('error', handler);
+        } else if (key === 'update') {
+          removeListener('token-details-update', handler);
+        }
+      });
+      
+      eventHandlers.current = {};
+    };
+  }, [removeListener]);
+  
+  // Main data loading effect
+  useEffect(function() {
+    // Reset for new address
+    if (!initialRender.current) {
+      setLoading(true);
+      setError(null);
+      setTokenDetails(null);
+      setPoolAddress(null);
+      setDataSource('loading');
+    }
+    initialRender.current = false;
+    
+    // Skip if missing address
     if (!contractAddress) {
       setError('Invalid token address');
       setLoading(false);
       return;
     }
     
-    // Set loading state
-    setLoading(true);
+    let isActive = true;
     
-    // Mark that we've attempted to load
-    hasAttemptedLoad.current = true;
-    
-    // Define load function
+    // Core data loading function
     async function loadData() {
       try {
-        // Try memory cache first (fast)
-        const cachedToken = tokenCache.get(contractAddress);
-        if (cachedToken) {
-          console.log('[TokenDetailPage] Using cached token data');
-          setTokenDetails(cachedToken);
-          setPoolAddress(cachedToken.main_pool_address || contractAddress);
-          setDataSource('cache');
-          setLoading(false);
+        // First check memory cache
+        const cachedData = memoryCache.get(contractAddress);
+        if (cachedData) {
+          console.log('[TokenDetailPage] Using cached data');
+          
+          if (isActive) {
+            setTokenDetails(cachedData);
+            setPoolAddress(cachedData.main_pool_address || contractAddress);
+            
+            // Only set dataSource if we haven't loaded from somewhere else
+            if (!initialLoadSource.current) {
+              setDataSource('cache');
+              initialLoadSource.current = 'cache';
+            }
+            
+            setLoading(false);
+          }
         }
         
         // Try WebSocket if connected
         if (isConnected) {
           try {
-            const wsData = await getTokenDataViaWebSocket(contractAddress);
-            if (wsData && isMounted.current) {
-              console.log('[TokenDetailPage] WebSocket data received');
+            console.log('[TokenDetailPage] Fetching via WebSocket');
+            const wsData = await fetchTokenDataWebSocket(contractAddress);
+            
+            if (wsData && isActive) {
               setTokenDetails(wsData);
               setPoolAddress(wsData.main_pool_address || contractAddress);
               setDataSource('websocket');
+              initialLoadSource.current = 'websocket';
               setLoading(false);
               
-              // Cache the data
-              tokenCache.set(contractAddress, wsData);
+              // Update cache
+              memoryCache.set(contractAddress, wsData);
               
               // Set up live updates
               setupLiveUpdates(contractAddress);
-              return; // Success, exit early
+              
+              return; // Success via WebSocket
             }
           } catch (wsError) {
-            console.warn('[TokenDetailPage] WebSocket data fetch failed:', wsError?.message || 'Unknown error');
-            // Continue to HTTP fetch
+            console.warn('[TokenDetailPage] WebSocket fetch failed, trying HTTP');
+            // Continue to HTTP fallback
           }
         }
         
-        // Fallback to HTTP if needed
-        if (!tokenDetails || dataSource !== 'websocket') {
-          console.log('[TokenDetailPage] Trying HTTP fetch');
-          const httpData = await fetchTokenDataHttp(contractAddress);
-          
-          if (httpData && isMounted.current) {
-            setTokenDetails(httpData);
-            setPoolAddress(httpData.main_pool_address || contractAddress);
-            setDataSource('http');
-            setLoading(false);
+        // Fallback to HTTP
+        if ((!tokenDetails || dataSource === 'loading' || dataSource === 'cache') && isActive) {
+          try {
+            console.log('[TokenDetailPage] Fetching via HTTP');
+            const httpData = await fetchTokenDataHttp(contractAddress);
             
-            // Cache the data
-            tokenCache.set(contractAddress, httpData);
-            
-            // Try to set up live updates if connected
-            if (isConnected) {
-              setupLiveUpdates(contractAddress);
+            if (httpData && isActive) {
+              setTokenDetails(httpData);
+              setPoolAddress(httpData.main_pool_address || contractAddress);
+              
+              // Only change data source if we haven't successfully loaded from WebSocket
+              if (dataSource !== 'websocket') {
+                setDataSource('http');
+                initialLoadSource.current = 'http';
+              }
+              
+              setLoading(false);
+              
+              // Update cache
+              memoryCache.set(contractAddress, httpData);
+              
+              // Try to set up WebSocket updates anyway
+              if (isConnected) {
+                setupLiveUpdates(contractAddress);
+              }
+              
+              return; // Success via HTTP
             }
-            return; // Success
+          } catch (httpError) {
+            console.error('[TokenDetailPage] HTTP fetch failed');
+            
+            // Only show error if we don't have any data yet
+            if (!tokenDetails && isActive) {
+              setError('Failed to load token data');
+              setLoading(false);
+            }
           }
         }
         
-        // If we reach here with no data and we're not showing an error, 
-        // we might have failed silently
-        if (!tokenDetails && !error && isMounted.current) {
-          console.warn('[TokenDetailPage] All data fetching methods failed');
+        // If we got here and still don't have data, show error
+        if (!tokenDetails && !error && isActive) {
           setError('Unable to load token data');
           setLoading(false);
         }
-      } catch (err) {
-        console.error('[TokenDetailPage] Error in data loading:', err?.message || 'Unknown error');
         
-        if (isMounted.current && !tokenDetails) {
+      } catch (err) {
+        console.error('[TokenDetailPage] General error in data loading');
+        
+        // Only show error if we don't have data yet
+        if (!tokenDetails && isActive) {
           setError('Error loading token data');
           setLoading(false);
         }
       }
     }
     
-    // Run the load function
+    // Load data
     loadData();
     
-    // Clean up function
+    // Cleanup
     return function() {
-      // Any specific cleanup needed
+      isActive = false;
     };
   }, [
     contractAddress, 
     isConnected, 
-    tokenDetails, 
-    dataSource, 
-    error,
-    getTokenDataViaWebSocket, 
+    fetchTokenDataWebSocket, 
     fetchTokenDataHttp, 
-    setupLiveUpdates
+    setupLiveUpdates,
+    error
   ]);
-
-  // Force WebSocket reconnect if needed
-  useEffect(() => {
-    // If we're showing an error or no data on refresh, try reconnecting
-    const needsReconnect = (error || !tokenDetails) && !isConnected;
-    
-    if (needsReconnect && hasAttemptedLoad.current) {
-      console.log('[TokenDetailPage] Trying to reconnect WebSocket');
-      reconnect();
-    }
-  }, [error, tokenDetails, isConnected, reconnect]);
   
   // Copy to clipboard utility
-  const copyToClipboard = (text) => {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
+  function copyToClipboard(text) {
+    if (navigator.clipboard) {
       navigator.clipboard.writeText(text)
-        .then(() => {
+        .then(function() {
           window.alert('Copied to clipboard');
         })
-        .catch(() => {
-          window.alert('Failed to copy');
+        .catch(function() {
+          window.alert('Copy failed');
         });
     } else {
-      window.alert('Copy not supported in this browser');
+      window.alert('Copy not supported');
     }
-  };
-
-  // Handle reload
-  const handleRetry = () => {
+  }
+  
+  // Handle navigation to dashboard
+  function goToDashboard() {
+    navigate('/');
+  }
+  
+  // Handle retry
+  function handleRetry() {
     window.location.reload();
-  };
-
-  // Render loading state
+  }
+  
+  // -- Render logic --
+  
+  // Loading state
   if (loading) {
     return (
       <div style={{
@@ -365,15 +420,11 @@ function TokenDetailPage() {
         )}
         
         <div className="loading-spinner" style={{ width: '40px', height: '40px' }}></div>
-        
-        <div style={{ fontSize: '14px', marginTop: '10px', opacity: 0.8 }}>
-          {isConnected ? 'WebSocket Connected' : 'Using HTTP Fallback'}
-        </div>
       </div>
     );
   }
-
-  // Render error state
+  
+  // Error state
   if (error || !tokenDetails) {
     return (
       <div style={{
@@ -392,12 +443,12 @@ function TokenDetailPage() {
         fontFamily: "'Chewy', cursive"
       }}>
         <div style={{ fontSize: '20px', marginBottom: '15px', color: '#ff4466' }}>
-          {error || 'No Token Details Available'}
+          {error || 'No Token Details Found'}
         </div>
         
         <div style={{ display: 'flex', gap: '10px' }}>
           <button 
-            onClick={() => navigate('/')} 
+            onClick={goToDashboard} 
             style={{ 
               padding: '10px 20px', 
               background: '#ffb300', 
@@ -428,13 +479,13 @@ function TokenDetailPage() {
       </div>
     );
   }
-
-  // Render token details
+  
+  // Main content - token detail view
   return (
     <div className="token-detail-page" style={{ backgroundColor: '#000000', minHeight: '100vh', color: '#ffffff' }}>
       <div className="token-detail-header" style={{ padding: '20px' }}>
         <button 
-          onClick={() => navigate('/')} 
+          onClick={goToDashboard} 
           style={{ 
             background: 'none', 
             border: 'none', 
@@ -459,11 +510,11 @@ function TokenDetailPage() {
             <p>Contract: 
               <span style={{ marginLeft: '5px' }}>
                 {tokenDetails.contractAddress && 
-                 `${tokenDetails.contractAddress.slice(0, 8)}...${tokenDetails.contractAddress.slice(-6)}`}
+                  tokenDetails.contractAddress.slice(0, 8) + '...' + tokenDetails.contractAddress.slice(-6)}
               </span>
             </p>
             <button
-              onClick={() => copyToClipboard(tokenDetails.contractAddress)}
+              onClick={function() { copyToClipboard(tokenDetails.contractAddress); }}
               style={{
                 background: '#333',
                 color: '#ffb300',
@@ -479,64 +530,39 @@ function TokenDetailPage() {
           </div>
         </div>
         
-        {/* Connection status indicator */}
+        {/* Data source indicator */}
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginTop: '10px'
+          display: 'inline-block',
+          marginTop: '10px',
+          background: '#222',
+          color: dataSource === 'websocket' ? '#00ff88' : dataSource === 'cache' ? '#ffb300' : '#ff9900',
+          padding: '4px 8px',
+          borderRadius: '4px',
+          fontSize: '12px'
         }}>
-          <div style={{
+          <span style={{ 
             display: 'inline-block',
-            background: '#222',
-            color: dataSource === 'websocket' ? '#00ff88' : dataSource === 'cache' ? '#ffb300' : '#ff9900',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            fontSize: '12px'
-          }}>
-            <span style={{ 
-              display: 'inline-block',
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: dataSource === 'websocket' ? '#00ff88' : dataSource === 'cache' ? '#ffb300' : '#ff9900',
-              marginRight: '6px'
-            }}></span>
-            {dataSource === 'websocket' ? 'Live Data' : dataSource === 'cache' ? 'Cached Data' : 'Static Data'}
-          </div>
-          
-          <div style={{
-            display: 'inline-block',
-            background: '#222',
-            color: isConnected ? '#00ff88' : '#ff4466',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            fontSize: '12px'
-          }}>
-            <span style={{ 
-              display: 'inline-block',
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: isConnected ? '#00ff88' : '#ff4466',
-              marginRight: '6px'
-            }}></span>
-            {isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
-          </div>
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: dataSource === 'websocket' ? '#00ff88' : dataSource === 'cache' ? '#ffb300' : '#ff9900',
+            marginRight: '6px'
+          }}></span>
+          {dataSource === 'websocket' ? 'Live Data' : dataSource === 'cache' ? 'Cached Data' : 'Static Data'}
         </div>
       </div>
       
       {/* Chart Embed */}
       <div className="token-chart-container" style={{ padding: '20px' }}>
         <iframe 
-          src={`https://dexscreener.com/base/${poolAddress || contractAddress}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartDefaultOnMobile=1&chartTheme=dark&theme=light&chartStyle=0&chartType=usd&interval=15`}
+          src={'https://dexscreener.com/base/' + (poolAddress || contractAddress) + '?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartDefaultOnMobile=1&chartTheme=dark&theme=light&chartStyle=0&chartType=usd&interval=15'}
           style={{
             width: '100%',
             height: '500px',
             border: 'none',
             backgroundColor: '#000000'
           }}
-          title={`${tokenDetails.name} price chart`}
+          title={tokenDetails.name + ' price chart'}
         />
       </div>
     </div>

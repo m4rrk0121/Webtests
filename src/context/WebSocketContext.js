@@ -1,220 +1,151 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+// WebSocketContext.js
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
 
-// Create context
 const WebSocketContext = createContext(null);
 
-// Enum for connection states
-const ConnectionState = {
-  DISCONNECTED: 'disconnected',
-  CONNECTING: 'connecting',
-  CONNECTED: 'connected',
-  ERROR: 'error'
-};
+export const useWebSocket = () => useContext(WebSocketContext);
 
-// Hook to use the WebSocket context
-export function useWebSocket() {
-  return useContext(WebSocketContext);
-}
-
-// Provider component
-export function WebSocketProvider({ children }) {
-  // Connection state management
-  const [connectionState, setConnectionState] = useState(ConnectionState.DISCONNECTED);
-  const [reconnectAttempts, setReconnectAttempts] = useState(0);
-  
-  // Refs for socket and timers
+export const WebSocketProvider = ({ children }) => {
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState(null);
   const socketRef = useRef(null);
-  const reconnectTimeoutRef = useRef(null);
-  const connectionAttemptRef = useRef(null);
-  
-  // Configuration
-  const MAX_RECONNECT_ATTEMPTS = 10;
-  const RECONNECT_BASE_DELAY = 1000; // 1 second
-  const RECONNECT_MAX_DELAY = 30000; // 30 seconds
-  const PING_INTERVAL = 45000; // 45 seconds
-  const CONNECTION_TIMEOUT = 25000; // 25 seconds
+  const listenersRef = useRef({});
 
-  // Exponential backoff calculation
-  const calculateReconnectDelay = useCallback((attempts) => {
-    const delay = Math.min(
-      RECONNECT_BASE_DELAY * Math.pow(2, attempts),
-      RECONNECT_MAX_DELAY
-    );
-    return delay + Math.random() * 1000; // Add jitter
-  }, []);
-
-  // Comprehensive connection setup
-  const setupSocketConnection = useCallback(() => {
-    // Cleanup any existing connection
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-    }
-
-    // Connection URL based on environment
+  useEffect(() => {
+    // Get environment-appropriate WebSocket URL
     const SOCKET_URL = process.env.NODE_ENV === 'production'
-      ? 'https://websocket-okv9.onrender.com'
-      : 'http://localhost:4003';
+      ? 'https://websocket-okv9.onrender.com'  // Production URL
+      : 'http://localhost:4004';               // Development URL
+      
+    console.log(`[WebSocketContext] Connecting to WebSocket server at: ${SOCKET_URL}`);
     
-    console.log(`Attempting WebSocket connection to ${SOCKET_URL}`);
-    
-    // Reset connection state
-    setConnectionState(ConnectionState.CONNECTING);
-    
-    // Create socket with enhanced options
-    const socket = io(SOCKET_URL, {
-      reconnection: true,
-      reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
-      reconnectionDelay: RECONNECT_BASE_DELAY,
-      reconnectionDelayMax: RECONNECT_MAX_DELAY,
-      timeout: CONNECTION_TIMEOUT,
-      transports: ['websocket', 'polling'],
-      forceNew: true, // Ensure a fresh connection
-      withCredentials: false
+    // Initialize socket connection
+    socketRef.current = io(SOCKET_URL, {
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000
     });
     
-    socketRef.current = socket;
-
-    // Connection success handler
-    const onConnect = () => {
-      console.log('WebSocket connected successfully');
-      setConnectionState(ConnectionState.CONNECTED);
-      setReconnectAttempts(0);
-      
-      // Clear any existing reconnect timers
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
-    };
-
-    // Connection error handler
-    const onConnectError = (error) => {
-      console.error('WebSocket connection error:', error);
-      setConnectionState(ConnectionState.ERROR);
-      
-      // Trigger reconnection
-      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-        const delay = calculateReconnectDelay(reconnectAttempts);
-        
-        reconnectTimeoutRef.current = setTimeout(() => {
-          setReconnectAttempts(prev => prev + 1);
-          console.log(`Reconnection attempt ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS}`);
-          setupSocketConnection();
-        }, delay);
-      } else {
-        console.warn('Max reconnection attempts reached. Falling back to alternative communication.');
-        setConnectionState(ConnectionState.DISCONNECTED);
-      }
-    };
-
-    // Disconnection handler
-    const onDisconnect = (reason) => {
-      console.log(`WebSocket disconnected: ${reason}`);
-      setConnectionState(ConnectionState.DISCONNECTED);
-      
-      // Automatic reconnection for certain disconnect reasons
-      if (reason === 'io server disconnect' || reason === 'transport close') {
-        setupSocketConnection();
-      }
-    };
-
-    // Attach event listeners
-    socket.on('connect', onConnect);
-    socket.on('connect_error', onConnectError);
-    socket.on('disconnect', onDisconnect);
-
-    // Periodic ping to maintain connection
-    const pingInterval = setInterval(() => {
-      if (socket.connected) {
-        socket.emit('ping', { timestamp: Date.now() });
-      }
-    }, PING_INTERVAL);
-
-    // Connection attempt timeout
-    connectionAttemptRef.current = setTimeout(() => {
-      if (connectionState === ConnectionState.CONNECTING) {
-        console.warn('Connection attempt timed out');
-        onConnectError(new Error('Connection attempt timed out'));
-      }
-    }, CONNECTION_TIMEOUT);
-
-    // Cleanup function
+    // Connection event handlers
+    socketRef.current.on('connect', () => {
+      console.log('[WebSocketContext] Connected to WebSocket server with ID:', socketRef.current.id);
+      setIsConnected(true);
+      setConnectionError(null);
+    });
+    
+    socketRef.current.on('connect_error', (err) => {
+      console.error('[WebSocketContext] Socket connection error:', err);
+      setIsConnected(false);
+      setConnectionError(err.message || 'Connection error');
+    });
+    
+    socketRef.current.on('disconnect', (reason) => {
+      console.log('[WebSocketContext] Disconnected from WebSocket server. Reason:', reason);
+      setIsConnected(false);
+    });
+    
+    // Clean up on unmount
     return () => {
-      clearInterval(pingInterval);
-      clearTimeout(connectionAttemptRef.current);
-      
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
+      console.log('[WebSocketContext] Cleaning up WebSocket connection');
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
       }
-      
-      socket.off('connect', onConnect);
-      socket.off('connect_error', onConnectError);
-      socket.off('disconnect', onDisconnect);
-      
-      socket.disconnect();
     };
-  }, [reconnectAttempts, calculateReconnectDelay]);
-
-  // Initial and dependency-driven connection setup
-  useEffect(() => {
-    const cleanup = setupSocketConnection();
-    return cleanup;
-  }, [setupSocketConnection]);
-
-  // Methods to interact with the socket
-  const emit = useCallback((event, data) => {
-    if (socketRef.current && connectionState === ConnectionState.CONNECTED) {
-      console.log(`Emitting event: ${event}`, data);
-      socketRef.current.emit(event, data);
-      return true;
+  }, []); // Empty dependency array ensures this runs only once
+  
+  // Method to send events to the WebSocket server
+  const emit = (event, data, callback) => {
+    if (socketRef.current && isConnected) {
+      return socketRef.current.emit(event, data, callback);
     } else {
-      console.warn(`Cannot emit event: ${event} - socket is not connected`);
+      console.warn(`[WebSocketContext] Attempted to emit '${event}' but socket is ${socketRef.current ? 'not connected' : 'null'}`);
       return false;
     }
-  }, [connectionState]);
-
-  const addListener = useCallback((event, callback) => {
+  };
+  
+  // Method to add event listeners
+  const addListener = (event, callback) => {
     if (socketRef.current) {
-      console.log(`Adding listener for event: ${event}`);
       socketRef.current.on(event, callback);
+      
+      // Store the callback ref so we can remove it later
+      if (!listenersRef.current[event]) {
+        listenersRef.current[event] = [];
+      }
+      listenersRef.current[event].push(callback);
+      
       return true;
     }
     return false;
-  }, []);
-
-  const removeListener = useCallback((event, callback) => {
-    if (socketRef.current) {
-      console.log(`Removing listener for event: ${event}`);
+  };
+  
+  // Method to remove event listeners
+  const removeListener = (event, callback) => {
+    if (socketRef.current && callback) {
       socketRef.current.off(event, callback);
+      
+      // Update listeners ref
+      if (listenersRef.current[event]) {
+        listenersRef.current[event] = listenersRef.current[event].filter(cb => cb !== callback);
+      }
+      
+      return true;
+    } else if (socketRef.current && !callback) {
+      // Remove all listeners for this event
+      socketRef.current.off(event);
+      delete listenersRef.current[event];
       return true;
     }
     return false;
-  }, []);
-
-  // Manually trigger reconnection
-  const reconnect = useCallback(() => {
-    if (!socketRef.current || connectionState !== ConnectionState.CONNECTED) {
-      console.log('Manually triggering reconnection');
-      setupSocketConnection();
+  };
+  
+  // Force reconnection method
+  const reconnect = () => {
+    if (socketRef.current) {
+      console.log('[WebSocketContext] Forcing reconnection...');
+      socketRef.current.disconnect();
+      socketRef.current.connect();
+      return true;
     }
-  }, [setupSocketConnection, connectionState]);
-
-  // Expose socket methods and state
-  const contextValue = {
+    return false;
+  };
+  
+  // Heartbeat check to ensure connection is alive
+  useEffect(() => {
+    let heartbeatInterval;
+    
+    if (isConnected && socketRef.current) {
+      heartbeatInterval = setInterval(() => {
+        socketRef.current.emit('ping', null, () => {
+          // Optional: check response time here
+        });
+      }, 30000); // 30 second heartbeat
+    }
+    
+    return () => {
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+      }
+    };
+  }, [isConnected]);
+  
+  const value = {
     socket: socketRef.current,
-    isConnected: connectionState === ConnectionState.CONNECTED,
-    connectionState,
-    reconnectAttempts,
+    isConnected,
+    connectionError,
     emit,
     addListener,
     removeListener,
     reconnect
   };
-
+  
   return (
-    <WebSocketContext.Provider value={contextValue}>
+    <WebSocketContext.Provider value={value}>
       {children}
     </WebSocketContext.Provider>
   );
-}
+};
+
+export default WebSocketContext;

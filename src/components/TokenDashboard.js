@@ -1,14 +1,14 @@
 import axios from 'axios';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import io from 'socket.io-client';
-
+// Import the WebSocket context hook
+import { useWebSocket } from '../context/WebSocketContext';
 
 // Theme Toggle Component
 const ThemeToggle = () => {
+  // Existing code remains the same
   const [isDarkMode, setIsDarkMode] = useState(false);
 
-  // Effect to apply theme class to body and content-wrapper
   useEffect(() => {
     const contentWrapper = document.querySelector('.content-wrapper');
     
@@ -21,16 +21,12 @@ const ThemeToggle = () => {
     }
   }, [isDarkMode]);
 
-  // Toggle theme function
   const toggleTheme = () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
-    
-    // Save preference in localStorage
     localStorage.setItem('theme', newMode ? 'dark' : 'light');
   };
 
-  // Check for saved theme preference on component mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
@@ -114,6 +110,9 @@ function TokenCard({ token, highlight = false }) {
 
 // Main Token Dashboard Component
 function TokenDashboard() {
+  // Get the WebSocket context instead of creating a new connection
+  const { isConnected, emit, addListener, removeListener } = useWebSocket();
+  
   const [tokens, setTokens] = useState([]);
   const [highestMarketCapToken, setHighestMarketCapToken] = useState(null);
   const [highestVolumeToken, setHighestVolumeToken] = useState(null);
@@ -123,10 +122,6 @@ function TokenDashboard() {
   const [sortDirection, setSortDirection] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  
-  // Socket.io connection reference
-  const socketRef = useRef(null);
-  const socketConnected = useRef(false);
   
   // Enhanced screen dimensions tracking with height classes
   const [screenDimensions, setScreenDimensions] = useState({
@@ -174,124 +169,112 @@ function TokenDashboard() {
     }
   }, [isShortScreen, isVeryShortScreen, isExtremelyShortScreen]);
 
-  // WebSocket setup and event handlers
+  // Setup event listeners for WebSocket
   useEffect(() => {
-    // Get environment-appropriate WebSocket URL
-    const SOCKET_URL = process.env.NODE_ENV === 'production'
-      ? 'https://websocket-okv9.onrender.com'  // Production URL
-      : 'http://localhost:4003';               // Development URL
+    if (isConnected) {
+      console.log("[TokenDashboard] WebSocket is connected, setting up event listeners");
+      setLoading(true);
       
-    console.log(`Connecting to WebSocket server at: ${SOCKET_URL}`);
-    
-    // Initialize socket connection
-    socketRef.current = io(SOCKET_URL);
-    
-    // Initial loading state
-    setLoading(true);
-    
-    // Connection event handlers
-    socketRef.current.on('connect', () => {
-      console.log('Connected to WebSocket server');
-      socketConnected.current = true;
+      // Register token list update listener
+      const tokensListUpdateHandler = (data) => {
+        setTokens(data.tokens);
+        setTotalPages(data.totalPages);
+        setLoading(false);
+      };
       
-      // Request data for current page/sort after connection is established
-      console.log(`Initial connection - Sending sort params: field=${sortField}, direction=${sortDirection}`);
+      // Register top tokens update listener
+      const topTokensUpdateHandler = (data) => {
+        setHighestMarketCapToken(data.topMarketCapToken);
+        setHighestVolumeToken(data.topVolumeToken);
+      };
       
-      socketRef.current.emit('get-tokens', {
-        sort: sortField, // Send the actual sort field without transformation
-        direction: sortDirection, // Send the actual direction without transformation
+      // Register individual token update listener
+      const tokenUpdateHandler = (updatedToken) => {
+        // Update the token in our existing list if it's there
+        setTokens(currentTokens => 
+          currentTokens.map(token => 
+            token.contractAddress === updatedToken.contractAddress 
+              ? { ...token, ...updatedToken } 
+              : token
+          )
+        );
+        
+        // Check if we need to update highlighted tokens
+        if (highestMarketCapToken && 
+            highestMarketCapToken.contractAddress === updatedToken.contractAddress) {
+          setHighestMarketCapToken({ ...highestMarketCapToken, ...updatedToken });
+        }
+        
+        if (highestVolumeToken && 
+            highestVolumeToken.contractAddress === updatedToken.contractAddress) {
+          setHighestVolumeToken({ ...highestVolumeToken, ...updatedToken });
+        }
+      };
+      
+      // Register error handler
+      const errorHandler = (errorData) => {
+        console.error('[TokenDashboard] Socket error:', errorData);
+        setError(`Error: ${errorData.message || 'Unknown error'}`);
+      };
+      
+      // Add all event listeners
+      addListener('tokens-list-update', tokensListUpdateHandler);
+      addListener('top-tokens-update', topTokensUpdateHandler);
+      addListener('token-update', tokenUpdateHandler);
+      addListener('error', errorHandler);
+      
+      // Request initial data
+      emit('get-tokens', {
+        sort: sortField,
+        direction: sortDirection,
         page: currentPage
       });
-    });
-    
-    // Handle top tokens updates
-    socketRef.current.on('top-tokens-update', (data) => {
-      setHighestMarketCapToken(data.topMarketCapToken);
-      setHighestVolumeToken(data.topVolumeToken);
-    });
-    
-    // Handle tokens list updates
-    socketRef.current.on('tokens-list-update', (data) => {
-      setTokens(data.tokens);
-      setTotalPages(data.totalPages);
-      setLoading(false);
-    });
-    
-    // Handle individual token updates
-    socketRef.current.on('token-update', (updatedToken) => {
-      // Update the token in our existing list if it's there
-      setTokens(currentTokens => 
-        currentTokens.map(token => 
-          token.contractAddress === updatedToken.contractAddress 
-            ? { ...token, ...updatedToken } 
-            : token
-        )
-      );
       
-      // Check if we need to update highlighted tokens
-      if (highestMarketCapToken && 
-          highestMarketCapToken.contractAddress === updatedToken.contractAddress) {
-        setHighestMarketCapToken({ ...highestMarketCapToken, ...updatedToken });
-      }
+      // Clean up function to remove all event listeners
+      return () => {
+        console.log("[TokenDashboard] Cleaning up event listeners");
+        removeListener('tokens-list-update', tokensListUpdateHandler);
+        removeListener('top-tokens-update', topTokensUpdateHandler);
+        removeListener('token-update', tokenUpdateHandler);
+        removeListener('error', errorHandler);
+      };
+    } else {
+      console.log("[TokenDashboard] WebSocket not yet connected");
       
-      if (highestVolumeToken && 
-          highestVolumeToken.contractAddress === updatedToken.contractAddress) {
-        setHighestVolumeToken({ ...highestVolumeToken, ...updatedToken });
-      }
-    });
-    
-    socketRef.current.on('connect_error', (err) => {
-      console.error('Socket connection error:', err);
-      console.error('Error details:', err.message || 'Unknown error');
-      // Fall back to HTTP polling if WebSocket connection fails
+      // Fall back to HTTP if WebSocket isn't connected
       fallbackToHttpPolling();
-    });
-    
-    socketRef.current.on('disconnect', () => {
-      console.log('Disconnected from WebSocket server');
-      socketConnected.current = false;
-      // Fall back to HTTP polling if WebSocket disconnects
-      fallbackToHttpPolling();
-    });
-    
-    // Clean up on unmount
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
-  }, []); // Empty dependency array ensures this runs only once on component mount
-  
-  // Fallback to HTTP polling if WebSocket fails
-  const fallbackToHttpPolling = useCallback(() => {
-    console.log('Falling back to HTTP polling');
-    
-    // Only proceed with HTTP polling if socket is not connected
-    if (!socketConnected.current) {
-      fetchGlobalTopTokens();
-      fetchTokens(sortField, sortDirection, currentPage);
     }
-  }, [sortField, sortDirection, currentPage]);
+  }, [isConnected]); // Only re-run when connection status changes
   
   // Request updated data when sort or page changes via WebSocket
   useEffect(() => {
-    if (socketRef.current && socketConnected.current) {
+    if (isConnected) {
       setLoading(true);
       
-      // Send the actual sort field and direction values directly
-      console.log(`Sort/page changed - Sending params: field=${sortField}, direction=${sortDirection}, page=${currentPage}`);
+      console.log(`[TokenDashboard] Sort/page changed - Sending params: field=${sortField}, direction=${sortDirection}, page=${currentPage}`);
       
-      socketRef.current.emit('get-tokens', {
-        sort: sortField, // Send the actual sort field without transformation
-        direction: sortDirection, // Send the actual direction without transformation
+      emit('get-tokens', {
+        sort: sortField,
+        direction: sortDirection,
         page: currentPage
       });
     } else {
       // If WebSocket is not connected, fall back to HTTP
       fallbackToHttpPolling();
     }
-  }, [sortField, sortDirection, currentPage, fallbackToHttpPolling]);
+  }, [sortField, sortDirection, currentPage, isConnected, emit]);
 
+  // Fallback to HTTP polling if WebSocket fails
+  const fallbackToHttpPolling = useCallback(() => {
+    console.log('[TokenDashboard] Falling back to HTTP polling');
+    
+    // Only proceed with HTTP polling if socket is not connected
+    if (!isConnected) {
+      fetchGlobalTopTokens();
+      fetchTokens(sortField, sortDirection, currentPage);
+    }
+  }, [sortField, sortDirection, currentPage, isConnected]);
+  
   // Original HTTP methods kept as fallbacks
   const fetchGlobalTopTokens = useCallback(async () => {
     try {
@@ -370,10 +353,34 @@ function TokenDashboard() {
       <div className="static-top-section">
         {/* Logo positioned absolutely over the background */}
         <div className="logo-container">
-                      <img src="https://i.postimg.cc/mDgvXZqN/LOGO.png" alt="Logo" />
+          <img src="https://i.postimg.cc/mDgvXZqN/LOGO.png" alt="Logo" />
         </div>
 
         <div className="token-dashboard">
+          {/* Connection status indicator */}
+          <div className="connection-status" style={{ 
+            position: 'absolute', 
+            top: '10px', 
+            right: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: '12px',
+            padding: '4px 8px',
+            background: 'rgba(0,0,0,0.7)',
+            borderRadius: '4px',
+            color: isConnected ? '#00ff88' : '#ff4466'
+          }}>
+            <span style={{ 
+              width: '8px', 
+              height: '8px', 
+              borderRadius: '50%', 
+              background: isConnected ? '#00ff88' : '#ff4466',
+              display: 'inline-block',
+              marginRight: '5px'
+            }}></span>
+            {isConnected ? 'Live' : 'Offline'}
+          </div>
+
           {/* Sorting Controls */}
           <div className="sorting-controls">
             <button 

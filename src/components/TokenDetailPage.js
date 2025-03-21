@@ -72,10 +72,177 @@ function TokenDetailPage() {
   const httpFallbackTimer = useRef(null);
   const fallbackAttempted = useRef(false);
   
+  // LocalStorage cache functions
+  const cacheTokenData = (address, data) => {
+    if (!address || !data) return;
+    
+    try {
+      const cacheItem = {
+        data,
+        timestamp: Date.now()
+      };
+      
+      localStorage.setItem(`token_${address}`, JSON.stringify(cacheItem));
+    } catch (err) {
+      console.warn('Failed to cache token data:', err);
+    }
+  };
+  
+  const getCachedTokenData = (address, maxAge = 60 * 60 * 1000) => {
+    if (!address) return null;
+    
+    try {
+      const cachedItem = localStorage.getItem(`token_${address}`);
+      if (!cachedItem) return null;
+      
+      const { data, timestamp } = JSON.parse(cachedItem);
+      const age = Date.now() - timestamp;
+      
+      if (age <= maxAge) {
+        console.log(`Using cached token data (${Math.round(age/1000)}s old)`);
+        return data;
+      }
+      return null;
+    } catch (err) {
+      console.warn('Failed to retrieve cached token data:', err);
+      return null;
+    }
+  };
+  
+  // Token data fetch with CORS proxy fallbacks
+  const fetchTokenData = async (address) => {
+    try {
+      // Try direct endpoint first
+      try {
+        const response = await axios.get(
+          `https://website-4g84.onrender.com/api/tokens/${address}`,
+          { 
+            timeout: 8000,
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          }
+        );
+        
+        if (response && response.data) {
+          return response.data;
+        }
+      } catch (directError) {
+        console.warn('Direct API call failed, trying alternatives');
+      }
+      
+      // Try alternative URLs with increasing timeouts
+      const alternativeUrls = [
+        { 
+          url: `https://website-4g84.onrender.com/api/tokens/${address}`,
+          timeout: 15000
+        }
+      ];
+      
+      for (const { url, timeout } of alternativeUrls) {
+        try {
+          const response = await axios.get(url, { 
+            timeout,
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          });
+          
+          if (response && response.data) {
+            return response.data;
+          }
+        } catch (err) {
+          console.warn(`Alternative URL attempt failed: ${url}`);
+        }
+      }
+      
+      throw new Error("All fetch attempts failed");
+    } catch (error) {
+      console.error('All fetch attempts failed:', error);
+      throw error;
+    }
+  };
+  
+  // Enhanced fallback function
+  const enhancedFallback = async () => {
+    if (!isMounted.current || !loading || tokenDetails || !contractAddress) return;
+    
+    console.log('Starting enhanced fallback process');
+    
+    // Step 1: Try to load from cache first (immediate)
+    const cachedData = getCachedTokenData(contractAddress);
+    if (cachedData && isMounted.current) {
+      console.log('Using cached token data');
+      setTokenDetails(cachedData);
+      setDataSource('cache');
+      
+      if (cachedData.main_pool_address) {
+        setPoolAddress(cachedData.main_pool_address);
+      } else {
+        setPoolAddress(contractAddress);
+      }
+      
+      setLoading(false);
+      
+      // Still try to update in the background
+      fetchTokenData(contractAddress)
+        .then(freshData => {
+          if (isMounted.current) {
+            setTokenDetails(freshData);
+            setDataSource('http');
+            
+            if (freshData.main_pool_address) {
+              setPoolAddress(freshData.main_pool_address);
+            }
+            
+            cacheTokenData(contractAddress, freshData);
+          }
+        })
+        .catch(err => console.warn('Background refresh failed:', err));
+        
+      return;
+    }
+    
+    // Step 2: If no valid cache, try HTTP with retries
+    try {
+      setDataSource('http');
+      const data = await fetchTokenData(contractAddress);
+      
+      if (!isMounted.current) return;
+      
+      if (data) {
+        setTokenDetails(data);
+        
+        if (data.main_pool_address) {
+          setPoolAddress(data.main_pool_address);
+        } else {
+          setPoolAddress(contractAddress);
+        }
+        
+        setLoading(false);
+        
+        // Cache the successful result
+        cacheTokenData(contractAddress, data);
+      } else {
+        throw new Error('No data received');
+      }
+    } catch (err) {
+      if (!isMounted.current) return;
+      
+      console.error('Enhanced fallback failed:', err);
+      setError('Unable to load token data. Please try again later.');
+      setLoading(false);
+    }
+  };
+  
   // Store current token in localStorage
   useEffect(() => {
     if (tokenDetails && tokenDetails.contractAddress) {
       localStorage.setItem('currentTokenAddress', tokenDetails.contractAddress);
+      // Also cache the full token data
+      cacheTokenData(tokenDetails.contractAddress, tokenDetails);
     }
   }, [tokenDetails]);
   
@@ -94,51 +261,21 @@ function TokenDetailPage() {
     };
   }, []);
 
-  // Immediate HTTP fallback on refresh
+  // Immediate HTTP fallback on page load/refresh
   useEffect(() => {
-    // If we're loading the page directly (on refresh), immediately try HTTP
-    if (loading && contractAddress && !tokenDetails && !fallbackAttempted.current) {
-      console.log('Page refresh detected - immediately trying HTTP');
-      fallbackToHttp();
+    // This is a page refresh detection - try cached data immediately
+    const pageRefresh = performance.navigation && 
+                       (performance.navigation.type === 1 || 
+                        window.performance.getEntriesByType('navigation')[0]?.type === 'reload');
+    
+    if (loading && contractAddress && !tokenDetails && !fallbackAttempted.current && 
+       (pageRefresh || document.referrer === '' || !isConnected)) {
+      console.log('Page direct load/refresh detected - immediately trying cache/HTTP');
+      enhancedFallback();
       fallbackAttempted.current = true;
     }
   }, []);
-
-  // HTTP fallback function
-  const fallbackToHttp = async () => {
-    // Only proceed if we're still loading and don't have data yet
-    if (!isMounted.current || !loading || tokenDetails) return;
-    
-    console.log('Fetching data via HTTP');
-    try {
-      setDataSource('http');
-      // Direct API call without waiting for WebSocket
-      const response = await axios.get(`https://website-4g84.onrender.com/api/tokens/${contractAddress}`);
-      
-      if (!isMounted.current) return;
-      
-      if (response && response.data) {
-        setTokenDetails(response.data);
-        
-        if (response.data.main_pool_address) {
-          setPoolAddress(response.data.main_pool_address);
-        } else {
-          setPoolAddress(contractAddress);
-        }
-        
-        setLoading(false);
-      } else {
-        throw new Error('No data received from API');
-      }
-    } catch (err) {
-      if (!isMounted.current) return;
-      
-      console.error('HTTP fallback error:', err);
-      setError('Failed to fetch token details. Please try again later.');
-      setLoading(false);
-    }
-  };
-
+  
   // Main effect for loading token data
   useEffect(() => {
     console.log(`Loading token details for contract: ${contractAddress}`);
@@ -162,7 +299,7 @@ function TokenDetailPage() {
     const handleTokenDetails = (data) => {
       if (!isMounted.current) return;
       
-      console.log('Received token details:', data);
+      console.log('Received token details via WebSocket:', data);
       setTokenDetails(data);
       setDataSource('websocket');
       
@@ -173,6 +310,9 @@ function TokenDetailPage() {
       }
       
       setLoading(false);
+      
+      // Cache the data we received via WebSocket
+      cacheTokenData(contractAddress, data);
     };
     
     const handleTokenUpdate = (data) => {
@@ -184,6 +324,9 @@ function TokenDetailPage() {
           ...prevDetails,
           ...data
         }));
+        
+        // Update cache with latest data
+        cacheTokenData(contractAddress, {...tokenDetails, ...data});
       }
     };
     
@@ -191,9 +334,10 @@ function TokenDetailPage() {
       if (!isMounted.current) return;
       
       console.error('Socket error:', err);
-      // Trigger HTTP fallback immediately on socket error
+      
+      // Trigger enhanced fallback on socket error
       if (!fallbackAttempted.current) {
-        fallbackToHttp();
+        enhancedFallback();
         fallbackAttempted.current = true;
       }
     };
@@ -212,8 +356,8 @@ function TokenDetailPage() {
       // Still set a fallback timer even if WebSocket is connected
       httpFallbackTimer.current = setTimeout(() => {
         if (isMounted.current && loading && !tokenDetails && !fallbackAttempted.current) {
-          console.log('WebSocket request timeout - falling back to HTTP');
-          fallbackToHttp();
+          console.log('WebSocket request timeout - trying enhanced fallback');
+          enhancedFallback();
           fallbackAttempted.current = true;
         }
       }, 3000);
@@ -222,11 +366,11 @@ function TokenDetailPage() {
       // Shorter fallback timer when not connected
       httpFallbackTimer.current = setTimeout(() => {
         if (isMounted.current && loading && !tokenDetails && !fallbackAttempted.current) {
-          console.log('WebSocket not connected within timeout - falling back to HTTP');
-          fallbackToHttp();
+          console.log('WebSocket not connected within timeout - trying enhanced fallback');
+          enhancedFallback();
           fallbackAttempted.current = true;
         }
-      }, 1500); // Reduced from 3000ms to 1500ms for faster response
+      }, 1000); // Very short timeout for better UX
     }
     
     // Clean up
@@ -429,7 +573,7 @@ function TokenDetailPage() {
             <div style={{
               display: 'inline-block',
               background: '#222',
-              color: dataSource === 'websocket' ? '#00ff88' : '#ff9900',
+              color: dataSource === 'websocket' ? '#00ff88' : dataSource === 'cache' ? '#ffb300' : '#ff9900',
               padding: '4px 8px',
               borderRadius: '4px',
               fontSize: '12px',
@@ -440,10 +584,10 @@ function TokenDetailPage() {
                 width: '8px',
                 height: '8px',
                 borderRadius: '50%',
-                background: dataSource === 'websocket' ? '#00ff88' : '#ff9900',
+                background: dataSource === 'websocket' ? '#00ff88' : dataSource === 'cache' ? '#ffb300' : '#ff9900',
                 marginRight: '6px'
               }}></span>
-              {dataSource === 'websocket' ? 'Live Data' : 'Static Data'}
+              {dataSource === 'websocket' ? 'Live Data' : dataSource === 'cache' ? 'Cached Data' : 'Static Data'}
             </div>
           )}
         </div>

@@ -176,8 +176,15 @@ function TokenDashboard() {
 
   // WebSocket setup and event handlers
   useEffect(() => {
+    // Get environment-appropriate WebSocket URL
+    const SOCKET_URL = process.env.NODE_ENV === 'production'
+      ? 'https://websocket-okv9.onrender.com'  // Production URL
+      : 'http://localhost:4003';               // Development URL
+      
+    console.log(`Connecting to WebSocket server at: ${SOCKET_URL}`);
+    
     // Initialize socket connection
-    socketRef.current = io('http://localhost:4003');
+    socketRef.current = io(SOCKET_URL);
     
     // Initial loading state
     setLoading(true);
@@ -235,6 +242,7 @@ function TokenDashboard() {
     
     socketRef.current.on('connect_error', (err) => {
       console.error('Socket connection error:', err);
+      console.error('Error details:', err.message || 'Unknown error');
       // Fall back to HTTP polling if WebSocket connection fails
       fallbackToHttpPolling();
     });

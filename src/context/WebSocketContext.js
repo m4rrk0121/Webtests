@@ -16,7 +16,7 @@ export const WebSocketProvider = ({ children }) => {
     // Get environment-appropriate WebSocket URL
     const SOCKET_URL = process.env.NODE_ENV === 'production'
       ? 'https://websocket-okv9.onrender.com'  // Production URL
-      : 'http://localhost:4004';               // Development URL
+      : 'http://localhost:4003';               // Development URL - FIXED PORT TO MATCH SERVER
       
     console.log(`[WebSocketContext] Connecting to WebSocket server at: ${SOCKET_URL}`);
     

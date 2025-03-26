@@ -15,6 +15,14 @@ function Home() {
   const [featuredToken, setFeaturedToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ totalTokens: 0, totalVolume: 0, totalMarketCap: 0 });
+  
+  // Add class to body when on homepage
+  useEffect(() => {
+    document.body.classList.add('on-homepage');
+    return () => {
+      document.body.classList.remove('on-homepage');
+    };
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -31,7 +39,7 @@ function Home() {
         
         // Fetch global stats (this is a placeholder - adjust the endpoint as needed)
         // New code that still makes the API call but doesn't store the unused result
-await axios.get('https://website-4g84.onrender.com/api/global-top-tokens');
+        await axios.get('https://website-4g84.onrender.com/api/global-top-tokens');
         
         if (tokensResponse.data && tokensResponse.data.tokens) {
           setTopTokens(tokensResponse.data.tokens.slice(0, 5)); // Get top 5 tokens

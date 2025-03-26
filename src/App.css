@@ -2312,7 +2312,6 @@ html, body, #root, .app-container {
   background: #444;
 }
 
-/* Stats section */
 .homepage .stats-section {
   display: flex;
   justify-content: center;
@@ -2320,12 +2319,32 @@ html, body, #root, .app-container {
   margin-bottom: 40px;
   text-align: center;
   flex-wrap: wrap;
+  
+  /* Enhanced border styling */
+  border: 3px solid #ffb300;
+  border-style: solid;
+  border-width: 3px;
+  border-image: linear-gradient(to right, #ffb300, #000000) 1;
+  box-shadow: 0 0 10px rgba(255, 179, 0, 0.3);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.homepage .stats-section {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin-bottom: 40px;
+  text-align: center;
+  flex-wrap: wrap;
+  
+  /* Consistent border styling with other containers */
+  border: 3px solid #ffb300;
+  border-radius: 10px;
+  padding: 20px;
 }
 
 .homepage .stat-box {
-  background: rgba(0, 0, 0, 0.7);
-  padding: 20px;
-  border-radius: 8px;
   border: 3px solid #ffb300;
   width: 270px;
   height: 120px;
@@ -2333,6 +2352,8 @@ html, body, #root, .app-container {
   flex-direction: column;
   justify-content: center;
   transition: transform 0.3s ease;
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
 }
 
 .homepage .stat-box:hover {
@@ -2351,31 +2372,60 @@ html, body, #root, .app-container {
   color: #ffb300;
 }
 
-/* Featured token section */
-.homepage .featured-token-section {
-  margin-bottom: 40px;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 24px;
-  border-radius: 10px;
-  border: 3px solid #ffb300;
-  min-height: 150px;
-  width: 100%;
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .homepage .stats-section {
+    gap: 20px;
+    padding: 15px;
+  }
+  
+  .homepage .stat-box {
+    width: 100%;
+    max-width: 300px;
+  }
 }
 
-.homepage .featured-token-section h2 {
+.homepage .featured-token-section,
+.homepage .top-tokens-section,
+.homepage .stats-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 1120px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 40px;
+  
+  border: 3px solid #ffb300;
+  border-radius: 10px;
+  padding: 40px;
+}
+
+.homepage .featured-token-section h2,
+.homepage .top-tokens-section h2 {
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   color: #ffb300;
 }
 
-.homepage .featured-token {
+/* Ensure content within these sections is centered and uses full width */
+.homepage .featured-token,
+.homepage .tokens-list {
+  width: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  padding: 15px;
-  border-radius: 8px;
-  transition: background-color 0.2s ease;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .homepage .featured-token-section,
+  .homepage .top-tokens-section,
+  .homepage .stats-section {
+    padding: 25px;
+    margin-bottom: 30px;
+  }
 }
 
 .homepage .featured-token:hover {
@@ -2603,6 +2653,141 @@ html, body, #root, .app-container {
   padding: 20px;
   color: #ffb300;
   font-style: italic;
+}
+
+/* Direct and specific selectors for each container with !important to override any conflicts */
+
+/* Generic rule for all sections */
+.homepage section {
+  background-image: url('./images/background4.png') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  background-blend-mode: overlay !important;
+}
+
+/* Hero section */
+.homepage .hero-section {
+  background-image: url('./images/background4.png') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  background-blend-mode: overlay !important;
+}
+
+/* Stats section */
+.homepage .stats-section {
+  background-image: url('./images/background4.png') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  background-blend-mode: overlay !important;
+}
+
+/* Featured token section */
+.homepage .featured-token-section {
+  background-image: url('./images/background4.png') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  background-blend-mode: overlay !important;
+}
+
+/* Top tokens section */
+.homepage .top-tokens-section {
+  background-image: url('./images/background4.png') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  background-blend-mode: overlay !important;
+}
+
+/* How it works section */
+.homepage .how-it-works {
+  background-image: url('./images/background4.png') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  background-blend-mode: overlay !important;
+}
+
+/* CTA section */
+.homepage .cta-section {
+  background-image: url('./images/background4.png') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  background-blend-mode: overlay !important;
+}
+
+/* Social button container - add background, border and padding if it doesn't have any */
+.homepage .social-button-container {
+  background-image: url('./images/background4.png') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  background-blend-mode: overlay !important;
+  border: 3px solid #ffb300 !important;
+  border-radius: 8px !important;
+  padding: 20px !important;
+  margin: 30px auto !important;
+  max-width: 90% !important;
+}
+
+/* Make sure text is readable against backgrounds */
+.homepage h1, 
+.homepage h2, 
+.homepage h3, 
+.homepage p, 
+.homepage .token-row div,
+.homepage .tokens-header div {
+  color: #ffb300 !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Main background for homepage only */
+.homepage {
+  position: relative;
+  z-index: 1;
+}
+
+/* Create a pseudo-element for the background to avoid affecting content layout */
+.homepage::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('./images/background3.png') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  background-attachment: fixed !important;
+  opacity: 1;
+  z-index: -1;
+}
+
+/* Add a specific class to indicate this is the homepage for body styles */
+body.on-homepage {
+  background: none !important; /* Remove any existing body background */
+}
+
+/* Additional code to ensure this only affects the homepage */
+.homepage-only-background {
+  display: none;
+}
+
+.homepage .homepage-only-background {
+  display: block;
 }
 
 /* Responsive adjustments */
@@ -3229,5 +3414,205 @@ html, body, #root, .app-container {
   
   .homepage .stat-monkey img {
     height: 120px !important;
+  }
+
+  .homepage .hero-section,
+.homepage .stats-section,
+.homepage .featured-token-section,
+.homepage .top-tokens-section,
+.homepage .how-it-works,
+.homepage .cta-section {
+  width: calc(100% - 40px); /* Full width with small margins */
+  max-width: 1200px; /* Maximum width */
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 40px;
+  
+  border: 3px solid #ffb300;
+  border-radius: 10px;
+  padding: 20px;
+  box-sizing: border-box; /* Ensure padding doesn't increase overall width */
+}
+
+/* Centering content within sections */
+.homepage .hero-section,
+.homepage .stats-section,
+.homepage .featured-token-section,
+.homepage .top-tokens-section,
+.homepage .how-it-works,
+.homepage .cta-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .homepage .hero-section,
+  .homepage .stats-section,
+  .homepage .featured-token-section,
+  .homepage .top-tokens-section,
+  .homepage .how-it-works,
+  .homepage .cta-section {
+    width: calc(100% - 30px);
+    padding: 15px;
+    margin-bottom: 30px;
+  }
+}
+
+/* Ensure content within sections uses full width */
+.homepage .stats-section,
+.homepage .featured-token-section,
+.homepage .top-tokens-section {
+  justify-content: center;
+}
+}
+
+.homepage .hero-section,
+.homepage .stats-section,
+.homepage .featured-token-section,
+.homepage .top-tokens-section,
+.homepage .how-it-works,
+.homepage .cta-section,
+.homepage .social-button-container,
+.homepage .tokens-list > div:last-child {
+  margin-bottom: 80px !important;
+}
+
+/* Ensure last section has no bottom margin */
+.homepage .cta-section {
+  margin-bottom: 0 !important;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+  .homepage .hero-section,
+  .homepage .stats-section,
+  .homepage .featured-token-section,
+  .homepage .top-tokens-section,
+  .homepage .how-it-works,
+  .homepage .cta-section,
+  .homepage .social-button-container,
+  .homepage .tokens-list > div:last-child {
+    margin-bottom: 50px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .homepage .hero-section,
+  .homepage .stats-section,
+  .homepage .featured-token-section,
+  .homepage .top-tokens-section,
+  .homepage .how-it-works,
+  .homepage .cta-section,
+  .homepage .social-button-container,
+  .homepage .tokens-list > div:last-child {
+    margin-bottom: 30px !important;
+  }
+}
+
+@media screen and (max-width: 380px) {
+  .homepage .stats-section {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 20px !important;
+  }
+  
+  .homepage .stat-box {
+    width: 100% !important;
+    max-width: 200px !important;
+    margin: 0 auto !important;
+  }
+  
+  .homepage .stat-monkey {
+    display: none !important;
+  }
+}
+
+.homepage {
+  width: 100%;
+  max-width: 100%;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.homepage .hero-section,
+.homepage .stats-section,
+.homepage .featured-token-section,
+.homepage .top-tokens-section,
+.homepage .how-it-works,
+.homepage .cta-section {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+@media screen and (max-width: 1200px) {
+  .homepage {
+    padding: 0 15px;
+  }
+
+  .homepage .hero-section,
+  .homepage .stats-section,
+  .homepage .featured-token-section,
+  .homepage .top-tokens-section,
+  .homepage .how-it-works,
+  .homepage .cta-section {
+    padding: 15px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .homepage {
+    padding: 0 10px;
+  }
+
+  .homepage .hero-section,
+  .homepage .stats-section,
+  .homepage .featured-token-section,
+  .homepage .top-tokens-section,
+  .homepage .how-it-works,
+  .homepage .cta-section {
+    padding: 10px;
+  }
+}
+
+@media screen and (max-width: 380px) {
+  .homepage {
+    padding: 0 5px;
+  }
+
+  .homepage .hero-section,
+  .homepage .stats-section,
+  .homepage .featured-token-section,
+  .homepage .top-tokens-section,
+  .homepage .how-it-works,
+  .homepage .cta-section {
+    padding: 5px;
+  }
+}
+
+.content-container {
+  padding-top: 80px;
+  padding-bottom: 80px;
+}
+
+@media screen and (max-width: 768px) {
+  .content-container {
+    padding-top: 50px;
+    padding-bottom: 50px;
+  }
+}
+
+@media screen and (max-width: 380px) {
+  .content-container {
+    padding-top: 30px;
+    padding-bottom: 30px;
   }
 }

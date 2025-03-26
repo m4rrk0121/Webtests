@@ -2,6 +2,8 @@ import { ethers } from 'ethers';
 import React, { useCallback, useEffect, useState } from 'react';
 import './modal.css'; // Make sure to create this CSS file
 
+
+
 /* global BigInt */
 
 // Helper function for safe BigInt conversion

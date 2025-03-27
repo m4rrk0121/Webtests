@@ -3052,58 +3052,114 @@ body.on-homepage {
   transform: translateY(-2px);
 }
 
-/* Top tokens section */
+/* Add these specific overrides at the end of your CSS file */
+
+/* Ensure the top tokens section is full width and centered */
 .homepage .top-tokens-section {
-  margin-bottom: 40px;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 30px;
-  border-radius: 10px;
-  border: 3px solid #ffb300;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  width: calc(100% - 40px) !important;
+  max-width: 1200px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding: 30px 20px !important;
+  box-sizing: border-box !important;
 }
 
-.homepage .top-tokens-section h2 {
-  text-align: center;
-  margin-bottom: 20px;
-  color: #ffb300;
+/* Center and constrain the tokens list container */
+.homepage .tokens-list {
+  width: 100% !important;
+  max-width: 900px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
 }
 
+/* Properly space and align the header row */
 .homepage .tokens-header {
-  display: grid;
-  grid-template-columns: 40px 3fr 2fr 2fr 2fr;
-  padding: 10px 0;
-  border-bottom: 2px solid rgba(255, 179, 0, 0.3);
-  font-weight: bold;
-  color: rgba(255, 179, 0, 0.7);
+  display: grid !important;
+  grid-template-columns: 40px 3fr 2fr 2fr 2fr !important;
+  gap: 10px !important;
+  padding: 10px 15px !important;
+  margin-bottom: 5px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
+/* Consistently align and space token rows */
 .homepage .token-row {
-  display: grid;
-  grid-template-columns: 40px 3fr 2fr 2fr 2fr;
-  padding: 15px 0;
-  border-bottom: 1px solid rgba(255, 179, 0, 0.2);
-  align-items: center;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-  color: #ffb300;
+  display: grid !important;
+  grid-template-columns: 40px 3fr 2fr 2fr 2fr !important;
+  gap: 10px !important;
+  padding: 10px 15px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
 }
 
-.homepage .token-row:hover {
-  background-color: rgba(255, 179, 0, 0.1);
+/* Right align numeric cells */
+.homepage .tokens-header div:nth-child(3),
+.homepage .tokens-header div:nth-child(4),
+.homepage .tokens-header div:nth-child(5),
+.homepage .token-row div:nth-child(3),
+.homepage .token-row div:nth-child(4),
+.homepage .token-row div:nth-child(5) {
+  text-align: right !important;
+  justify-self: flex-end !important;
 }
 
-.homepage .token-row div:first-child {
-  font-weight: bold;
-  color: rgba(255, 179, 0, 0.7);
+/* Center the rank number */
+.homepage .token-row div:first-child,
+.homepage .tokens-header div:first-child {
+  text-align: center !important;
+  justify-self: center !important;
 }
 
-.homepage .token-row div:nth-child(2) {
-  font-weight: bold;
-  color: #ffb300;
+/* Ensure view all button is centered */
+.homepage .tokens-list > div:last-child {
+  width: 100% !important;
+  text-align: center !important;
+  margin-top: 20px !important;
 }
 
-.homepage .token-row div:nth-child(2) span {
-  color: rgba(255, 179, 0, 0.7);
-  font-weight: normal;
+/* Responsive adjustments with !important */
+@media (max-width: 768px) {
+  .homepage .tokens-header,
+  .homepage .token-row {
+    grid-template-columns: 30px 3fr 2fr 2fr !important;
+    padding: 8px 10px !important;
+  }
+  
+  .homepage .top-tokens-section {
+    padding: 20px 15px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .homepage .tokens-header,
+  .homepage .token-row {
+    grid-template-columns: 30px 3fr 2fr !important;
+    padding: 6px 8px !important;
+    gap: 5px !important;
+  }
+  
+  .homepage .top-tokens-section {
+    padding: 15px 10px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .homepage .tokens-header,
+  .homepage .token-row {
+    grid-template-columns: 25px minmax(100px, 2fr) minmax(60px, 1fr) !important;
+    font-size: 0.85rem !important;
+    padding: 5px !important;
+    gap: 3px !important;
+  }
+  
+  .homepage .top-tokens-section {
+    padding: 10px 5px !important;
+  }
 }
 
 .homepage .view-all {
@@ -3614,5 +3670,351 @@ body.on-homepage {
   .content-container {
     padding-top: 30px;
     padding-bottom: 30px;
+  }
+}
+
+/* Token Detail Page - Aggressive Alignment Fixes 
+   Add these styles to the end of your CSS file */
+
+/* Force all containers to have identical width and positioning */
+.token-detail-page,
+.token-detail-header,
+.token-details-summary,
+.token-chart-container {
+  width: 96% !important;
+  max-width: 1150px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  position: relative !important;
+  left: 0 !important;
+  right: 0 !important;
+}
+
+/* Override any specific chart container width */
+.token-chart-container {
+  width: 96% !important; /* Explicitly match the width of other containers */
+  height: auto !important;
+  min-height: 800px !important;
+  margin-top: 20px !important;
+}
+
+/* Reset any absolute or fixed positioning */
+.token-detail-page * {
+  position: relative !important;
+}
+
+/* Reset flex properties that might be causing issues */
+.token-detail-page,
+.token-detail-header,
+.token-details-summary,
+.token-chart-container,
+.token-detail-data {
+  display: block !important;
+}
+
+/* Only apply specific flex layout to elements that need it */
+.token-details-summary {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: space-between !important;
+  gap: 15px !important;
+}
+
+.token-detail-data {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  flex: 1 !important;
+  min-width: 250px !important;
+}
+
+/* Ensure the outer container has consistent padding */
+.token-detail-page {
+  padding: 20px !important;
+  background-color: #000000 !important;
+}
+
+/* Consistent internal padding on all containers */
+.token-detail-header,
+.token-details-summary,
+.token-chart-container {
+  padding: 20px !important;
+  margin-bottom: 20px !important;
+  border: 3px solid #ffb300 !important;
+  border-radius: 8px !important;
+  background-color: #121212 !important;
+}
+
+/* Fix for mobile displays */
+@media screen and (max-width: 768px) {
+  .token-detail-page,
+  .token-detail-header,
+  .token-details-summary,
+  .token-chart-container {
+    width: 94% !important;
+    padding: 15px !important;
+  }
+  
+  .token-details-summary {
+    flex-direction: column !important;
+  }
+  
+  .token-chart-container {
+    height: 600px !important;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .token-detail-page,
+  .token-detail-header,
+  .token-details-summary,
+  .token-chart-container {
+    width: 92% !important;
+    padding: 12px !important;
+  }
+  
+  .token-chart-container {
+    height: 400px !important;
+  }
+}
+
+@media screen and (max-width: 380px) {
+  .token-detail-page,
+  .token-detail-header,
+  .token-details-summary,
+  .token-chart-container {
+    width: 90% !important;
+    padding: 10px !important;
+  }
+  
+  .token-chart-container {
+    height: 350px !important;
+  }
+}
+
+/* Specific fix for the middle container (token-details-summary) */
+
+/* Ensure all three containers have identical width and centering */
+.token-detail-header,
+.token-details-summary,
+.token-chart-container {
+  width: 96% !important;
+  max-width: 1150px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  box-sizing: border-box !important;
+  padding: 20px !important;
+  border: 3px solid #ffb300 !important;
+  border-radius: 8px !important;
+  background-color: #121212 !important;
+  position: relative !important;
+  left: 0 !important;
+  right: 0 !important;
+}
+
+/* Fix specific issues with the middle container */
+.token-details-summary {
+  display: flex !important;
+  justify-content: space-between !important;
+  flex-wrap: wrap !important;
+  gap: 15px !important;
+  margin-bottom: 20px !important;
+  margin-top: 20px !important;
+  /* Ensuring identical width as the other containers */
+  width: 96% !important;
+  max-width: 1150px !important;
+}
+
+/* Remove any transformation or positioning that might affect the middle container */
+.token-details-summary {
+  transform: none !important;
+  position: relative !important;
+  float: none !important;
+}
+
+/* Force identical container parent widths */
+.token-detail-page > div {
+  width: 100% !important;
+  max-width: 1200px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  box-sizing: border-box !important;
+}
+
+/* Debug outline to visualize the containers (remove after fixing) */
+.token-detail-header,
+.token-details-summary,
+.token-chart-container {
+  position: relative !important;
+}
+
+/* Make sure the middle container doesn't have different background or styling */
+.token-details-summary {
+  background-color: #121212 !important;
+  color: #ffb300 !important;
+}
+
+/* Force all three containers to use block display and clear any floats */
+.token-detail-header,
+.token-details-summary,
+.token-chart-container {
+  display: block !important; 
+  clear: both !important;
+}
+
+/* Then specifically apply flex layout only to the middle container's content */
+.token-details-summary {
+  display: flex !important;
+}
+
+/* Fix for mobile displays */
+@media screen and (max-width: 768px) {
+  .token-detail-header,
+  .token-details-summary,
+  .token-chart-container {
+    width: 94% !important;
+    padding: 15px !important;
+  }
+  
+  .token-details-summary {
+    flex-direction: column !important;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .token-detail-header,
+  .token-details-summary,
+  .token-chart-container {
+    width: 92% !important;
+    padding: 12px !important;
+  }
+}
+
+@media screen and (max-width: 380px) {
+  .token-detail-header,
+  .token-details-summary,
+  .token-chart-container {
+    width: 90% !important;
+    padding: 10px !important;
+  }
+}
+
+/* Add padding below the hero buttons on the homepage */
+.homepage .hero-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 20px !important; /* Add 20px padding below the buttons */
+  padding-bottom: 20px !important; /* Additional padding for emphasis */
+}
+
+/* Make sure this is applied to any container that might wrap the buttons */
+.homepage .hero-section > div:last-child {
+  margin-bottom: 20px !important;
+  padding-bottom: 20px !important;
+}
+
+/* For responsive layouts, maintain the spacing */
+@media (max-width: 768px) {
+  .homepage .hero-buttons {
+    margin-bottom: 20px !important;
+    padding-bottom: 20px !important;
+  }
+  
+  .homepage .hero-section > div:last-child {
+    margin-bottom: 20px !important;
+    padding-bottom: 20px !important;
+  }
+}
+
+/* Move the "View All" button down in the top tokens section without affecting other elements */
+.homepage .tokens-list > div:last-child {
+  margin-top: 40px !important; /* Increase top margin to move button down */
+  padding-top: 10px !important; /* Additional padding for better spacing */
+  width: 100% !important;
+  text-align: center !important;
+  position: relative !important;
+}
+
+/* Ensure this only affects the view all button container */
+.homepage .tokens-list > div:last-child a {
+  position: relative !important;
+  display: inline-block !important;
+}
+
+/* Make sure this doesn't affect other spacing */
+.homepage .token-row:last-of-type {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .homepage .tokens-list > div:last-child {
+    margin-top: 30px !important; /* Slightly less on smaller screens */
+  }
+}
+
+@media (max-width: 480px) {
+  .homepage .tokens-list > div:last-child {
+    margin-top: 25px !important; /* Slightly less on mobile */
+  }
+}
+
+/* Move the button down in the featured token section while keeping text centered */
+.homepage .featured-token {
+  display: flex !important;
+  flex-direction: column !important; /* Column layout */
+  align-items: center !important; /* Center items horizontally */
+  text-align: center !important; /* Center all text */
+  gap: 15px !important;
+  padding: 15px !important;
+}
+
+/* Center token info and text */
+.homepage .featured-token .token-info {
+  width: 100% !important;
+  text-align: center !important;
+}
+
+.homepage .featured-token .token-info h3 {
+  text-align: center !important;
+}
+
+.homepage .featured-token .token-info div {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 16px !important;
+  justify-content: center !important; /* Center the flex items */
+}
+
+.homepage .featured-token .token-info p {
+  text-align: center !important;
+}
+
+/* Position the button at the bottom with spacing */
+.homepage .featured-token button {
+  margin-top: 25px !important;
+  width: auto !important;
+  min-width: 150px !important;
+}
+
+/* For mobile layouts */
+@media (max-width: 768px) {
+  .homepage .featured-token {
+    padding-bottom: 20px !important;
+  }
+  
+  .homepage .featured-token button {
+    margin-top: 30px !important;
+    width: 80% !important; /* Slightly narrower on mobile for better look */
+    max-width: 300px !important;
+  }
+  
+  .homepage .featured-token .token-info div {
+    flex-direction: column !important;
+    align-items: center !important;
   }
 }

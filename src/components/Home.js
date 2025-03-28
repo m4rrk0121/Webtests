@@ -1,6 +1,6 @@
 // src/components/Home.js
 import axios from 'axios';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWebSocket } from '../context/WebSocketContext';
 import MusicPlayer from './MusicPlayer';
@@ -22,6 +22,14 @@ function Home() {
   const [stats, setStats] = useState({ totalTokens: 0, totalVolume: 0, totalMarketCap: 0 });
   const [dataSource, setDataSource] = useState(null);
   
+  // Store event handlers in refs to maintain identity across renders
+  const handlersRef = useRef({
+    tokensListUpdate: null,
+    tokenUpdate: null,
+    globalStatsUpdate: null,
+    error: null
+  });
+  
   // Add class to body when on homepage
   useEffect(() => {
     document.body.classList.add('on-homepage');
@@ -37,79 +45,92 @@ function Home() {
       setLoading(true);
       setDataSource('websocket');
       
-      // Handler for token list updates
-      const tokensListUpdateHandler = (data) => {
-        if (data && data.tokens) {
-          const tokens = data.tokens;
-          
-          // Set top 5 tokens for the list
-          setTopTokens(tokens.slice(0, 5));
-          
-          // Set featured token (highest market cap)
-          setFeaturedToken(tokens[0]);
-          
-          // Calculate statistics
-          const totalMarketCap = tokens.reduce((sum, token) => sum + (token.fdv_usd || 0), 0);
-          const totalVolume = tokens.reduce((sum, token) => sum + (token.volume_usd || 0), 0);
-          
-          setStats({
-            totalTokens: data.totalTokens || tokens.length,
-            totalVolume: totalVolume,
-            totalMarketCap: totalMarketCap
-          });
-          
-          setLoading(false);
-          console.log("[Home] Updated data via WebSocket");
-        }
-      };
-      
-      // Handler for individual token updates
-      const tokenUpdateHandler = (updatedToken) => {
-        // Update token in the list if it exists
-        setTopTokens(currentTokens => 
-          currentTokens.map(token => 
-            token.contractAddress === updatedToken.contractAddress 
-              ? { ...token, ...updatedToken } 
-              : token
-          )
-        );
+      // Define handlers once and store in ref
+      if (!handlersRef.current.tokensListUpdate) {
+        // Handler for token list updates (just for display)
+        handlersRef.current.tokensListUpdate = (data) => {
+          if (data && data.tokens) {
+            const tokens = data.tokens;
+            
+            // Set top 5 tokens for the list
+            setTopTokens(tokens.slice(0, 5));
+            
+            // Set featured token (highest market cap)
+            setFeaturedToken(tokens[0]);
+            
+            setLoading(false);
+            console.log("[Home] Updated display tokens via WebSocket");
+          }
+        };
         
-        // Update featured token if it matches
-        if (featuredToken && featuredToken.contractAddress === updatedToken.contractAddress) {
-          setFeaturedToken({ ...featuredToken, ...updatedToken });
-        }
-      };
-      
-      // Error handler
-      const errorHandler = (errorData) => {
-        console.error('[Home] WebSocket error:', errorData);
-        fallbackToHttpPolling();
-      };
+        // Handler for global statistics
+        handlersRef.current.globalStatsUpdate = (statsData) => {
+          if (statsData) {
+            console.log("[Home] Received global stats:", statsData);
+            setStats({
+              totalTokens: statsData.totalTokens || 0,
+              totalVolume: statsData.totalVolume || 0,
+              totalMarketCap: statsData.totalMarketCap || 0
+            });
+          }
+        };
+        
+        // Handler for individual token updates
+        handlersRef.current.tokenUpdate = (updatedToken) => {
+          // Update token in the list if it exists
+          setTopTokens(currentTokens => 
+            currentTokens.map(token => 
+              token.contractAddress === updatedToken.contractAddress 
+                ? { ...token, ...updatedToken } 
+                : token
+            )
+          );
+          
+          // Update featured token if it matches
+          setFeaturedToken(current => {
+            if (current && current.contractAddress === updatedToken.contractAddress) {
+              return { ...current, ...updatedToken };
+            }
+            return current;
+          });
+        };
+        
+        // Error handler
+        handlersRef.current.error = (errorData) => {
+          console.error('[Home] WebSocket error:', errorData);
+          fallbackToHttpPolling();
+        };
+      }
       
       // Register all event listeners
-      addListener('tokens-list-update', tokensListUpdateHandler);
-      addListener('token-update', tokenUpdateHandler);
-      addListener('error', errorHandler);
+      addListener('tokens-list-update', handlersRef.current.tokensListUpdate);
+      addListener('token-update', handlersRef.current.tokenUpdate);
+      addListener('global-stats-update', handlersRef.current.globalStatsUpdate);
+      addListener('error', handlersRef.current.error);
       
-      // Request initial data
+      // Request tokens for display
       emit('get-tokens', {
         sort: 'marketCap',
         direction: 'desc',
         page: 1
       });
       
+      // Request global statistics
+      emit('get-global-stats');
+      
       // Cleanup function
       return () => {
         console.log("[Home] Cleaning up WebSocket listeners");
-        removeListener('tokens-list-update', tokensListUpdateHandler);
-        removeListener('token-update', tokenUpdateHandler);
-        removeListener('error', errorHandler);
+        removeListener('tokens-list-update', handlersRef.current.tokensListUpdate);
+        removeListener('token-update', handlersRef.current.tokenUpdate);
+        removeListener('global-stats-update', handlersRef.current.globalStatsUpdate);
+        removeListener('error', handlersRef.current.error);
       };
     } else {
       console.log("[Home] WebSocket not connected, falling back to HTTP");
       fallbackToHttpPolling();
     }
-  }, [isConnected, addListener, removeListener, emit, featuredToken]);
+  }, [isConnected, addListener, removeListener, emit]); // Removed featuredToken from dependencies
 
   // Fallback to HTTP polling when WebSocket isn't available
   const fallbackToHttpPolling = useCallback(() => {
@@ -119,7 +140,8 @@ function Home() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Fetch top tokens
+        
+        // Fetch top tokens for display
         const tokensResponse = await axios.get('https://website-4g84.onrender.com/api/tokens', {
           params: {
             sort: 'marketCap',
@@ -128,23 +150,31 @@ function Home() {
           }
         });
         
+        // Fetch global statistics separately
+        const statsResponse = await axios.get('https://website-4g84.onrender.com/api/global-stats');
+        
         // Make sure we're not using stale data after resubscribing to WebSocket
         if (dataSource !== 'websocket') {
+          // Set display tokens
           if (tokensResponse.data && tokensResponse.data.tokens) {
             setTopTokens(tokensResponse.data.tokens.slice(0, 5)); // Get top 5 tokens
             setFeaturedToken(tokensResponse.data.tokens[0]); // Set the highest market cap token as featured
           }
           
-          // Calculate some basic stats
-          if (tokensResponse.data && tokensResponse.data.tokens) {
+          // Set global statistics
+          if (statsResponse.data) {
+            setStats({
+              totalTokens: statsResponse.data.totalTokens || 0,
+              totalVolume: statsResponse.data.totalVolume || 0,
+              totalMarketCap: statsResponse.data.totalMarketCap || 0
+            });
+          } else {
+            // Fallback to calculating from top tokens if global stats endpoint fails
             const tokens = tokensResponse.data.tokens;
-            const totalMarketCap = tokens.reduce((sum, token) => sum + (token.fdv_usd || 0), 0);
-            const totalVolume = tokens.reduce((sum, token) => sum + (token.volume_usd || 0), 0);
-            
             setStats({
               totalTokens: tokensResponse.data.totalTokens || tokens.length,
-              totalVolume: totalVolume,
-              totalMarketCap: totalMarketCap
+              totalVolume: 0, // Set to 0 since we don't have accurate data
+              totalMarketCap: 0 // Set to 0 since we don't have accurate data
             });
           }
           

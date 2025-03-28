@@ -48,7 +48,7 @@ const checkProviderSafety = async (provider) => {
 };
 
 // Pre-defined contract information for token deployment
-const TOKEN_DEPLOYER_ADDRESS = '0xb51F74E6d8568119061f59Fd7f98824F1e666AC1';
+const TOKEN_DEPLOYER_ADDRESS = '0x9bd7dCc13c532F37F65B0bF078C8f83E037e7445';
 const TOKEN_DEPLOYER_ABI = [
   {
     "inputs": [
@@ -171,11 +171,27 @@ const TOKEN_DEPLOYER_ABI = [
 // Fixed recipient wallet for 1% allocation
 const RECIPIENT_WALLET = "0xc5C216E6E60ccE2d189Bcce5f6ebFFDE1e8ce926";
 
-  // Default deployment fee
+// Default deployment fee
 const DEFAULT_DEPLOYMENT_FEE = ethers.parseEther("0.0005");
 
-// Fixed target market cap in USD
-const TARGET_MARKET_CAP_USD = 14000;
+// Launch Mode market caps
+const LAUNCH_MODES = {
+  DEGEN: {
+    name: "Degen",
+    marketCap: 4000,
+    description: "High risk, high reward. Launch at $4,000 market cap."
+  },
+  STANDARD: {
+    name: "Standard",
+    marketCap: 10000,
+    description: "Balanced approach. Launch at $10,000 market cap."
+  },
+  BUILDER: {
+    name: "Builder",
+    marketCap: 14000,
+    description: "Stable foundation. Launch at $14,000 market cap."
+  }
+};
 
 // Fixed fee tier (1%)
 const FEE_TIER = 10000;
@@ -229,17 +245,18 @@ function calculateTickForMarketCap(targetMarketCapUSD, tokenSupply, ethPriceUSD,
 }
 
 // Generate shill text for the new token
-function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD) {
+function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, launchMode) {
   const formattedMarketCap = marketCapUSD ? `$${marketCapUSD.toLocaleString()}` : "$14,000";
+  const modeTag = launchMode ? `#${launchMode}Mode` : "#Builder";
   
   const shillTexts = [
-    `🔥 Just deployed ${tokenName} (${tokenSymbol}) on Base! Initial market cap of ${formattedMarketCap}. This is going to be HUGE! Check it out: https://basescan.org/address/${tokenAddress} #Base #DeFi #${tokenSymbol}`,
+    `🔥 Just deployed ${tokenName} (${tokenSymbol}) on Base! Initial market cap of ${formattedMarketCap}. This is going to be HUGE! Check it out: https://basescan.org/address/${tokenAddress} #Base #DeFi #${tokenSymbol} ${modeTag}`,
     
-    `🚀 ${tokenSymbol} has launched on Base! Get in early on the next moonshot with a starting market cap of only ${formattedMarketCap}! LP is set, ready for takeoff! https://basescan.org/address/${tokenAddress} #Crypto #Base #${tokenSymbol}`,
+    `🚀 ${tokenSymbol} has launched on Base in ${launchMode || "Builder"} mode! Get in early on the next moonshot with a starting market cap of only ${formattedMarketCap}! LP is set, ready for takeoff! https://basescan.org/address/${tokenAddress} #Crypto #Base #${tokenSymbol} ${modeTag}`,
     
-    `💎 ${tokenName} (${tokenSymbol}) is now LIVE on Base! Perfect entry point at ${formattedMarketCap} mcap. Diamond hands will be rewarded! https://basescan.org/address/${tokenAddress} #BaseChain #${tokenSymbol} #100x`,
+    `💎 ${tokenName} (${tokenSymbol}) is now LIVE on Base! Perfect entry point at ${formattedMarketCap} mcap with ${launchMode || "Builder"} settings. Diamond hands will be rewarded! https://basescan.org/address/${tokenAddress} #BaseChain #${tokenSymbol} #100x ${modeTag}`,
     
-    `⚡️ NEW GEM ALERT: ${tokenSymbol} token just deployed on Base with ${formattedMarketCap} starting mcap! Early adopters win! https://basescan.org/address/${tokenAddress} #BaseGems #${tokenSymbol} #CryptoGems`
+    `⚡️ NEW GEM ALERT: ${tokenSymbol} token just deployed on Base with ${formattedMarketCap} starting mcap in ${launchMode || "Builder"} mode! Early adopters win! https://basescan.org/address/${tokenAddress} #BaseGems #${tokenSymbol} #CryptoGems ${modeTag}`
   ];
   
   // Randomly select one of the shill texts
@@ -252,6 +269,10 @@ function DeployToken() {
   const [tokenSymbol, setTokenSymbol] = useState('');
   const [tokenSupply, setTokenSupply] = useState('100000');
   const [feeClaimerAddress, setFeeClaimerAddress] = useState('');
+  
+  // Launch mode selection
+  const [launchMode, setLaunchMode] = useState('BUILDER');
+  const [targetMarketCap, setTargetMarketCap] = useState(LAUNCH_MODES.BUILDER.marketCap);
   
   // Wallet connection state
   const [wallet, setWallet] = useState(null);
@@ -285,6 +306,34 @@ function DeployToken() {
 
   // Base network chain ID (mainnet)
   const BASE_CHAIN_ID = 8453;
+
+  // Update target market cap when launch mode changes
+  useEffect(() => {
+    setTargetMarketCap(LAUNCH_MODES[launchMode].marketCap);
+    
+    // Re-calculate market cap stats if we have the necessary data
+    if (ethPriceUSD && tokenSupply) {
+      // Calculate 99% for LP (1% goes to recipient)
+      const effectiveSupply = parseFloat(tokenSupply) * 0.99;
+      
+      // Calculate initial tick
+      const tickResult = calculateTickForMarketCap(
+        LAUNCH_MODES[launchMode].marketCap,
+        effectiveSupply,
+        ethPriceUSD,
+        TICK_SPACING
+      );
+      
+      // Update the state
+      setInitialTick(tickResult.validTick);
+      setMarketCapStats({
+        targetMarketCap: LAUNCH_MODES[launchMode].marketCap,
+        actualMarketCap: Math.round(tickResult.actualMarketCapUSD),
+        tokenPriceUSD: tickResult.actualPriceUSD,
+        tokenPriceETH: tickResult.actualPriceETH
+      });
+    }
+  }, [launchMode, ethPriceUSD, tokenSupply]);
 
   // Function to switch to Base network
   const switchToBaseNetwork = async () => {
@@ -466,9 +515,9 @@ const generateSalt = async () => {
       // Calculate 99% for LP (1% goes to recipient)
       const effectiveSupply = parseFloat(tokenSupply) * 0.99;
       
-      // Calculate initial tick
+      // Calculate initial tick based on the selected launch mode
       const tickResult = calculateTickForMarketCap(
-        TARGET_MARKET_CAP_USD,
+        targetMarketCap, // Use the current target market cap
         effectiveSupply,
         ethPriceUSD,
         TICK_SPACING
@@ -476,7 +525,7 @@ const generateSalt = async () => {
       
       tickValue = tickResult.validTick;
       marketCapData = {
-        targetMarketCap: TARGET_MARKET_CAP_USD,
+        targetMarketCap: targetMarketCap,
         actualMarketCap: Math.round(tickResult.actualMarketCapUSD),
         tokenPriceUSD: tickResult.actualPriceUSD,
         tokenPriceETH: tickResult.actualPriceETH
@@ -642,9 +691,16 @@ const deployToken = async () => {
       // Use either the stored marketCapStats or the newly generated one
       const marketCapValue = saltData && saltData.marketCapStats 
         ? saltData.marketCapStats.actualMarketCap 
-        : (marketCapStats ? marketCapStats.actualMarketCap : TARGET_MARKET_CAP_USD);
+        : (marketCapStats ? marketCapStats.actualMarketCap : targetMarketCap);
         
-      const generatedShillText = generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapValue);
+      const generatedShillText = generateShillText(
+        tokenName, 
+        tokenSymbol, 
+        tokenAddress, 
+        marketCapValue, 
+        LAUNCH_MODES[launchMode].name
+      );
+      
       setShillText(generatedShillText);
       setShowShillText(true);
     }
@@ -767,9 +823,47 @@ return (
       <div className="contract-form-container">
         <h3>Deploy New Token</h3>
         <p>
-          This will deploy a new token with a Uniswap V3 pool. The token will have a 
-          target market cap of ${TARGET_MARKET_CAP_USD} and use a 1% fee tier.
+          This will deploy a new token with a Uniswap V3 pool. Select your launch mode below.
         </p>
+        
+        {/* Launch Mode Selector */}
+        <div className="launch-mode-section">
+          <h4>Select Launch Mode</h4>
+          <div className="launch-mode-options">
+            <div 
+              className={`launch-mode-option ${launchMode === 'DEGEN' ? 'active' : ''}`}
+              onClick={() => setLaunchMode('DEGEN')}
+            >
+              <div className="launch-mode-header">
+                <span className="launch-mode-icon">🔥</span>
+                <h5>Degen</h5>
+              </div>
+              <p className="launch-mode-description">{LAUNCH_MODES.DEGEN.description}</p>
+            </div>
+            
+            <div 
+              className={`launch-mode-option ${launchMode === 'STANDARD' ? 'active' : ''}`}
+              onClick={() => setLaunchMode('STANDARD')}
+            >
+              <div className="launch-mode-header">
+                <span className="launch-mode-icon">⚖️</span>
+                <h5>Standard</h5>
+              </div>
+              <p className="launch-mode-description">{LAUNCH_MODES.STANDARD.description}</p>
+            </div>
+            
+            <div 
+              className={`launch-mode-option ${launchMode === 'BUILDER' ? 'active' : ''}`}
+              onClick={() => setLaunchMode('BUILDER')}
+            >
+              <div className="launch-mode-header">
+                <span className="launch-mode-icon">🏗️</span>
+                <h5>Builder</h5>
+              </div>
+              <p className="launch-mode-description">{LAUNCH_MODES.BUILDER.description}</p>
+            </div>
+          </div>
+        </div>
         
         <div className="token-form-section">
           <div className="token-data-row">
@@ -829,6 +923,7 @@ return (
         <div className="deployment-details">
           <h4>Deployment Details</h4>
           <p>• Fee Tier: 1% (fixed)</p>
+          <p>• Launch Mode: {LAUNCH_MODES[launchMode].name} (${LAUNCH_MODES[launchMode].marketCap} target)</p>
           {ethPriceUSD && <p>• Current ETH Price: ${ethPriceUSD.toFixed(2)}</p>}
           {initialTick && <p>• Calculated Initial Tick: {initialTick}</p>}
           {marketCapStats && (

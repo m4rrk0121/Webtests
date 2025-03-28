@@ -1312,7 +1312,7 @@ function TokenDetailPage() {
                       padding: '0 5px',
                       borderRadius: '4px'
                     }}>
-                      ETH
+                      
                     </div>
                   </div>
                   <small style={{ 
@@ -1330,92 +1330,82 @@ function TokenDetailPage() {
                   marginBottom: '15px',
                   marginTop: '15px',
                   maxWidth: '100%'
-                }}>
-                  <label htmlFor="tokenAmount" style={{ 
-                    display: 'block', 
-                    marginBottom: '8px', 
-                    fontWeight: 'bold',
-                    color: '#ffb300'
                   }}>
-                    {tokenDetails.symbol} Amount:
-                  </label>
-                  <div style={{ 
-                    position: 'relative',
-                    width: '100%'
-                  }}>
-                    <input
-                      id="tokenAmount"
-                      type="number"
-                      value={tokenAmount}
-                      onChange={(e) => setTokenAmount(e.target.value)}
-                      placeholder="100"
-                      step="1"
-                      min="0"
-                      style={{ 
-                        width: '100%',
-                        padding: '12px 15px 12px 15px',
-                        paddingRight: '80px',
-                        fontSize: '16px',
-                        border: '2px solid #ffb300',
-                        borderRadius: '8px',
-                        backgroundColor: '#1a1a1a',
-                        color: '#ffb300',
-                        boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)',
-                        transition: 'border-color 0.2s ease',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = '#f1c40f';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = '#ffb300';
-                      }}
-                    />
-                    <button 
-                      className="max-button"
-                      onClick={() => tokenBalance && setTokenAmount(ethers.formatUnits(tokenBalance, tokenDecimals))}
-                      style={{
-                        position: 'absolute',
-                        right: '8px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        backgroundColor: '#ffb300',
-                        color: '#000',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '3px 8px',
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        zIndex: 1
-                      }}
-                    >
-                      MAX
-                    </button>
-                    <div style={{ 
-                      position: 'absolute', 
-                      right: '50px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#ffb300',
-                      pointerEvents: 'none',
-                      padding: '0 5px',
-                      borderRadius: '4px'
+                    <label htmlFor="tokenAmount" style={{ 
+                      display: 'block', 
+                      marginBottom: '8px', 
+                      fontWeight: 'bold',
+                      color: '#ffb300'
                     }}>
-                      {tokenDetails.symbol}
+                      {tokenDetails.symbol} Amount:
+                    </label>
+                    <div className="token-input-wrapper" style={{ 
+                      position: 'relative',
+                      width: '100%'
+                    }}>
+                      <input
+                        id="tokenAmount"
+                        type="number"
+                        value={tokenAmount}
+                        onChange={(e) => setTokenAmount(e.target.value)}
+                        placeholder="100"
+                        step="1"
+                        min="0"
+                        className="token-amount-input"
+                        style={{ 
+                          width: '100%',
+                          padding: '12px 15px',
+                          paddingRight: '60px', /* Make room for MAX button */
+                          fontSize: '16px',
+                          border: '2px solid #ffb300',
+                          borderRadius: '8px',
+                          backgroundColor: '#1a1a1a',
+                          color: '#ffb300',
+                          boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)',
+                          transition: 'border-color 0.2s ease',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = '#f1c40f';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = '#ffb300';
+                        }}
+                      />
+                      <button 
+                        className="max-button"
+                        onClick={() => tokenBalance && setTokenAmount(ethers.formatUnits(tokenBalance, tokenDecimals))}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          backgroundColor: '#ffb300',
+                          color: '#000',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          zIndex: 5
+                        }}
+                      >
+                        MAX
+                      </button>
                     </div>
+                    <small style={{ 
+                      display: 'block', 
+                      marginTop: '5px', 
+                      color: '#ffb300',
+                      fontSize: '0.85rem'
+                    }}>
+                      Enter the amount of {tokenDetails.symbol} you want to sell
+                    </small>
                   </div>
-                  <small style={{ 
-                    display: 'block', 
-                    marginTop: '5px', 
-                    color: '#ffb300',
-                    fontSize: '0.85rem'
-                  }}>
-                    Enter the amount of {tokenDetails.symbol} you want to sell
-                  </small>
-                </div>
-              )}
-              
+                )}
+                            
               <div className="slippage-selector" style={{
                 marginBottom: '20px'
               }}>

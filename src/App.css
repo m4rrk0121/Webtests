@@ -4018,3 +4018,191 @@ body.on-homepage {
     align-items: center !important;
   }
 }
+/* Token Input Styles - Add to App.css */
+.token-input-container {
+  position: relative;
+  width: 100%;
+  margin-bottom: 15px;
+}
+
+
+.token-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.token-amount-input {
+  width: 100%;
+  padding: 12px 15px;
+  padding-right: 70px; /* Increase right padding to make room for MAX button */
+  font-size: 16px;
+  border: 2px solid #ffb300;
+  border-radius: 8px;
+  background-color: #1a1a1a;
+  color: #ffb300;
+  box-sizing: border-box;
+}
+
+.token-amount-input:focus {
+  border-color: #f1c40f;
+}
+
+.max-button {
+  position: absolute;
+  left:  250px;
+  bottom: -35px;
+  transform: translateY(-50%);
+  background-color: #ffb300;
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 10;
+}
+
+.max-button:hover {
+  background-color: #e6a200;
+}
+
+.token-symbol-label {
+  display: none;
+}
+
+/* Additional responsive adjustments */
+@media screen and (max-width: 576px) {
+  .token-input-container {
+    flex-direction: row;
+    gap: 10px;
+  }
+  
+  .token-symbol-label {
+    min-width: 50px;
+    padding: 6px 8px;
+    font-size: 14px;
+  }
+  
+  .token-amount-input {
+    padding: 10px 55px 10px 12px;
+    font-size: 14px;
+  }
+  
+  .max-button {
+    padding: 3px 6px;
+    font-size: 11px;
+    right: 8px;
+  }
+}
+
+/* Launch Mode Selector Styles */
+.launch-mode-section {
+  margin-bottom: 25px;
+  background-color: rgba(38, 30, 14, 0.7);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.launch-mode-section h4 {
+  text-align: center;
+  color: #ffb300;
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.2rem;
+}
+
+.launch-mode-options {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.launch-mode-option {
+  flex: 1;
+  min-width: 200px;
+  padding: 15px;
+  border: 3px solid rgba(255, 179, 0, 0.3);
+  border-radius: 8px;
+  background-color: rgba(26, 26, 26, 0.6);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.launch-mode-option:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 179, 0, 0.7);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.launch-mode-option.active {
+  border-color: #ffb300;
+  background-color: rgba(255, 179, 0, 0.1);
+  transform: scale(1.03);
+}
+
+.launch-mode-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.launch-mode-icon {
+  font-size: 1.5rem;
+}
+
+.launch-mode-option h5 {
+  margin: 0;
+  color: #ffb300;
+  font-size: 1.1rem;
+}
+
+.launch-mode-description {
+  margin: 0;
+  color: rgba(255, 179, 0, 0.8);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Mode-specific colors */
+.launch-mode-option[data-mode="DEGEN"] {
+  border-color: rgba(255, 99, 71, 0.5);
+}
+
+.launch-mode-option[data-mode="DEGEN"].active,
+.launch-mode-option[data-mode="DEGEN"]:hover {
+  border-color: rgba(255, 99, 71, 1);
+  background-color: rgba(255, 99, 71, 0.1);
+}
+
+.launch-mode-option[data-mode="STANDARD"] {
+  border-color: rgba(30, 144, 255, 0.5);
+}
+
+.launch-mode-option[data-mode="STANDARD"].active,
+.launch-mode-option[data-mode="STANDARD"]:hover {
+  border-color: rgba(30, 144, 255, 1);
+  background-color: rgba(30, 144, 255, 0.1);
+}
+
+.launch-mode-option[data-mode="BUILDER"] {
+  border-color: rgba(50, 205, 50, 0.5);
+}
+
+.launch-mode-option[data-mode="BUILDER"].active,
+.launch-mode-option[data-mode="BUILDER"]:hover {
+  border-color: rgba(50, 205, 50, 1);
+  background-color: rgba(50, 205, 50, 0.1);
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 768px) {
+  .launch-mode-options {
+    flex-direction: column;
+  }
+  
+  .launch-mode-option {
+    width: 100%;
+  }
+}

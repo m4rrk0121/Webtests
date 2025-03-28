@@ -2,6 +2,7 @@
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import MusicPlayer from './MusicPlayer';
 
 // Import images directly
 import meditatingMonkey from '../images/7.png';
@@ -250,6 +251,7 @@ function Home() {
           <img src={kingMonkey} alt="King Monkey" style={{ height: '80px', marginTop: '20px' }} />
         </div>
       </section>
+      <MusicPlayer />
     </div>
   );
 }

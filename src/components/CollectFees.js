@@ -250,6 +250,93 @@ function CollectFees() {
   
   // Modal state
   const [showModal, setShowModal] = useState(false);
+  
+  // For random banana background
+  const [randomElements, setRandomElements] = useState([]);
+
+  // Generate random bananas effect
+  useEffect(() => {
+    // Function to generate random position within viewport
+    const getRandomPosition = () => {
+      return {
+        x: Math.random() * 80, // 0-80% of viewport width
+        y: Math.random() * 80, // 0-80% of viewport height
+      };
+    };
+
+    // Number of elements to create
+    const numElements = 15; // Adjust to control number of bananas
+    const elements = [];
+    
+    // Use public URL for banana image
+    const bananaImage = '/images/banana.png'; // Path relative to public folder
+    
+    for (let i = 0; i < numElements; i++) {
+      const position = getRandomPosition();
+      
+      // Randomly decide if this banana will zoom
+      const willZoom = Math.random() > 0.5;
+      
+      elements.push({
+        id: i,
+        image: bananaImage,
+        x: position.x,
+        y: position.y,
+        size: 30 + Math.random() * 50, // Random size between 30px-80px
+        animation: 2 + Math.random() * 5, // Random animation duration
+        delay: Math.random() * 5, // Random delay
+        zoom: willZoom // Whether this banana will zoom
+      });
+    }
+    
+    setRandomElements(elements);
+  }, []); // Empty dependency array means this runs once on component mount
+
+  // Add second useEffect for repositioning bananas over time
+  useEffect(() => {
+    // Function to generate a new random position
+    const getRandomPosition = () => {
+      return {
+        x: Math.random() * 80,
+        y: Math.random() * 80,
+      };
+    };
+
+    // Set up an interval to change positions of random bananas
+    const intervalId = setInterval(() => {
+      setRandomElements(prevElements => {
+        // Create a copy of the elements array
+        const newElements = [...prevElements];
+        
+        // Randomly select 1-3 bananas to move
+        const numToMove = Math.floor(Math.random() * 3) + 1;
+        
+        for (let i = 0; i < numToMove; i++) {
+          // Pick a random banana
+          const randomIndex = Math.floor(Math.random() * newElements.length);
+          
+          // Give it a new position
+          const newPosition = getRandomPosition();
+          newElements[randomIndex] = {
+            ...newElements[randomIndex],
+            x: newPosition.x,
+            y: newPosition.y,
+            // Optionally change other properties
+            size: 30 + Math.random() * 50,
+            animation: 2 + Math.random() * 5,
+            delay: Math.random() * 5,
+            // Occasionally change zoom property (10% chance)
+            zoom: Math.random() < 0.1 ? !newElements[randomIndex].zoom : newElements[randomIndex].zoom
+          };
+        }
+        
+        return newElements;
+      });
+    }, 4000); // Change positions every 4 seconds
+    
+    // Clear interval on component unmount
+    return () => clearInterval(intervalId);
+  }, []);
 
   // Enhanced account change handler for wallet
   const handleAccountsChanged = useCallback((accounts) => {
@@ -625,6 +712,29 @@ function CollectFees() {
 
   return (
     <div className="contract-interaction">
+      {/* Random background bananas */}
+      {randomElements.map(el => (
+        <div 
+          key={el.id}
+          className={`floating-background-element ${el.zoom ? 'zoom' : 'no-zoom'}`}
+          style={{
+            left: `${el.x}%`,
+            top: `${el.y}%`,
+            animationDuration: `${el.animation}s`,
+            animationDelay: `${el.delay}s`
+          }}
+        >
+          <img 
+            src={el.image} 
+            alt="" 
+            style={{
+              height: `${el.size}px`,
+              width: 'auto',
+            }}
+          />
+        </div>
+      ))}
+      
       <h1>Collect Fees</h1>
       
       <div className="wallet-connection">

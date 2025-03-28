@@ -5,17 +5,20 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useWebSocket } from '../context/WebSocketContext';
 import MusicPlayer from './MusicPlayer';
 
+
 // Import images directly
 import meditatingMonkey from '../images/7.png';
 import kingMonkey from '../images/background2.png';
 import thronedMonkey from '../images/jungle-background.png';
 import jungleCrown from '../images/logo.png';
+// Add this import at the top with your other image imports
 
 function Home() {
   const navigate = useNavigate();
   // Get the WebSocket context
   const { isConnected, emit, addListener, removeListener } = useWebSocket();
-  
+  // Add this with your other useState declarations (around line 13-19)
+const [randomElements, setRandomElements] = useState([]);
   const [topTokens, setTopTokens] = useState([]);
   const [featuredToken, setFeaturedToken] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -190,6 +193,44 @@ function Home() {
     fetchData();
   }, [dataSource]);
 
+  // Add this after your other useEffect hooks (after the WebSocket or HTTP polling effects)
+  useEffect(() => {
+    // Function to generate random position within viewport
+    const getRandomPosition = () => {
+      return {
+        x: Math.random() * 80,
+        y: Math.random() * 80,
+      };
+    };
+  
+    // Number of elements to create
+    const numElements = 15;
+    const elements = [];
+    
+    // Use public URL for banana image
+    const bananaImage = '/images/banana.png'; // Path relative to public folder
+    
+    for (let i = 0; i < numElements; i++) {
+      const position = getRandomPosition();
+      
+      // Randomly decide if this banana will zoom (about 50% chance)
+      const willZoom = Math.random() > 0.5;
+      
+      elements.push({
+        id: i,
+        image: bananaImage,
+        x: position.x,
+        y: position.y,
+        size: 40 + Math.random() * 50,
+        animation: 2 + Math.random() * 5,
+        delay: Math.random() * 5,
+        zoom: willZoom // Add the zoom property
+      });
+    }
+    
+    setRandomElements(elements);
+  }, []);
+
   const formatCurrency = (value, isPrice = false) => {
     if (value === null || value === undefined) return 'N/A';
     
@@ -215,6 +256,28 @@ function Home() {
 
   return (
     <div className="homepage">
+      {/* Add this right after <div className="homepage"> (around line 165) */}
+{/* Random floating bananas */}
+{randomElements.map(el => (
+  <div 
+    key={el.id}
+    className="floating-background-element"
+    style={{
+      left: `${el.x}%`,
+      top: `${el.y}%`,
+      animationDuration: `${el.animation}s`,
+    }}
+  >
+    <img 
+      src={el.image} 
+      alt="Floating banana" 
+      style={{
+        height: `${el.size}px`,
+        width: 'auto',
+      }}
+    />
+  </div>
+))}
       {/* Connection status indicator */}
       <div style={{
         position: 'fixed',

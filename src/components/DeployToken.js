@@ -1,7 +1,6 @@
 import { ethers } from 'ethers';
 import React, { useCallback, useEffect, useState } from 'react';
-import './modal.css'; // Make sure to create this CSS file
-
+import './modal.css';
 
 /* global BigInt */
 
@@ -80,6 +79,7 @@ const detectWalletProvider = () => {
 };
 
 // Helper function for safe BigInt conversion with better browser compatibility
+// eslint-disable-next-line no-unused-vars
 const safeBigInt = (value) => {
   // Check if native BigInt is supported
   if (typeof BigInt !== 'undefined') {
@@ -516,9 +516,96 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
   // Shill text state
   const [shillText, setShillText] = useState('');
   const [showShillText, setShowShillText] = useState(false);
+  
+  // Banana animation state
+  const [randomElements, setRandomElements] = useState([]);
+  
+  // Generate random bananas effect
+  useEffect(() => {
+    // Function to generate random position within viewport
+    const getRandomPosition = () => {
+      return {
+        x: Math.random() * 80, // 0-80% of viewport width
+        y: Math.random() * 80, // 0-80% of viewport height
+      };
+    };
 
-  // Modified switchToBaseNetwork function for ethers v6 compatibility
-  const switchToBaseNetwork = async () => {
+    // Number of elements to create
+    const numElements = 15; // Adjust to control number of bananas
+    const elements = [];
+    
+    // Use public URL for banana image
+    const bananaImage = '/images/banana.png'; // Path relative to public folder
+    
+    for (let i = 0; i < numElements; i++) {
+      const position = getRandomPosition();
+      
+      // Randomly decide if this banana will zoom
+      const willZoom = Math.random() > 0.5;
+      
+      elements.push({
+        id: i,
+        image: bananaImage,
+        x: position.x,
+        y: position.y,
+        size: 30 + Math.random() * 50, // Random size between 30px-80px
+        animation: 2 + Math.random() * 5, // Random animation duration
+        delay: Math.random() * 5, // Random delay
+        zoom: willZoom // Whether this banana will zoom
+      });
+    }
+    
+    setRandomElements(elements);
+  }, []); // Empty dependency array means this runs once on component mount
+
+  // Add second useEffect for repositioning bananas over time
+  useEffect(() => {
+    // Function to generate a new random position
+    const getRandomPosition = () => {
+      return {
+        x: Math.random() * 80,
+        y: Math.random() * 80,
+      };
+    };
+    
+    // Set up an interval to change positions of random bananas
+    const intervalId = setInterval(() => {
+      setRandomElements(prevElements => {
+        // Create a copy of the elements array
+        const newElements = [...prevElements];
+        
+        // Randomly select 1-3 bananas to move
+        const numToMove = Math.floor(Math.random() * 3) + 1;
+        
+        for (let i = 0; i < numToMove; i++) {
+          // Pick a random banana
+          const randomIndex = Math.floor(Math.random() * newElements.length);
+          
+          // Give it a new position
+          const newPosition = getRandomPosition();
+          newElements[randomIndex] = {
+            ...newElements[randomIndex],
+            x: newPosition.x,
+            y: newPosition.y,
+            // Optionally change other properties
+            size: 30 + Math.random() * 50,
+            animation: 2 + Math.random() * 5,
+            delay: Math.random() * 5,
+            // Occasionally change zoom property (10% chance)
+            zoom: Math.random() < 0.1 ? !newElements[randomIndex].zoom : newElements[randomIndex].zoom
+          };
+        }
+        
+        return newElements;
+      });
+    }, 4000); // Change positions every 4 seconds
+    
+    // Clear interval on component unmount
+    return () => clearInterval(intervalId);
+  }, []);
+  
+  // Modified switchToBaseNetwork function with useCallback
+  const switchToBaseNetwork = useCallback(async () => {
     try {
       const ethereum = await detectWalletProvider();
       if (!ethereum) {
@@ -605,10 +692,10 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
       setError('Failed to switch networks: ' + (error.message || 'Unknown error'));
       return false;
     }
-  };
+  }, []);
 
   // Connect wallet function compatible with ethers v6
-  const connectWallet = async () => {
+  const connectWallet = useCallback(async () => {
     try {
       setIsConnecting(true);
       setError('');
@@ -679,9 +766,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
             console.error('Failed to get accounts:', e);
           }
         }
-      }
-      
-      // If we still have no accounts, we can't continue
+      }// If we still have no accounts, we can't continue
       if (!accounts || !accounts.length) {
         setError('Failed to get accounts from wallet. Please make sure your wallet is unlocked and try again.');
         setIsConnecting(false);
@@ -815,7 +900,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
       setError('Failed to connect wallet: ' + (err.message || 'Unknown error'));
       setIsConnecting(false);
     }
-  };
+  }, [switchToBaseNetwork]); // Add switchToBaseNetwork as a dependency
 
   // Disconnect wallet
   const disconnectWallet = () => {
@@ -826,12 +911,14 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
     setPredictedAddress('');
     setShowShillText(false);
     setShillText('');
-  };// Enhanced account change handler for wallet
-  const handleAccountsChanged = (accounts) => {
+  };
+
+  // Enhanced account change handler for wallet with useCallback
+  const handleAccountsChanged = useCallback((accounts) => {
     if (accounts && accounts.length > 0 && accounts[0] !== wallet?.address) {
       // Account changed, update wallet state
       console.log('Account changed, reconnecting wallet');
-      
+
       // Reconnect wallet to refresh all data
       connectWallet()
         .catch(error => {
@@ -844,7 +931,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
       disconnectWallet();
       setError('Wallet disconnected. Please connect again to continue.');
     }
-  };
+  }, [wallet, connectWallet]);
 
   // Modified generateSalt function for ethers v6 compatibility
   const generateSalt = async () => {
@@ -856,7 +943,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
     try {
       setIsGeneratingSalt(true);
       setError('');
-      
+
       // Create contract instance with ethers v6
       let contract;
       try {
@@ -869,7 +956,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
         console.error('Error creating contract instance:', contractError);
         throw new Error('Failed to create contract instance: ' + contractError.message);
       }
-      
+
       // Parse supply with ethers v6
       let parsedSupply;
       try {
@@ -878,10 +965,10 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
         console.error('Error parsing supply:', parseError);
         throw new Error('Failed to parse token supply: ' + parseError.message);
       }
-      
+
       // Increment the salt generation count (for UI feedback)
       setSaltGenerationCount(prevCount => prevCount + 1);
-      
+
       let result;
       try {
         result = await contract.generateSalt(
@@ -894,25 +981,23 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
         console.error('Error calling generateSalt:', saltError);
         throw new Error('Failed to generate salt. The contract may have rejected the request: ' + saltError.message);
       }
-      
+
       // Extract salt and predicted address from result
       // In ethers v6, contract call results are still returned in an array-like format
       // but accessed differently depending on the contract function definition
-      
+
       let salt = result[0]; // First return value
       let predictedAddr = result[1]; // Second return value
-      
+
       if (!salt || !predictedAddr) {
         throw new Error('Invalid salt or address returned from contract');
       }
-      
+
       setGeneratedSalt(salt);
-      setPredictedAddress(predictedAddr);
-      
-      // Calculate market cap statistics based on the generated salt
+      setPredictedAddress(predictedAddr);// Calculate market cap statistics based on the generated salt
       let tickValue = null;
       let marketCapData = null;
-      
+
       if (ethPriceUSD) {
         // Calculate 99% for LP (1% goes to recipient)
         const effectiveSupply = parseFloat(tokenSupply) * 0.99;
@@ -937,9 +1022,9 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
         setInitialTick(tickValue);
         setMarketCapStats(marketCapData);
       }
-      
+
       setIsGeneratingSalt(false);
-      
+
       // Return all the calculated values along with success status
       return { 
         success: true,
@@ -954,7 +1039,25 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
       setIsGeneratingSalt(false);
       return { success: false };
     }
-  };// Enhanced deployToken function for ethers v6 compatibility
+  };
+  
+  // Define the checkReceiptManually function outside of the deployToken function
+  // This fixes the ESLint warning by avoiding function declaration in a loop
+  const checkReceiptManually = async (provider, txHash, attempt) => {
+    try {
+      const receiptResult = await provider.getTransactionReceipt(txHash);
+      if (receiptResult) {
+        console.log(`Retrieved receipt manually after wait failure (attempt ${attempt})`);
+        return receiptResult;
+      }
+      return null;
+    } catch (manualError) {
+      console.warn('Failed to retrieve receipt manually:', manualError);
+      return null;
+    }
+  };
+
+  // Enhanced deployToken function for ethers v6 compatibility with ESLint fixes
   const deployToken = async () => {
     if (!wallet) {
       setError('Please connect your wallet first');
@@ -1090,9 +1193,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
           console.error('Error setting gas price:', gasPriceError);
           // Continue without setting gas price
         }
-      }
-      
-      // Set high gas limit for deployment
+      }// Set high gas limit for deployment
       try {
         options.gasLimit = 8000000;
       } catch (gasLimitError) {
@@ -1152,20 +1253,32 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
       } else {
         console.warn('Transaction sent but no hash returned');
       }
-      
+
+      // Define the getReceipt function outside the loop to avoid ESLint warnings
+      const getReceipt = async () => {
+        try {
+          return await Promise.race([
+            tx.wait(),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Transaction confirmation timeout')), 60000)
+            )
+          ]);
+        } catch (waitError) {
+          console.warn(`Wait error during transaction confirmation:`, waitError);
+          return null;
+        }
+      };
+
       // Wait for transaction to be mined with timeout and retry logic
       let receipt = null;
       let retryCount = 0;
       const maxRetries = 5;
-      
+
+      // Fixed loop without function declarations inside - this resolves the ESLint warning
       while (!receipt && retryCount < maxRetries) {
-        try {
-          receipt = await Promise.race([
-            tx.wait(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Transaction confirmation timeout')), 60000))
-          ]);
-        } catch (waitError) {
-          console.warn(`Wait error (attempt ${retryCount + 1}/${maxRetries}):`, waitError);
+        receipt = await getReceipt();
+        
+        if (!receipt) {
           retryCount++;
           
           // If we've reached max retries, don't throw, continue with receipt null
@@ -1177,19 +1290,15 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
           // Exponential backoff
           await new Promise(resolve => setTimeout(resolve, 2000 * Math.pow(2, retryCount)));
           
-          // Try to manually get receipt
-          try {
-            receipt = await wallet.provider.getTransactionReceipt(tx.hash);
-            if (receipt) {
-              console.log('Retrieved receipt manually after wait failure');
-              break;
-            }
-          } catch (manualError) {
-            console.warn('Failed to retrieve receipt manually:', manualError);
+          // Use the helper function with explicit parameter passing instead of declaring in loop
+          const manualReceipt = await checkReceiptManually(wallet.provider, tx.hash, retryCount);
+          if (manualReceipt) {
+            receipt = manualReceipt;
+            break;
           }
         }
       }
-      
+
       // Try to extract token address and token ID from events
       let tokenAddress = '';
       let tokenId = '';
@@ -1308,7 +1417,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
       alert('Failed to open Twitter. Please copy the text and share manually.');
     }
   };
-  
+
   // Open Sigma buy bot
   const openSigmaBuyBot = () => {
     try {
@@ -1319,7 +1428,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
       alert('Failed to open Sigma buy bot. Please visit the link manually.');
     }
   };
-  
+
   // Open Dexscreener for the token
   const openDexscreener = () => {
     if (!txResult || !txResult.tokenAddress) {
@@ -1335,7 +1444,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
       alert('Failed to open Dexscreener. Please visit the link manually.');
     }
   };
-
+  
   // Enhanced transaction status checking for ethers v6 compatibility
   const checkTransactionStatus = useCallback(async () => {
     if (!txHash || !wallet || !wallet.provider) {
@@ -1546,7 +1655,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
       setupWalletEventListeners(ethereum, handleChainChanged, handleAccountsChanged);
     }
   }, [wallet, handleAccountsChanged, switchToBaseNetwork]);
-
+  
   // Set up wallet events when wallet changes
   useEffect(() => {
     setupWalletEvents();
@@ -1595,6 +1704,28 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
     }
   }, [txHash, wallet, checkTransactionStatus]);return (
     <div className="contract-interaction">
+      {/* Random background bananas */}
+      {randomElements.map(el => (
+        <div 
+          key={el.id}
+          className={`floating-background-element ${el.zoom ? 'zoom' : 'no-zoom'}`}
+          style={{
+            left: `${el.x}%`,
+            top: `${el.y}%`,
+            animationDuration: `${el.animation}s`,
+            animationDelay: `${el.delay}s`
+          }}
+        >
+          <img 
+            src={el.image} 
+            alt="" 
+            style={{
+              height: `${el.size}px`,
+              width: 'auto',
+            }}
+          />
+        </div>
+      ))}
       <h1>Deploy New Token</h1>
       
       <div className="wallet-connection">
@@ -1698,7 +1829,8 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
                   placeholder="100000"
                   required
                 />
-                <small>Default: 100,000 tokens</small></div>
+                <small>Default: 100,000 tokens</small>
+              </div>
               
               <div className="form-group">
                 <label htmlFor="feeClaimerAddress">Fee Claimer Address:</label>
@@ -1712,9 +1844,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
                 <small>This address will receive LP fees. Defaults to your wallet address.</small>
               </div>
             </div>
-          </div>
-          
-          <div className="deployment-details">
+          </div><div className="deployment-details">
             <h4>Deployment Details</h4>
             <p>• Fee Tier: 1% (fixed)</p>
             <p>• Launch Mode: {LAUNCH_MODES[launchMode].name} (${LAUNCH_MODES[launchMode].marketCap} target)</p>
@@ -1820,9 +1950,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
               Transaction hash: {txHash}
               {!txResult && <div className="pending-indicator">Transaction pending...</div>}
             </div>
-          )}
-          
-          {txResult && txResult.success && (
+          )}{txResult && txResult.success && (
             <div className="success-message">
               <h4>Transaction successful!</h4>
               <div className="tx-details">

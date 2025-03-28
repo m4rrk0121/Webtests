@@ -15,6 +15,8 @@
   font-size: 1rem;
   transition: all 0.3s ease;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  position: relative; /* Ensure inputs are above backgrounds */
+  z-index: 1;
 }
 
 .form-group input[type="text"]:focus,
@@ -51,6 +53,7 @@
   user-select: none;
   color: #ffb300;
   margin-bottom: 15px;
+  z-index: 1; /* Ensure checkboxes are above background */
 }
 
 .checkmark {
@@ -99,6 +102,8 @@
   background-color: rgba(255, 179, 0, 0.1);
   border-radius: 8px;
   border: 1px solid rgba(255, 179, 0, 0.3);
+  position: relative;
+  z-index: 1;
 }
 
 .current-gas {
@@ -123,6 +128,8 @@
   transition: all 0.3s ease;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 1;
 }
 
 .deploy-button:hover {
@@ -147,6 +154,7 @@
 /* Show the real checkbox for react to work with it but visually hidden */
 .checkbox-wrapper {
   position: relative;
+  z-index: 1;
 }
 
 .checkbox-wrapper input[type="checkbox"] {
@@ -155,7 +163,7 @@
   position: absolute;
   width: 22px;
   height: 22px;
-  z-index: 1;
+  z-index: 2;
 }
 
 /* Form section heading */
@@ -165,6 +173,8 @@
   margin: 25px 0 15px;
   padding-bottom: 8px;
   border-bottom: 1px solid rgba(255, 179, 0, 0.3);
+  position: relative;
+  z-index: 1;
 }
 
 /* Deployment details enhancement */
@@ -174,6 +184,8 @@
   border-radius: 8px;
   margin: 20px 0;
   border: 1px solid rgba(255, 179, 0, 0.3);
+  position: relative;
+  z-index: 1;
 }
 
 .deployment-details h4 {
@@ -213,6 +225,8 @@
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 25px;
+  position: relative;
+  z-index: 1;
 }
 
 .token-data-row {
@@ -227,7 +241,33 @@
   min-width: 200px;
 }
 
-/* ===== NEW MODAL STYLES BELOW ===== */
+/* Contract interaction container */
+.contract-interaction {
+  position: relative;
+  min-height: 100vh;
+  padding: 20px;
+  z-index: 1; /* Ensure content is above bananas */
+}
+
+/* Contract form container */
+.contract-form-container {
+  position: relative;
+  z-index: 1;
+}
+
+/* Connect prompt */
+.connect-prompt {
+  position: relative;
+  z-index: 1;
+}
+
+/* Wallet connection */
+.wallet-connection {
+  position: relative;
+  z-index: 1;
+}
+
+/* ===== MODAL STYLES BELOW ===== */
 
 /* Modal overlay */
 .modal-overlay {
@@ -240,7 +280,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1001;
+  z-index: 1001; /* Higher z-index to be above everything */
   animation: fadeIn 0.3s ease-out;
 }
 
@@ -262,6 +302,7 @@
   position: relative;
   box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
   animation: slideIn 0.3s ease-out;
+  z-index: 1002; /* Even higher z-index */
 }
 
 @keyframes slideIn {
@@ -313,6 +354,8 @@
   transition: all 0.3s ease;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 1;
 }
 
 .execute-button:hover {
@@ -342,6 +385,8 @@
   border-radius: 6px;
   margin: 20px 0;
   word-break: break-all;
+  position: relative;
+  z-index: 1;
 }
 
 .pending-indicator {
@@ -358,6 +403,8 @@
   border-radius: 6px;
   margin: 20px 0;
   border: 1px solid #00ff88;
+  position: relative;
+  z-index: 1;
 }
 
 .success-message h4 {
@@ -383,6 +430,8 @@
   border-radius: 6px;
   margin: 20px 0;
   border: 1px solid #ff6666;
+  position: relative;
+  z-index: 1;
 }
 
 /* Fee Results Modal Styles */
@@ -392,6 +441,8 @@
   background-color: rgba(255, 179, 0, 0.1);
   border-radius: 8px;
   border: 1px solid rgba(255, 179, 0, 0.3);
+  position: relative;
+  z-index: 1;
 }
 
 .fee-results h4 {
@@ -422,6 +473,8 @@
   padding: 15px;
   border-radius: 6px;
   border: 1px solid rgba(0, 255, 0, 0.2);
+  position: relative;
+  z-index: 1;
 }
 
 .token-amount {
@@ -471,7 +524,7 @@
 }
 
 /* Button styles */
-.copy-button, .twitter-button {
+.copy-button, .twitter-button, .sigma-button, .dexscreener-button {
   padding: 10px 20px;
   border-radius: 6px;
   font-weight: bold;
@@ -480,6 +533,8 @@
   font-family: 'Chewy', cursive;
   border: none;
   font-size: 1rem;
+  position: relative;
+  z-index: 1;
 }
 
 .copy-button {
@@ -492,8 +547,76 @@
   color: white;
 }
 
-.copy-button:hover, .twitter-button:hover {
+.sigma-button {
+  background-color: #6441a5;
+  color: white;
+}
+
+.dexscreener-button {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.copy-button:hover, .twitter-button:hover, .sigma-button:hover, .dexscreener-button:hover {
   transform: translateY(-2px);
+}
+
+/* Connection info */
+.connection-info {
+  margin-top: 20px;
+  color: #ffb300;
+  position: relative;
+  z-index: 1;
+}
+
+/* FIXED Floating banana elements styles */
+.floating-background-element {
+  position: fixed;
+  pointer-events: none;
+  z-index: -1; /* Negative z-index ensures bananas are behind all content */
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  animation-direction: alternate-reverse;
+}
+
+/* Non-zooming bananas just fade in and out with small movements */
+.floating-background-element.no-zoom {
+  animation-name: float-and-fade;
+}
+
+/* Zooming bananas grow and shrink while moving and fading */
+.floating-background-element.zoom {
+  animation-name: float-zoom-fade;
+}
+
+@keyframes float-and-fade {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(10px, 10px) rotate(5deg);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 0;
+  }
+}
+
+@keyframes float-zoom-fade {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(20px, -20px) rotate(10deg) scale(1.3);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg) scale(0.3);
+    opacity: 0;
+  }
 }
 
 /* Responsive adjustments */
@@ -533,7 +656,9 @@
   }
   
   .copy-button, 
-  .twitter-button {
+  .twitter-button,
+  .sigma-button,
+  .dexscreener-button {
     width: 100%;
   }
 }

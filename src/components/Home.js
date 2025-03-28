@@ -190,21 +190,23 @@ function Home() {
     fetchData();
   }, [dataSource]);
 
-  const formatCurrency = (value) => {
+  const formatCurrency = (value, isPrice = false) => {
     if (value === null || value === undefined) return 'N/A';
     
     const num = parseFloat(value);
     if (isNaN(num)) return 'N/A';
     
+    const decimals = isPrice ? 6 : 2; // Use 6 decimal places for price, 2 for others
+    
     if (num >= 1000000000) {
-      return `$${(num / 1000000000).toFixed(2)}B`;
+      return `$${(num / 1000000000).toFixed(decimals)}B`;
     } else if (num >= 1000000) {
-      return `$${(num / 1000000).toFixed(2)}M`;
+      return `$${(num / 1000000).toFixed(decimals)}M`;
     } else if (num >= 1000) {
-      return `$${(num / 1000).toFixed(2)}K`;
+      return `$${(num / 1000).toFixed(decimals)}K`;
     }
     
-    return `$${num.toFixed(2)}`;
+    return `$${num.toFixed(decimals)}`;
   };
 
   const handleTokenClick = (contractAddress) => {
@@ -289,7 +291,7 @@ function Home() {
               <h3>{featuredToken.name} ({featuredToken.symbol})</h3>
               <div>
                 <p>
-                  <strong>Price:</strong> {formatCurrency(featuredToken.price_usd)}
+                  <strong>Price:</strong> {formatCurrency(featuredToken.price_usd, true)}
                 </p>
                 <p>
                   <strong>Market Cap:</strong> {formatCurrency(featuredToken.fdv_usd)}
@@ -338,7 +340,7 @@ function Home() {
               >
                 <div>{index + 1}</div>
                 <div>{token.name} <span>({token.symbol})</span></div>
-                <div>{formatCurrency(token.price_usd)}</div>
+                <div>{formatCurrency(token.price_usd,true)}</div>
                 <div>{formatCurrency(token.fdv_usd)}</div>
                 <div>{formatCurrency(token.volume_usd)}</div>
               </div>

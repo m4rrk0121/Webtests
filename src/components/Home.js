@@ -258,7 +258,7 @@ function Home() {
       {/* Stats Section with Meditating Monkey */}
       <section className="stats-section">
         <div className="stat-box">
-          <h3>Total Volume</h3>
+          <h3>24h Total Volume</h3>
           <p>
             {loading ? '...' : formatCurrency(stats.totalVolume)}
           </p>

@@ -785,7 +785,8 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
         // Continue with the default gas price
       }
       
-      setGasPrice(currentGasPriceGwei);setCustomGasPrice(currentGasPriceGwei);
+      setGasPrice(currentGasPriceGwei);
+      setCustomGasPrice(currentGasPriceGwei);
       
       const walletInfo = {
         address: account,
@@ -824,9 +825,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
     setPredictedAddress('');
     setShowShillText(false);
     setShillText('');
-  };
-
-  // Enhanced account change handler for wallet
+  };// Enhanced account change handler for wallet
   const handleAccountsChanged = (accounts) => {
     if (accounts && accounts.length > 0 && accounts[0] !== wallet?.address) {
       // Account changed, update wallet state
@@ -1256,9 +1255,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
       setError('Deployment failed: ' + (err.message || 'Unknown error'));
       setIsExecuting(false);
     }
-  };
-
-  // Copy shill text to clipboard
+  };// Copy shill text to clipboard
   const copyShillText = () => {
     try {
       navigator.clipboard.writeText(shillText).then(
@@ -1302,7 +1299,36 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
       console.error('Error opening Twitter share:', error);
       alert('Failed to open Twitter. Please copy the text and share manually.');
     }
-  };// Enhanced transaction status checking for ethers v6 compatibility
+  };
+  
+  // Open Sigma buy bot
+  const openSigmaBuyBot = () => {
+    try {
+      const sigmaUrl = "https://t.me/Sigma_buyBot?start=ref=1374068003";
+      window.open(sigmaUrl, '_blank');
+    } catch (error) {
+      console.error('Error opening Sigma buy bot:', error);
+      alert('Failed to open Sigma buy bot. Please visit the link manually.');
+    }
+  };
+  
+  // Open Dexscreener for the token
+  const openDexscreener = () => {
+    if (!txResult || !txResult.tokenAddress) {
+      alert('Token address not available yet');
+      return;
+    }
+    
+    try {
+      const dexscreenerUrl = `https://dexscreener.com/base/${txResult.tokenAddress}`;
+      window.open(dexscreenerUrl, '_blank');
+    } catch (error) {
+      console.error('Error opening Dexscreener:', error);
+      alert('Failed to open Dexscreener. Please visit the link manually.');
+    }
+  };
+
+  // Enhanced transaction status checking for ethers v6 compatibility
   const checkTransactionStatus = useCallback(async () => {
     if (!txHash || !wallet || !wallet.provider) {
       return false;
@@ -1407,9 +1433,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
       console.error('Error checking transaction:', err);
       return false;
     }
-  }, [txHash, wallet, launchMode, marketCapStats, showShillText, targetMarketCap, tokenName, tokenSymbol]);
-
-  // Update target market cap when launch mode changes
+  }, [txHash, wallet, launchMode, marketCapStats, showShillText, targetMarketCap, tokenName, tokenSymbol]);// Update target market cap when launch mode changes
   useEffect(() => {
     setTargetMarketCap(LAUNCH_MODES[launchMode].marketCap);
     
@@ -1666,8 +1690,7 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
                   placeholder="100000"
                   required
                 />
-                <small>Default: 100,000 tokens</small>
-              </div>
+                <small>Default: 100,000 tokens</small></div>
               
               <div className="form-group">
                 <label htmlFor="feeClaimerAddress">Fee Claimer Address:</label>
@@ -1837,6 +1860,18 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
                     className="twitter-button"
                   >
                     <span role="img" aria-label="Twitter">🐦</span> Post to Twitter
+                  </button>
+                  <button 
+                    onClick={openSigmaBuyBot} 
+                    className="sigma-button"
+                  >
+                    <span role="img" aria-label="Robot">🤖</span> Buy with Sigma
+                  </button>
+                  <button 
+                    onClick={openDexscreener} 
+                    className="dexscreener-button"
+                  >
+                    <span role="img" aria-label="Chart">📊</span> Dexscreener
                   </button>
                 </div>
                 <button 

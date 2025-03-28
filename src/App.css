@@ -4206,3 +4206,94 @@ body.on-homepage {
     width: 100%;
   }
 }
+/* Sigma buy button */
+.sigma-button {
+  background-color: #1da1f2; /* Twitter blue */
+  color: #ffffff; /* White text */
+  font-family: 'Chewy', cursive;
+  font-size: 0.9rem;
+  font-weight: bold;
+  padding: 4px 8px;
+  border: 1px solid #1a91da; /* Slightly darker blue border */
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.sigma-button:hover {
+  background-color: #0c85d0; /* Slightly darker blue on hover */
+  transform: scale(1.05);
+  box-shadow: 0 3px 7px rgba(0,0,0,0.2);
+}
+
+/* Dexscreener button */
+.dexscreener-button {
+  background-color: #1da1f2; /* Twitter blue */
+  color: #ffffff; /* White text */
+  font-family: 'Chewy', cursive;
+  font-size: 0.9rem;
+  font-weight: bold;
+  padding: 8px 16px;
+  border: 1px solid #1a91da; /* Slightly darker blue border */
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.dexscreener-button:hover {
+  background-color: #0c85d0; /* Slightly darker blue on hover */
+  transform: scale(1.05);
+  box-shadow: 0 3px 7px rgba(0,0,0,0.2);
+}
+
+/* Responsive adjustments for modal buttons */
+@media screen and (max-width: 768px) {
+  .shill-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .copy-button,
+  .twitter-button,
+  .sigma-button,
+  .dexscreener-button {
+    width: 100%;
+  }
+}
+
+/* Layout for shill actions to accommodate more buttons */
+.shill-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 15px;
+}
+/* Twitter button with blue and white color scheme */
+.twitter-button {
+  background-color: #1da1f2; /* Twitter blue */
+  color: #ffffff; /* White text */
+  font-family: 'Chewy', cursive;
+  font-size: 0.9rem;
+  font-weight: bold;
+  padding: 8px 16px;
+  border: 1px solid #1a91da; /* Slightly darker blue border */
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.twitter-button:hover {
+  background-color: #0c85d0; /* Slightly darker blue on hover */
+  transform: scale(1.05);
+  box-shadow: 0 3px 7px rgba(0,0,0,0.2);
+}

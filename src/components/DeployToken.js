@@ -2,6 +2,7 @@ import { ethers } from 'ethers';
 import React, { useCallback, useEffect, useState } from 'react';
 import './modal.css'; // Make sure to create this CSS file
 
+
 /* global BigInt */
 
 // Improved wallet detection system that works across browsers
@@ -1247,6 +1248,13 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
         
         setShillText(generatedShillText);
         setShowShillText(true);
+        try {
+          const sound = new Audio('/Tarzan.mp3');
+          sound.volume = 0.7;
+          sound.play();
+        } catch (e) {
+          console.log("Error playing sound:", e);
+        }
       }
       
       setIsExecuting(false);

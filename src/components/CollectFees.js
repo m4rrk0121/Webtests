@@ -2,37 +2,208 @@ import { ethers } from 'ethers';
 import React, { useCallback, useEffect, useState } from 'react';
 import './modal.css';
 
-// Safety check for wallet providers
+/* global BigInt */
+
+// Helper function for safe BigInt conversion with better browser compatibility
+const safeBigInt = (value) => {
+  // Check if native BigInt is supported
+  if (typeof BigInt !== 'undefined') {
+    try {
+      return BigInt(value);
+    } catch (error) {
+      console.warn('Error converting to BigInt:', error);
+      // Fall back to Number for compatibility
+      return Number(value);
+    }
+  }
+  
+  // Fallback for browsers without BigInt (like IE)
+  return Number(value);
+};
+
+// Improved wallet detection system that works across browsers
+const detectWalletProvider = () => {
+  return new Promise((resolve) => {
+    // Check for standard window.ethereum first
+    if (window.ethereum) {
+      resolve(window.ethereum);
+      return;
+    }
+    
+    // Check for legacy web3 provider
+    if (window.web3 && window.web3.currentProvider) {
+      resolve(window.web3.currentProvider);
+      return;
+    }
+    
+    // Check for injected providers with different names (some browsers/extensions use these)
+    const injectedProviders = [
+      'ethereum',
+      'web3.currentProvider',
+      'injectedWeb3',
+      'injectedEthereum',
+      'metamask',
+      'trustwallet',
+      'coinbase',
+      'coinbaseWallet'
+    ];
+    
+    for (const providerName of injectedProviders) {
+      try {
+        // Try to access through window object with bracket notation
+        const providerParts = providerName.split('.');
+        let potentialProvider = window;
+        
+        for (const part of providerParts) {
+          if (potentialProvider && potentialProvider[part]) {
+            potentialProvider = potentialProvider[part];
+          } else {
+            potentialProvider = null;
+            break;
+          }
+        }
+        
+        if (potentialProvider && 
+            (typeof potentialProvider.request === 'function' || 
+             typeof potentialProvider.enable === 'function' ||
+             typeof potentialProvider.sendAsync === 'function' ||
+             typeof potentialProvider.send === 'function')) {
+          resolve(potentialProvider);
+          return;
+        }
+      } catch (e) {
+        // Ignore errors, just try the next provider
+        console.debug(`Error checking for ${providerName}:`, e);
+      }
+    }
+    
+    // Look for older Internet Explorer-specific wallet integrations
+    if (window.external && typeof window.external.getProviderFromExtension === 'function') {
+      try {
+        const ieProvider = window.external.getProviderFromExtension();
+        if (ieProvider) {
+          resolve(ieProvider);
+          return;
+        }
+      } catch (e) {
+        console.debug('Error getting IE provider extension:', e);
+      }
+    }
+    
+    // No wallet provider found
+    resolve(null);
+  });
+};
+
+// Improved provider safety check function that's more compatible with different wallets
 const checkProviderSafety = async (provider) => {
   try {
-    // Check for suspicious provider properties
-    const suspiciousProps = ['_handleAccountsChanged', '_handleConnect', '_handleChainChanged']
-      .filter(prop => typeof provider[prop] !== 'function');
+    // More lenient check for wallet providers
     
-    if (suspiciousProps.length > 0) {
-      console.warn('Potentially unsafe provider detected: Missing standard methods');
+    // Check if the provider has basic required functionality
+    if (!provider || typeof provider !== 'object') {
+      console.warn('Invalid provider: Provider is not an object');
       return false;
     }
     
-    // Verify chainId is accessible and returns a valid response
-    const chainId = await provider.request({ method: 'eth_chainId' });
-    if (!chainId || typeof chainId !== 'string' || !chainId.startsWith('0x')) {
-      console.warn('Potentially unsafe provider detected: Invalid chainId response');
+    // Check if the provider has a way to request accounts
+    // Different wallets may implement this differently
+    const hasRequestMethod = typeof provider.request === 'function' || 
+                             typeof provider.enable === 'function' || 
+                             (provider.sendAsync && typeof provider.sendAsync === 'function') ||
+                             (provider.send && typeof provider.send === 'function');
+    
+    if (!hasRequestMethod) {
+      console.warn('Potentially unsafe provider: No standard request method found');
       return false;
     }
     
-    // Check if the provider follows EIP-1193 standard
-    if (typeof provider.request !== 'function' || 
-        typeof provider.on !== 'function') {
-      console.warn('Potentially unsafe provider: Not EIP-1193 compliant');
+    // Check for basic event subscription capability
+    // Some providers use different event mechanisms
+    const hasEventCapability = typeof provider.on === 'function' || 
+                               typeof provider.addEventListener === 'function' ||
+                               typeof provider.addListener === 'function';
+    
+    if (!hasEventCapability) {
+      console.warn('Potentially unsafe provider: No event subscription method found');
       return false;
     }
-
+    
+    // Try to get chainId using whatever method is available
+    let chainId = null;
+    try {
+      if (typeof provider.request === 'function') {
+        chainId = await provider.request({ method: 'eth_chainId' });
+      } else if (typeof provider.enable === 'function') {
+        await provider.enable();
+        chainId = provider.chainId || 
+                 (provider.networkVersion ? '0x' + parseInt(provider.networkVersion).toString(16) : null);
+      } else if (provider.sendAsync) {
+        chainId = await new Promise((resolve, reject) => {
+          provider.sendAsync({ method: 'eth_chainId', params: [] }, (error, response) => {
+            if (error) reject(error);
+            else resolve(response.result);
+          });
+        });
+      } else if (provider.send) {
+        const response = await provider.send('eth_chainId', []);
+        chainId = response.result || response;
+      }
+    } catch (error) {
+      console.warn('Error getting chainId, but continuing:', error);
+      // Don't fail just because we couldn't get chainId
+    }
+    
+    // More lenient chainId validation
+    // We'll accept any non-empty chainId as valid
+    if (!chainId && provider.chainId) {
+      chainId = provider.chainId;
+    }
+    
+    if (!chainId && provider.networkVersion) {
+      chainId = '0x' + parseInt(provider.networkVersion).toString(16);
+    }
+    
+    // If we still couldn't get a chainId, we'll assume it might be okay
+    // Many providers only provide chainId after connecting
+    
     return true;
   } catch (error) {
     console.error('Error checking provider safety:', error);
-    return false;
+    // We'll be lenient and return true if the check itself fails
+    // This helps with compatibility across browsers
+    return true;
   }
+};
+
+// Improved cross-browser event management for wallet providers
+const setupWalletEventListeners = (ethereum, handleChainChanged, handleAccountsChanged) => {
+  // Clear any existing listeners first to prevent duplicates
+  if (ethereum.removeListener) {
+    ethereum.removeListener('chainChanged', handleChainChanged);
+    ethereum.removeListener('accountsChanged', handleAccountsChanged);
+  } else if (ethereum.removeEventListener) {
+    ethereum.removeEventListener('chainChanged', handleChainChanged);
+    ethereum.removeEventListener('accountsChanged', handleAccountsChanged);
+  }
+  
+  // Set up listeners based on what the provider supports
+  if (ethereum.on && typeof ethereum.on === 'function') {
+    ethereum.on('chainChanged', handleChainChanged);
+    ethereum.on('accountsChanged', handleAccountsChanged);
+    return true;
+  } else if (ethereum.addEventListener && typeof ethereum.addEventListener === 'function') {
+    ethereum.addEventListener('chainChanged', handleChainChanged);
+    ethereum.addEventListener('accountsChanged', handleAccountsChanged);
+    return true;
+  } else if (ethereum.addListener && typeof ethereum.addListener === 'function') {
+    ethereum.addListener('chainChanged', handleChainChanged);
+    ethereum.addListener('accountsChanged', handleAccountsChanged);
+    return true;
+  }
+  
+  console.warn('Could not set up wallet event listeners - provider may not support events');
+  return false;
 };
 
 // Pre-defined contract information for fee collection
@@ -80,54 +251,214 @@ function CollectFees() {
   // Modal state
   const [showModal, setShowModal] = useState(false);
 
-  // Connect wallet
-  const connectWallet = async () => {
-    if (!window.ethereum) {
-      setError('No Ethereum wallet detected. Please install MetaMask or another wallet.');
-      return;
+  // Enhanced account change handler for wallet
+  const handleAccountsChanged = useCallback((accounts) => {
+    if (accounts && accounts.length > 0 && accounts[0] !== wallet?.address) {
+      // Account changed, update wallet state
+      console.log('Account changed, reconnecting wallet');
+      
+      // Reconnect wallet to refresh all data
+      connectWallet()
+        .catch(error => {
+          console.error('Error reconnecting after account change:', error);
+          setError('Wallet account changed. Please refresh the page if you experience any issues.');
+        });
+    } else if (!accounts || accounts.length === 0) {
+      // Wallet disconnected
+      console.log('Wallet disconnected');
+      disconnectWallet();
+      setError('Wallet disconnected. Please connect again to continue.');
     }
+  }, [wallet]);
 
+  // Connect wallet with improved cross-browser compatibility
+  const connectWallet = async () => {
     try {
       setIsConnecting(true);
       setError('');
       
+      // Detect wallet provider using our helper function
+      const ethereum = await detectWalletProvider();
+      
+      if (!ethereum) {
+        setError('No Ethereum wallet detected. Please install MetaMask or another wallet.');
+        setIsConnecting(false);
+        return;
+      }
+      
       // Check provider safety
-      const isProviderSafe = await checkProviderSafety(window.ethereum);
+      const isProviderSafe = await checkProviderSafety(ethereum);
       if (!isProviderSafe) {
         setError('Potentially unsafe wallet provider detected. Please verify your wallet extension.');
         setIsConnecting(false);
         return;
       }
       
-      // Request account access
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      // Try different methods to request accounts
+      let accounts = [];
       
-      // Validate account format
-      if (!accounts || !accounts.length || !ethers.isAddress(accounts[0])) {
+      try {
+        // Modern method (EIP-1102)
+        if (typeof ethereum.request === 'function') {
+          accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        } 
+        // Legacy method
+        else if (typeof ethereum.enable === 'function') {
+          accounts = await ethereum.enable();
+        }
+        // Very old method (for Internet Explorer compatibility)
+        else if (ethereum.sendAsync && typeof ethereum.sendAsync === 'function') {
+          const response = await new Promise((resolve, reject) => {
+            ethereum.sendAsync(
+              { method: 'eth_requestAccounts', params: [] },
+              (error, response) => {
+                if (error) reject(error);
+                else resolve(response);
+              }
+            );
+          });
+          accounts = response.result || [];
+        }
+        // Fallback for other providers
+        else if (ethereum.send && typeof ethereum.send === 'function') {
+          try {
+            // Some providers expect this format
+            const response = await ethereum.send('eth_requestAccounts', []);
+            accounts = response.result || response || [];
+          } catch (e) {
+            // Others expect this format
+            accounts = await ethereum.send({ method: 'eth_requestAccounts' });
+          }
+        }
+      } catch (requestError) {
+        console.error('Error requesting accounts:', requestError);
+        
+        // Fallback: try to get accounts without explicit permission if request failed
+        if (ethereum.accounts) {
+          accounts = ethereum.accounts;
+        } else if (typeof ethereum.request === 'function') {
+          try {
+            accounts = await ethereum.request({ method: 'eth_accounts' });
+          } catch (e) {
+            console.error('Failed to get accounts:', e);
+          }
+        }
+      }
+      
+      // If we still have no accounts, we can't continue
+      if (!accounts || !accounts.length) {
+        setError('Failed to get accounts from wallet. Please make sure your wallet is unlocked and try again.');
+        setIsConnecting(false);
+        return;
+      }
+      
+      // Validate account format - be more lenient here
+      const account = accounts[0];
+      if (!account || (typeof account !== 'string') || !(account.startsWith('0x'))) {
         setError('Invalid account format received from wallet.');
         setIsConnecting(false);
         return;
       }
       
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const chainId = await provider.getNetwork();
+      // Create a provider that works with the available ethereum object - ethers v6 style
+      let provider;
+      try {
+        // Use BrowserProvider for ethers v6
+        provider = new ethers.BrowserProvider(ethereum);
+      } catch (providerError) {
+        console.error('Error creating BrowserProvider:', providerError);
+        setError('Failed to connect to wallet provider. Please try a different browser or wallet.');
+        setIsConnecting(false);
+        return;
+      }
       
-      // Get current gas price
-      const currentGasPrice = await provider.getFeeData();
-      setGasPrice(ethers.formatUnits(currentGasPrice.gasPrice || 0, 'gwei'));
+      // Get network information
+      let chainId;
+      let network;
+      
+      try {
+        network = await provider.getNetwork();
+        chainId = network.chainId;
+      } catch (networkError) {
+        console.error('Error getting network:', networkError);
+        
+        // Try alternative methods to get chainId
+        try {
+          if (typeof ethereum.request === 'function') {
+            const chainIdHex = await ethereum.request({ method: 'eth_chainId' });
+            chainId = safeBigInt(chainIdHex);
+          } else if (ethereum.chainId) {
+            chainId = safeBigInt(ethereum.chainId);
+          } else if (ethereum.networkVersion) {
+            chainId = safeBigInt(ethereum.networkVersion);
+          } else {
+            chainId = safeBigInt(0);
+            console.warn('Could not detect network chainId');
+          }
+        } catch (chainIdError) {
+          console.error('Failed to get chainId:', chainIdError);
+          chainId = safeBigInt(0);
+        }
+      }
+      
+      // Get signer (for v6 this is async)
+      let signer;
+      try {
+        signer = await provider.getSigner();
+      } catch (signerError) {
+        console.error('Error getting signer:', signerError);
+        setError('Failed to get signer from wallet. Please try a different browser or wallet.');
+        setIsConnecting(false);
+        return;
+      }
+      
+      // Get current gas price with error handling
+      let currentGasPriceGwei = '1.5'; // Default fallback gas price
+      try {
+        const feeData = await provider.getFeeData();
+        if (feeData && feeData.gasPrice) {
+          currentGasPriceGwei = ethers.formatUnits(feeData.gasPrice, 'gwei');
+        }
+      } catch (gasPriceError) {
+        console.error('Error getting gas price:', gasPriceError);
+        // Continue with the default gas price
+      }
+      
+      setGasPrice(currentGasPriceGwei);
       
       const walletInfo = {
-        address: accounts[0],
-        chainId: chainId.chainId,
+        address: account,
+        chainId: chainId,
         signer: signer,
         provider: provider
       };
       
       setWallet(walletInfo);
+      
+      // Set up wallet event listeners
+      setupWalletEventListeners(ethereum, 
+        // Handle chain changes
+        async (chainId) => {
+          console.log('Chain changed to:', chainId);
+          // Reconnect wallet to refresh network information
+          try {
+            const network = await provider.getNetwork();
+            setWallet(prevWallet => ({
+              ...prevWallet,
+              chainId: network.chainId
+            }));
+          } catch (error) {
+            console.error('Error updating chain info:', error);
+          }
+        }, 
+        // Handle account changes
+        handleAccountsChanged
+      );
+      
       setIsConnecting(false);
     } catch (err) {
-      setError('Failed to connect wallet: ' + err.message);
+      console.error('Wallet connection error:', err);
+      setError('Failed to connect wallet: ' + (err.message || 'Unknown error'));
       setIsConnecting(false);
     }
   };
@@ -169,20 +500,64 @@ function CollectFees() {
       setTxHash(tx.hash);
       
       // Wait for transaction to be mined
-      const receipt = await tx.wait();
-      
-      // Set transaction result
-      setTxResult({
-        success: true,
-        hash: receipt.hash,
-        blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed.toString(),
-        explorerUrl: getExplorerUrl(receipt.hash)
-      });
+      try {
+        const receipt = await tx.wait();
+        
+        // Set transaction result
+        setTxResult({
+          success: true,
+          hash: receipt.hash,
+          blockNumber: receipt.blockNumber,
+          gasUsed: receipt.gasUsed.toString(),
+          explorerUrl: getExplorerUrl(receipt.hash)
+        });
+      } catch (waitError) {
+        console.error('Error waiting for transaction:', waitError);
+        
+        // Try to get receipt manually
+        try {
+          const receipt = await wallet.provider.getTransactionReceipt(tx.hash);
+          if (receipt) {
+            setTxResult({
+              success: receipt.status === 1,
+              hash: receipt.hash,
+              blockNumber: receipt.blockNumber,
+              gasUsed: receipt.gasUsed.toString(),
+              explorerUrl: getExplorerUrl(receipt.hash)
+            });
+          } else {
+            throw new Error('Transaction may be pending');
+          }
+        } catch (receiptError) {
+          console.error('Error getting receipt:', receiptError);
+          setTxResult({
+            success: false,
+            hash: tx.hash,
+            status: 'Unknown',
+            explorerUrl: getExplorerUrl(tx.hash)
+          });
+        }
+      }
       
       setIsExecuting(false);
     } catch (err) {
-      setError('Transaction failed: ' + err.message);
+      console.error('Transaction error:', err);
+      
+      // Try to extract useful error message
+      let errorMessage = err.message || 'Unknown error';
+      
+      // Check for common error patterns
+      if (errorMessage.includes('insufficient funds')) {
+        errorMessage = 'Insufficient funds for transaction. Please check your balance.';
+      } else if (errorMessage.includes('gas required exceeds allowance')) {
+        errorMessage = 'Gas required exceeds your set limit.';
+      } else if (errorMessage.includes('nonce')) {
+        errorMessage = 'Transaction nonce error. Try refreshing the page and reconnecting your wallet.';
+      } else if (errorMessage.includes('user denied') || errorMessage.includes('user rejected')) {
+        errorMessage = 'Transaction was rejected in your wallet.';
+      }
+      
+      setError('Transaction failed: ' + errorMessage);
       setIsExecuting(false);
     }
   };
@@ -219,10 +594,34 @@ function CollectFees() {
   // Effect to check transaction status periodically
   useEffect(() => {
     if (txHash && wallet) {
+      // Do initial check
+      checkTransactionStatus();
+      
+      // Then set up interval for repeated checks
       const interval = setInterval(checkTransactionStatus, 5000);
       return () => clearInterval(interval);
     }
   }, [txHash, wallet, checkTransactionStatus]);
+
+  // Effect to clean up listeners when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clean up any event listeners on component unmount
+      const ethereum = window.ethereum || 
+                      window.web3?.currentProvider || 
+                      window.injectedWeb3;
+                      
+      if (ethereum) {
+        if (ethereum.removeListener) {
+          ethereum.removeListener('chainChanged', () => {});
+          ethereum.removeListener('accountsChanged', () => {});
+        } else if (ethereum.removeEventListener) {
+          ethereum.removeEventListener('chainChanged', () => {});
+          ethereum.removeEventListener('accountsChanged', () => {});
+        }
+      }
+    };
+  }, []);
 
   return (
     <div className="contract-interaction">

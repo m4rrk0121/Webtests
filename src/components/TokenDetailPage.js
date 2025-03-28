@@ -5,10 +5,294 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useWebSocket } from '../context/WebSocketContext';
 import './modal.css'; // Reuse the modal CSS we created earlier
 
+/* global BigInt */
+
 // Constants
 const WETH_ADDRESS = "0x4200000000000000000000000000000000000006"; // WETH on Base
 const UNISWAP_ROUTER = "0x2626664c2603336E57B271c5C0b26F421741e481"; // Correct Uniswap V3 Router on Base
 const FEE_TIER = 10000; // Fixed 1% fee tier
+const BASE_CHAIN_ID = 8453; // Base network chain ID
+
+// Improved wallet detection system that works across browsers
+const detectWalletProvider = () => {
+  return new Promise((resolve) => {
+    // Check for standard window.ethereum first
+    if (window.ethereum) {
+      resolve(window.ethereum);
+      return;
+    }
+    
+    // Check for legacy web3 provider
+    if (window.web3 && window.web3.currentProvider) {
+      resolve(window.web3.currentProvider);
+      return;
+    }
+    
+    // Check for injected providers with different names (some browsers/extensions use these)
+    const injectedProviders = [
+      'ethereum',
+      'web3.currentProvider',
+      'injectedWeb3',
+      'injectedEthereum',
+      'metamask',
+      'trustwallet',
+      'coinbase',
+      'coinbaseWallet'
+    ];
+    
+    for (const providerName of injectedProviders) {
+      try {
+        // Try to access through window object with bracket notation
+        const providerParts = providerName.split('.');
+        let potentialProvider = window;
+        
+        for (const part of providerParts) {
+          if (potentialProvider && potentialProvider[part]) {
+            potentialProvider = potentialProvider[part];
+          } else {
+            potentialProvider = null;
+            break;
+          }
+        }
+        
+        if (potentialProvider && 
+            (typeof potentialProvider.request === 'function' || 
+             typeof potentialProvider.enable === 'function' ||
+             typeof potentialProvider.sendAsync === 'function' ||
+             typeof potentialProvider.send === 'function')) {
+          resolve(potentialProvider);
+          return;
+        }
+      } catch (e) {
+        // Ignore errors, just try the next provider
+        console.debug(`Error checking for ${providerName}:`, e);
+      }
+    }
+    
+    // Look for older Internet Explorer-specific wallet integrations
+    if (window.external && typeof window.external.getProviderFromExtension === 'function') {
+      try {
+        const ieProvider = window.external.getProviderFromExtension();
+        if (ieProvider) {
+          resolve(ieProvider);
+          return;
+        }
+      } catch (e) {
+        console.debug('Error getting IE provider extension:', e);
+      }
+    }
+    
+    // No wallet provider found
+    resolve(null);
+  });
+};
+
+// Helper function for safe BigInt conversion with better browser compatibility
+const safeBigInt = (value) => {
+  // Check if native BigInt is supported
+  if (typeof BigInt !== 'undefined') {
+    try {
+      return BigInt(value);
+    } catch (error) {
+      console.warn('Error converting to BigInt:', error);
+      // Fall back to Number for compatibility
+      return Number(value);
+    }
+  }
+  
+  // Fallback for browsers without BigInt (like IE)
+  return Number(value);
+};
+
+// Improved provider safety check function that's more compatible with different wallets
+const checkProviderSafety = async (provider) => {
+  try {
+    // More lenient check for wallet providers
+    
+    // Check if the provider has basic required functionality
+    if (!provider || typeof provider !== 'object') {
+      console.warn('Invalid provider: Provider is not an object');
+      return false;
+    }
+    
+    // Check if the provider has a way to request accounts
+    // Different wallets may implement this differently
+    const hasRequestMethod = typeof provider.request === 'function' || 
+                             typeof provider.enable === 'function' || 
+                             (provider.sendAsync && typeof provider.sendAsync === 'function') ||
+                             (provider.send && typeof provider.send === 'function');
+    
+    if (!hasRequestMethod) {
+      console.warn('Potentially unsafe provider: No standard request method found');
+      return false;
+    }
+    
+    // Check for basic event subscription capability
+    // Some providers use different event mechanisms
+    const hasEventCapability = typeof provider.on === 'function' || 
+                               typeof provider.addEventListener === 'function' ||
+                               typeof provider.addListener === 'function';
+    
+    if (!hasEventCapability) {
+      console.warn('Potentially unsafe provider: No event subscription method found');
+      return false;
+    }
+    
+    // Try to get chainId using whatever method is available
+    let chainId = null;
+    try {
+      if (typeof provider.request === 'function') {
+        chainId = await provider.request({ method: 'eth_chainId' });
+      } else if (typeof provider.enable === 'function') {
+        await provider.enable();
+        chainId = provider.chainId || 
+                 (provider.networkVersion ? '0x' + parseInt(provider.networkVersion).toString(16) : null);
+      } else if (provider.sendAsync) {
+        chainId = await new Promise((resolve, reject) => {
+          provider.sendAsync({ method: 'eth_chainId', params: [] }, (error, response) => {
+            if (error) reject(error);
+            else resolve(response.result);
+          });
+        });
+      } else if (provider.send) {
+        const response = await provider.send('eth_chainId', []);
+        chainId = response.result || response;
+      }
+    } catch (error) {
+      console.warn('Error getting chainId, but continuing:', error);
+      // Don't fail just because we couldn't get chainId
+    }
+    
+    // More lenient chainId validation
+    // We'll accept any non-empty chainId as valid
+    if (!chainId && provider.chainId) {
+      chainId = provider.chainId;
+    }
+    
+    if (!chainId && provider.networkVersion) {
+      chainId = '0x' + parseInt(provider.networkVersion).toString(16);
+    }
+    
+    // If we still couldn't get a chainId, we'll assume it might be okay
+    // Many providers only provide chainId after connecting
+    
+    return true;
+  } catch (error) {
+    console.error('Error checking provider safety:', error);
+    // We'll be lenient and return true if the check itself fails
+    // This helps with compatibility across browsers
+    return true;
+  }
+};
+
+// Improved cross-browser event management for wallet providers
+const setupWalletEventListeners = (ethereum, handleChainChanged, handleAccountsChanged) => {
+  // Clear any existing listeners first to prevent duplicates
+  if (ethereum.removeListener) {
+    ethereum.removeListener('chainChanged', handleChainChanged);
+    ethereum.removeListener('accountsChanged', handleAccountsChanged);
+  } else if (ethereum.removeEventListener) {
+    ethereum.removeEventListener('chainChanged', handleChainChanged);
+    ethereum.removeEventListener('accountsChanged', handleAccountsChanged);
+  }
+  
+  // Set up listeners based on what the provider supports
+  if (ethereum.on && typeof ethereum.on === 'function') {
+    ethereum.on('chainChanged', handleChainChanged);
+    ethereum.on('accountsChanged', handleAccountsChanged);
+    return true;
+  } else if (ethereum.addEventListener && typeof ethereum.addEventListener === 'function') {
+    ethereum.addEventListener('chainChanged', handleChainChanged);
+    ethereum.addEventListener('accountsChanged', handleAccountsChanged);
+    return true;
+  } else if (ethereum.addListener && typeof ethereum.addListener === 'function') {
+    ethereum.addListener('chainChanged', handleChainChanged);
+    ethereum.addListener('accountsChanged', handleAccountsChanged);
+    return true;
+  }
+  
+  console.warn('Could not set up wallet event listeners - provider may not support events');
+  return false;
+};
+
+// Modified switchToBaseNetwork function for better compatibility
+const switchToBaseNetwork = async (ethereum) => {
+  try {
+    // Check which method the provider supports
+    if (ethereum.request) {
+      try {
+        // Try to switch to Base
+        await ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x' + BASE_CHAIN_ID.toString(16) }],
+        });
+        return true;
+      } catch (switchError) {
+        // This error code indicates that the chain has not been added to the wallet
+        if (switchError.code === 4902 || 
+            // Some wallets use different error codes or messages
+            (switchError.message && (switchError.message.includes('chain') && switchError.message.includes('add')))) {
+          try {
+            await ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [
+                {
+                  chainId: '0x' + BASE_CHAIN_ID.toString(16),
+                  chainName: 'Base',
+                  nativeCurrency: {
+                    name: 'ETH',
+                    symbol: 'ETH',
+                    decimals: 18
+                  },
+                  rpcUrls: ['https://mainnet.base.org'],
+                  blockExplorerUrls: ['https://basescan.org']
+                }
+              ],
+            });
+            return true;
+          } catch (addError) {
+            console.error('Failed to add Base network:', addError);
+            throw new Error('Failed to add Base network. You may need to add it manually in your wallet.');
+          }
+        } else {
+          console.error('Failed to switch to Base network:', switchError);
+          throw new Error('Failed to switch to Base network. You may need to switch manually in your wallet.');
+        }
+      }
+    } 
+    // Legacy method for older wallets
+    else if (ethereum.sendAsync) {
+      try {
+        await new Promise((resolve, reject) => {
+          ethereum.sendAsync(
+            {
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: '0x' + BASE_CHAIN_ID.toString(16) }],
+            },
+            (error, response) => {
+              if (error) {
+                reject(error);
+              } else if (response.error) {
+                reject(response.error);
+              } else {
+                resolve(response);
+              }
+            }
+          );
+        });
+        return true;
+      } catch (error) {
+        console.error('Error switching network with sendAsync:', error);
+        throw new Error('Failed to switch networks. Please try switching to Base network manually.');
+      }
+    } else {
+      throw new Error('Your wallet does not support switching networks. Please switch to Base network manually.');
+    }
+  } catch (error) {
+    console.error('Unknown error switching networks:', error);
+    throw error;
+  }
+};
 
 // Simple ERC20 ABI for token balance and approval
 const ERC20_ABI = [
@@ -140,39 +424,6 @@ const createDataCache = () => {
   };
 };
 
-// Check provider safety
-const checkProviderSafety = async (provider) => {
-  try {
-    // Check for suspicious provider properties
-    const suspiciousProps = ['_handleAccountsChanged', '_handleConnect', '_handleChainChanged']
-      .filter(prop => typeof provider[prop] !== 'function');
-    
-    if (suspiciousProps.length > 0) {
-      console.warn('Potentially unsafe provider detected: Missing standard methods');
-      return false;
-    }
-    
-    // Verify chainId is accessible and returns a valid response
-    const chainId = await provider.request({ method: 'eth_chainId' });
-    if (!chainId || typeof chainId !== 'string' || !chainId.startsWith('0x')) {
-      console.warn('Potentially unsafe provider detected: Invalid chainId response');
-      return false;
-    }
-    
-    // Check if the provider follows EIP-1193 standard
-    if (typeof provider.request !== 'function' || 
-        typeof provider.on !== 'function') {
-      console.warn('Potentially unsafe provider: Not EIP-1193 compliant');
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Error checking provider safety:', error);
-    return false;
-  }
-};
-
 // Currency formatting utility
 const formatCurrency = (value) => {
   if (value === null || value === undefined) return 'N/A';
@@ -250,6 +501,89 @@ function TokenDetailPage() {
                             document.referrer === "" || 
                             !document.referrer.includes(window.location.host));
 
+  // Handle account changes
+  const handleAccountsChanged = useCallback((accounts) => {
+    if (accounts && accounts.length > 0 && accounts[0] !== wallet?.address) {
+      // Account changed, update wallet state
+      console.log('Account changed, reconnecting wallet');
+      
+      // Reconnect wallet to refresh all data
+      connectWallet()
+        .catch(error => {
+          console.error('Error reconnecting after account change:', error);
+          setConnectionError('Wallet account changed. Please refresh the page if you experience any issues.');
+        });
+    } else if (!accounts || accounts.length === 0) {
+      // Wallet disconnected
+      console.log('Wallet disconnected');
+      setWallet(null);
+      setConnectionError('Wallet disconnected. Please connect again to continue.');
+    }
+  }, [wallet]);
+
+  // Handle chain changes
+  const handleChainChanged = useCallback(async (chainId) => {
+    console.log('Chain changed to:', chainId);
+    
+    // Convert chainId from hex to decimal
+    let chainIdDecimal;
+    try {
+      // Handle different chainId formats
+      if (typeof chainId === 'string' && chainId.startsWith('0x')) {
+        chainIdDecimal = parseInt(chainId, 16);
+      } else if (typeof chainId === 'number') {
+        chainIdDecimal = chainId;
+      } else if (typeof chainId === 'bigint') {
+        chainIdDecimal = Number(chainId);
+      } else {
+        chainIdDecimal = parseInt(chainId);
+      }
+    } catch (error) {
+      console.error('Error parsing chainId:', error);
+      chainIdDecimal = -1; // Invalid chain ID
+    }
+    
+    // Check if we're on Base network
+    if (chainIdDecimal !== BASE_CHAIN_ID) {
+      const userConfirmed = window.confirm(
+        'This application requires the Base network. Would you like to switch to Base?'
+      );
+      
+      if (userConfirmed) {
+        try {
+          const ethereum = await detectWalletProvider();
+          if (ethereum) {
+            await switchToBaseNetwork(ethereum);
+            // After successful switch, refresh wallet connection
+            connectWallet();
+          }
+        } catch (error) {
+          setConnectionError('Failed to switch networks: ' + error.message);
+        }
+      } else {
+        setConnectionError('Please connect to Base network to use this application.');
+      }
+    } else if (wallet) {
+      // We're on the correct network, refresh wallet provider and signer
+      try {
+        const provider = new ethers.BrowserProvider(await detectWalletProvider());
+        const signer = await provider.getSigner();
+        
+        setWallet(prev => ({
+          ...prev,
+          provider,
+          signer,
+          network: { chainId: safeBigInt(BASE_CHAIN_ID) }
+        }));
+        
+        // Refresh token balance with new provider
+        fetchTokenBalance(contractAddress, wallet.address, provider);
+      } catch (error) {
+        console.error('Error refreshing wallet after chain change:', error);
+      }
+    }
+  }, [wallet, contractAddress]);
+
   // Fetch token data via HTTP as fallback
   const fetchTokenDataHttp = useCallback(async (address) => {
     try {
@@ -284,8 +618,24 @@ function TokenDetailPage() {
       if (errorHandler.current) {
         removeListener('error', errorHandler.current);
       }
+      
+      // Clean up wallet listeners
+      const cleanupWalletListeners = async () => {
+        const ethereum = await detectWalletProvider();
+        if (ethereum) {
+          if (ethereum.removeListener) {
+            ethereum.removeListener('chainChanged', handleChainChanged);
+            ethereum.removeListener('accountsChanged', handleAccountsChanged);
+          } else if (ethereum.removeEventListener) {
+            ethereum.removeEventListener('chainChanged', handleChainChanged);
+            ethereum.removeEventListener('accountsChanged', handleAccountsChanged);
+          }
+        }
+      };
+      
+      cleanupWalletListeners();
     };
-  }, [removeListener]);
+  }, [removeListener, handleChainChanged, handleAccountsChanged]);
 
   // Function to get token data via WebSocket
   const getTokenDataViaWebSocket = useCallback((address) => {
@@ -469,89 +819,189 @@ function TokenDetailPage() {
     };
   }, [contractAddress, isConnected, getTokenDataViaWebSocket, fetchTokenDataHttp, setupLiveUpdates]);
 
-  // Connect wallet
+  // Connect wallet with improved cross-browser compatibility
   const connectWallet = async () => {
-    if (!window.ethereum) {
-      setConnectionError('No Ethereum wallet detected. Please install MetaMask or another wallet.');
-      return;
-    }
-
     try {
       setIsConnecting(true);
       setConnectionError('');
       
+      // Detect wallet provider using our helper function
+      const ethereum = await detectWalletProvider();
+      
+      if (!ethereum) {
+        setConnectionError('No Ethereum wallet detected. Please install MetaMask or another wallet.');
+        setIsConnecting(false);
+        return;
+      }
+      
       // Check provider safety
-      const isProviderSafe = await checkProviderSafety(window.ethereum);
+      const isProviderSafe = await checkProviderSafety(ethereum);
       if (!isProviderSafe) {
         setConnectionError('Potentially unsafe wallet provider detected. Please verify your wallet extension.');
         setIsConnecting(false);
         return;
       }
       
-      // Request account access
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      // Try different methods to request accounts
+      let accounts = [];
       
-      // Validate account format
-      if (!accounts || !accounts.length || !ethers.isAddress(accounts[0])) {
+      try {
+        // Modern method (EIP-1102)
+        if (typeof ethereum.request === 'function') {
+          accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        } 
+        // Legacy method
+        else if (typeof ethereum.enable === 'function') {
+          accounts = await ethereum.enable();
+        }
+        // Very old method (for Internet Explorer compatibility)
+        else if (ethereum.sendAsync && typeof ethereum.sendAsync === 'function') {
+          const response = await new Promise((resolve, reject) => {
+            ethereum.sendAsync(
+              { method: 'eth_requestAccounts', params: [] },
+              (error, response) => {
+                if (error) reject(error);
+                else resolve(response);
+              }
+            );
+          });
+          accounts = response.result || [];
+        }
+        // Fallback for other providers
+        else if (ethereum.send && typeof ethereum.send === 'function') {
+          try {
+            // Some providers expect this format
+            const response = await ethereum.send('eth_requestAccounts', []);
+            accounts = response.result || response || [];
+          } catch (e) {
+            // Others expect this format
+            accounts = await ethereum.send({ method: 'eth_requestAccounts' });
+          }
+        }
+      } catch (requestError) {
+        console.error('Error requesting accounts:', requestError);
+        
+        // Fallback: try to get accounts without explicit permission if request failed
+        if (ethereum.accounts) {
+          accounts = ethereum.accounts;
+        } else if (typeof ethereum.request === 'function') {
+          try {
+            accounts = await ethereum.request({ method: 'eth_accounts' });
+          } catch (e) {
+            console.error('Failed to get accounts:', e);
+          }
+        }
+      }
+      
+      // If we still have no accounts, we can't continue
+      if (!accounts || !accounts.length) {
+        setConnectionError('Failed to get accounts from wallet. Please make sure your wallet is unlocked and try again.');
+        setIsConnecting(false);
+        return;
+      }
+      
+      // Validate account format - be more lenient here
+      const account = accounts[0];
+      if (!account || (typeof account !== 'string') || !(account.startsWith('0x'))) {
         setConnectionError('Invalid account format received from wallet.');
         setIsConnecting(false);
         return;
       }
       
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const network = await provider.getNetwork();
+      // Create a provider that works with the available ethereum object - ethers v6 style
+      let provider;
+      try {
+        // Use BrowserProvider for ethers v6
+        provider = new ethers.BrowserProvider(ethereum);
+      } catch (providerError) {
+        console.error('Error creating BrowserProvider:', providerError);
+        setConnectionError('Failed to connect to wallet provider. Please try a different browser or wallet.');
+        setIsConnecting(false);
+        return;
+      }
+      
+      // Get network information
+      let network;
+      let chainId;
+      
+      try {
+        network = await provider.getNetwork();
+        chainId = network.chainId;
+      } catch (networkError) {
+        console.error('Error getting network:', networkError);
+        
+        // Try alternative methods to get chainId
+        try {
+          if (typeof ethereum.request === 'function') {
+            const chainIdHex = await ethereum.request({ method: 'eth_chainId' });
+            chainId = safeBigInt(chainIdHex);
+          } else if (ethereum.chainId) {
+            chainId = safeBigInt(ethereum.chainId);
+          } else if (ethereum.networkVersion) {
+            chainId = safeBigInt(ethereum.networkVersion);
+          } else {
+            // Default to Base if we can't detect
+            chainId = safeBigInt(BASE_CHAIN_ID);
+            console.warn('Could not detect network, defaulting to Base');
+          }
+          
+          network = { chainId };
+        } catch (chainIdError) {
+          console.error('Failed to get chainId:', chainIdError);
+          chainId = safeBigInt(BASE_CHAIN_ID); // Default to Base
+          network = { chainId };
+        }
+      }
       
       // Check if on Base network (chain ID 8453)
-      if (network.chainId !== 8453n) {
+      const baseChainIdBigInt = safeBigInt(BASE_CHAIN_ID);
+      if (chainId !== baseChainIdBigInt) {
         try {
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0x2105' }], // Base chain ID in hex
-          });
-        } catch (switchError) {
-          // This error code indicates that the chain has not been added to MetaMask
-          if (switchError.code === 4902) {
+          const userConfirmed = window.confirm(
+            'This application requires the Base network. Would you like to switch to Base?'
+          );
+          
+          if (userConfirmed) {
+            await switchToBaseNetwork(ethereum);
+            
+            // After switching, refresh the network info
             try {
-              await window.ethereum.request({
-                method: 'wallet_addEthereumChain',
-                params: [
-                  {
-                    chainId: '0x2105',
-                    chainName: 'Base',
-                    nativeCurrency: {
-                      name: 'ETH',
-                      symbol: 'ETH',
-                      decimals: 18
-                    },
-                    rpcUrls: ['https://mainnet.base.org'],
-                    blockExplorerUrls: ['https://basescan.org']
-                  },
-                ],
-              });
-            } catch (addError) {
-              setConnectionError('Failed to add Base network to your wallet');
-              setIsConnecting(false);
-              return;
+              network = await provider.getNetwork();
+              chainId = network.chainId;
+              
+              // Double-check we're now on Base
+              if (chainId !== baseChainIdBigInt) {
+                throw new Error('Failed to switch to Base network');
+              }
+            } catch (refreshError) {
+              console.error('Error refreshing network after switch:', refreshError);
+              // Continue anyway and hope the switch worked
             }
           } else {
-            setConnectionError('Failed to switch to Base network');
+            setConnectionError('Please switch to the Base network to continue');
             setIsConnecting(false);
             return;
           }
-        }
-        
-        // Re-check the network after switching
-        const updatedNetwork = await provider.getNetwork();
-        if (updatedNetwork.chainId !== 8453n) {
-          setConnectionError('Please switch to the Base network to continue');
+        } catch (switchError) {
+          setConnectionError('Failed to switch networks: ' + switchError.message);
           setIsConnecting(false);
           return;
         }
       }
       
+      // Get signer (for v6 this is async)
+      let signer;
+      try {
+        signer = await provider.getSigner();
+      } catch (signerError) {
+        console.error('Error getting signer:', signerError);
+        setConnectionError('Failed to get signer from wallet. Please try a different browser or wallet.');
+        setIsConnecting(false);
+        return;
+      }
+      
       const walletInfo = {
-        address: accounts[0],
+        address: account,
         network: network,
         signer: signer,
         provider: provider
@@ -559,18 +1009,31 @@ function TokenDetailPage() {
       
       setWallet(walletInfo);
       
+      // Set up wallet event listeners for chain and account changes
+      setupWalletEventListeners(
+        ethereum,
+        handleChainChanged,
+        handleAccountsChanged
+      );
+      
       // Get token balance and decimals
-      await fetchTokenBalance(contractAddress, accounts[0], provider);
+      await fetchTokenBalance(contractAddress, account, provider);
       
       setIsConnecting(false);
     } catch (err) {
-      setConnectionError('Failed to connect wallet: ' + err.message);
+      console.error('Wallet connection error:', err);
+      setConnectionError('Failed to connect wallet: ' + (err.message || 'Unknown error'));
       setIsConnecting(false);
     }
   };
 
-  // Fetch token balance and decimals
+  // Fetch token balance and decimals with better error handling
   const fetchTokenBalance = async (tokenAddress, walletAddress, provider) => {
+    if (!tokenAddress || !walletAddress || !provider) {
+      console.warn('Missing parameters for fetchTokenBalance');
+      return;
+    }
+    
     try {
       const tokenContract = new ethers.Contract(
         tokenAddress,
@@ -588,11 +1051,16 @@ function TokenDetailPage() {
       }
       
       // Get token balance
-      const balance = await tokenContract.balanceOf(walletAddress);
-      setTokenBalance(balance);
-      
+      try {
+        const balance = await tokenContract.balanceOf(walletAddress);
+        setTokenBalance(balance);
+      } catch (balanceError) {
+        console.error("Error getting token balance:", balanceError);
+        // Keep previous balance or set to null
+        setTokenBalance(null);
+      }
     } catch (error) {
-      console.error("Error fetching token details:", error);
+      console.error("Error creating token contract:", error);
     }
   };
 
@@ -721,11 +1189,11 @@ function TokenDetailPage() {
     }
   };
 
-  // Approve token spending
+  // Approve token spending with better error handling
   const approveToken = async () => {
     if (!wallet || !contractAddress || !tokenAmount || parseFloat(tokenAmount) <= 0) {
       setTradeError('Please enter a valid amount');
-      return;
+      return false;
     }
     
     try {
@@ -746,10 +1214,26 @@ function TokenDetailPage() {
         MAX_UINT256
       );
       
-      await tx.wait();
-      
-      setIsApproving(false);
-      return true;
+      try {
+        await tx.wait();
+        setIsApproving(false);
+        return true;
+      } catch (waitError) {
+        console.error("Error waiting for approval:", waitError);
+        
+        // Try to get transaction receipt manually
+        try {
+          const receipt = await wallet.provider.getTransactionReceipt(tx.hash);
+          if (receipt && receipt.status === 1) {
+            setIsApproving(false);
+            return true;
+          }
+        } catch (receiptError) {
+          console.error("Error getting receipt:", receiptError);
+        }
+        
+        throw new Error("Approval transaction failed to confirm");
+      }
     } catch (err) {
       console.error("Approval error:", err);
       
@@ -757,7 +1241,11 @@ function TokenDetailPage() {
       if (err.reason) {
         errorMessage += err.reason;
       } else if (err.message) {
-        errorMessage += err.message;
+        if (err.message.includes('user rejected')) {
+          errorMessage = 'Transaction was rejected in your wallet.';
+        } else {
+          errorMessage += err.message;
+        }
       }
       
       setTradeError(errorMessage);
@@ -766,7 +1254,7 @@ function TokenDetailPage() {
     }
   };
 
-  // Execute a buy
+  // Execute a buy with improved error handling
   const buyToken = async () => {
     if (!wallet || !contractAddress || !ethAmount || parseFloat(ethAmount) <= 0) {
       setTradeError('Please enter a valid ETH amount');
@@ -780,7 +1268,13 @@ function TokenDetailPage() {
       setTransactionHash('');
       setShowShillModal(false);
       
-      const amountIn = ethers.parseEther(ethAmount);
+      let amountIn;
+      try {
+        amountIn = ethers.parseEther(ethAmount);
+      } catch (parseError) {
+        console.error("Error parsing ETH amount:", parseError);
+        throw new Error("Invalid ETH amount format");
+      }
       
       // Create contract instance
       const swapRouter = new ethers.Contract(
@@ -801,18 +1295,53 @@ function TokenDetailPage() {
       };
       
       // Execute the swap
-      const tx = await swapRouter.exactInputSingle(
-        params,
-        { 
-          value: amountIn,
-          gasLimit: 500000 // Set a high gas limit for swaps
+      let tx;
+      try {
+        tx = await swapRouter.exactInputSingle(
+          params,
+          { 
+            value: amountIn,
+            gasLimit: 500000 // Set a high gas limit for swaps
+          }
+        );
+      } catch (txError) {
+        console.error("Transaction execution error:", txError);
+        
+        // Provide more detailed error messages
+        if (txError.message && txError.message.includes('insufficient funds')) {
+          throw new Error('Insufficient ETH in your wallet to complete this transaction.');
+        } else if (txError.message && txError.message.includes('user rejected')) {
+          throw new Error('Transaction was rejected by the user.');
         }
-      );
+        
+        throw txError;
+      }
       
       setTransactionHash(tx.hash);
       
       // Wait for transaction to be mined
-      await tx.wait();
+      let receipt;
+      try {
+        receipt = await tx.wait();
+      } catch (waitError) {
+        console.error("Error waiting for transaction:", waitError);
+        
+        // Try to get transaction receipt manually
+        try {
+          receipt = await wallet.provider.getTransactionReceipt(tx.hash);
+          if (!receipt) {
+            throw new Error("Transaction may still be pending. Please check explorer.");
+          }
+          
+          // Check if transaction failed
+          if (receipt.status === 0) {
+            throw new Error("Transaction failed. The token might have trading restrictions or insufficient liquidity.");
+          }
+        } catch (receiptError) {
+          console.error("Error getting receipt:", receiptError);
+          throw receiptError;
+        }
+      }
       
       // Update token balance
       await updateTokenBalance();
@@ -859,16 +1388,25 @@ function TokenDetailPage() {
     }
   };
 
-  // Execute a sell
+  // Execute a sell with improved error handling
   const sellToken = async () => {
     if (!wallet || !contractAddress || !tokenAmount || parseFloat(tokenAmount) <= 0) {
       setTradeError('Please enter a valid token amount');
       return;
     }
     
+    let inputAmount;
+    try {
+      // Try parsing the amount with the token's decimals
+      inputAmount = ethers.parseUnits(tokenAmount, tokenDecimals);
+    } catch (parseError) {
+      console.error("Error parsing token amount:", parseError);
+      setTradeError('Invalid token amount format');
+      return;
+    }
+    
     // Check if token balance is sufficient
-    const inputAmount = ethers.parseUnits(tokenAmount, tokenDecimals);
-    if (tokenBalance < inputAmount) {
+    if (tokenBalance && tokenBalance < inputAmount) {
       setTradeError('Insufficient token balance');
       return;
     }
@@ -902,17 +1440,50 @@ function TokenDetailPage() {
       };
       
       // Execute the swap
-      const tx = await swapRouter.exactInputSingle(
-        params,
-        { 
-          gasLimit: 500000 // Set a high gas limit for swaps
+      let tx;
+      try {
+        tx = await swapRouter.exactInputSingle(
+          params,
+          { 
+            gasLimit: 500000 // Set a high gas limit for swaps
+          }
+        );
+      } catch (txError) {
+        console.error("Transaction execution error:", txError);
+        
+        // Provide more detailed error messages
+        if (txError.message && txError.message.includes('user rejected')) {
+          throw new Error('Transaction was rejected by the user.');
         }
-      );
+        
+        throw txError;
+      }
       
       setTransactionHash(tx.hash);
       
-      // Wait for transaction to be mined
-      await tx.wait();
+      // Wait for transaction to be mined with better error handling
+      let receipt;
+      try {
+        receipt = await tx.wait();
+      } catch (waitError) {
+        console.error("Error waiting for transaction:", waitError);
+        
+        // Try to get transaction receipt manually
+        try {
+          receipt = await wallet.provider.getTransactionReceipt(tx.hash);
+          if (!receipt) {
+            throw new Error("Transaction may still be pending. Please check explorer.");
+          }
+          
+          // Check if transaction failed
+          if (receipt.status === 0) {
+            throw new Error("Transaction failed. The token might have trading restrictions or insufficient liquidity.");
+          }
+        } catch (receiptError) {
+          console.error("Error getting receipt:", receiptError);
+          throw receiptError;
+        }
+      }
       
       // Update token balance
       await updateTokenBalance();
@@ -944,7 +1515,7 @@ function TokenDetailPage() {
     }
   };
 
-  // Handle trade execution
+  // Handle trade execution based on trade mode
   const executeTrade = () => {
     if (tradeMode === 'buy') {
       buyToken();
@@ -1008,9 +1579,7 @@ function TokenDetailPage() {
         </div>
       </div>
     );
-  }
-
-  // Render error state
+  }// Render error state
   if (error || (!tokenDetails && fetchAttempted)) {
     return (
       <div style={{

@@ -1,0 +1,250 @@
+.ai-assistant-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  font-family: 'Inter', sans-serif;
+}
+
+.ai-assistant-button {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #FF9900;
+  border: none;
+  color: rgb(0, 0, 0);
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+.ai-assistant-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  background-color: #FFA822;
+}
+
+.close-icon {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.chat-icon {
+  font-size: 35px;
+}
+
+.ai-assistant-panel {
+  position: absolute;
+  bottom: 70px;
+  right: 0;
+  width: 400px;
+  height: 500px;
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  animation: slideIn 0.3s forwards;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ai-assistant-header {
+  background-color: #ffb300;
+  color: rgb(0, 0, 0);
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ai-assistant-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.assistant-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.ai-assistant-messages {
+  flex-grow: 1;
+  padding: 15px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background-color: #F8F9FA;
+}
+
+.message {
+  max-width: 80%;
+  padding: 12px 15px;
+  border-radius: 18px;
+  line-height: 1.4;
+  white-space: pre-line;
+  font-size: 14px;
+}
+
+.message.user {
+  align-self: flex-end;
+  background-color: #1E88E5;
+  color: white;
+  border-bottom-right-radius: 6px;
+}
+
+.message.assistant {
+  align-self: flex-start;
+  background-color: #E9ECEF;
+  color: #212529;
+  border-bottom-left-radius: 6px;
+}
+
+.typing {
+  background-color: #E9ECEF;
+  padding: 15px;
+  border-radius: 18px;
+  border-bottom-left-radius: 6px;
+  display: inline-block;
+}
+
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+}
+
+.typing-indicator span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #adb5bd;
+  display: inline-block;
+  animation: bounce 1.4s infinite ease-in-out;
+}
+
+.typing-indicator span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+.ai-assistant-input {
+  padding: 10px 15px;
+  display: flex;
+  gap: 10px;
+  background-color: white;
+  border-top: 1px solid #E9ECEF;
+}
+
+.ai-assistant-input input {
+  flex-grow: 1;
+  padding: 10px 12px;
+  border: 1px solid #CED4DA;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.ai-assistant-input input:focus {
+  border-color: #ffb300;
+  box-shadow: 0 0 0 2px rgba(131, 186, 67, 0.2);
+}
+
+.ai-assistant-input button {
+  background-color: #ffb300;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.ai-assistant-input button:hover {
+  background-color: #ffb300;
+}
+
+.ai-assistant-input button:disabled {
+  background-color: #ADB5BD;
+  cursor: not-allowed;
+}
+
+/* Follow-up suggestions */
+.suggested-followups {
+  margin-top: 5px;
+  margin-bottom: 10px;
+  padding-left: 10px;
+}
+
+.followup-label {
+  font-size: 12px;
+  color: #6C757D;
+  margin-bottom: 5px;
+}
+
+.followup-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.followup-button {
+  background-color: white;
+  border: 1px solid #CED4DA;
+  border-radius: 16px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.followup-button:hover {
+  background-color: #F8F9FA;
+  border-color: #ADB5BD;
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .ai-assistant-panel {
+    width: calc(100vw - 40px);
+    height: 60vh;
+    right: 0;
+    bottom: 70px;
+  }
+  
+  .ai-assistant-button {
+    width: 50px;
+    height: 50px;
+  }
+}

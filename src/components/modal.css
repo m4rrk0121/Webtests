@@ -510,7 +510,7 @@
 }
 
 .shill-text-box p {
-  color: #ffffff;
+  color: #000000;
   font-size: 1.1rem;
   line-height: 1.5;
   margin: 0;
@@ -671,5 +671,224 @@
   .token-amount {
     padding: 6px 0;
     font-size: 0.9rem;
+  }
+}
+/* Modal.css - Styling for Fee Collection modal */
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+/* Modal content */
+.modal-content {
+  background-color: #121212;
+  border-radius: 8px;
+  border: 2px solid #ffb300;
+  max-width: 700px;
+  width: 90%;
+  padding: 20px;
+  color: #ffb300;
+  font-family: 'Bangers', cursive;
+  position: relative;
+  box-shadow: 0 4px 20px rgba(255, 179, 0, 0.3);
+}
+
+/* Modal title */
+.modal-content h3 {
+  text-align: center;
+  font-size: 32px;
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #ffb300;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Section titles */
+.modal-content h4 {
+  font-size: 24px;
+  margin-top: 5px;
+  margin-bottom: 15px;
+  color: #ffb300;
+}
+
+/* Horizontal dividers */
+.modal-content:after {
+  content: "";
+  display: block;
+  height: 1px;
+  background-color: rgba(255, 179, 0, 0.3);
+  margin: 15px 0;
+}
+
+/* Fee results container */
+.fee-results {
+  background-color: rgba(51, 46, 10, 0.7);
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+/* Transaction details section */
+.tx-details {
+  color: #ffb300;
+  font-size: 18px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  font-family: 'Courier New', monospace;
+}
+
+.tx-details p {
+  margin: 8px 0;
+  word-break: break-all;
+}
+
+/* BaseScan button */
+.explorer-link {
+  display: inline-block;
+  padding: 10px 15px;
+  background-color: #4CAF50;
+  color: white;
+  text-decoration: none;
+  border-radius: 4px;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  font-family: Arial, sans-serif;
+  transition: background-color 0.3s;
+}
+
+.explorer-link:hover {
+  background-color: #45a049;
+}
+
+/* Shill section styling */
+.shill-section {
+  margin-top: 20px;
+  border-top: 1px solid rgba(255, 179, 0, 0.3);
+  padding-top: 20px;
+}
+
+.shill-text-box {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #000;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-family: Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Action buttons container */
+.shill-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 15px;
+}
+
+/* Copy text button */
+.copy-button {
+  padding: 10px 15px;
+  background-color: #4285F4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+.copy-button:hover {
+  background-color: #3367d6;
+}
+
+/* Twitter button */
+.twitter-button {
+  padding: 10px 15px;
+  background-color: #1DA1F2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background-color 0.3s;
+}
+
+.twitter-button:hover {
+  background-color: #0c85d0;
+}
+
+/* Close button */
+.close-modal-button {
+  width: 100%;
+  padding: 12px;
+  background-color: #333;
+  color: #ffb300;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Bangers', cursive;
+  font-size: 20px;
+  margin-top: 20px;
+  transition: background-color 0.3s;
+}
+
+.close-modal-button:hover {
+  background-color: #444;
+}
+
+/* Status colors */
+.status-confirmed {
+  color: #4CAF50;
+}
+
+.status-pending {
+  color: #FFC107;
+}
+
+.status-failed {
+  color: #f44336;
+}
+
+/* Media query for mobile devices */
+@media screen and (max-width: 600px) {
+  .modal-content {
+    width: 95%;
+    padding: 15px;
+  }
+  
+  .modal-content h3 {
+    font-size: 26px;
+  }
+  
+  .modal-content h4 {
+    font-size: 20px;
+  }
+  
+  .tx-details {
+    font-size: 14px;
+  }
+  
+  .shill-actions {
+    flex-direction: column;
+  }
+  
+  .copy-button, .twitter-button {
+    width: 100%;
   }
 }

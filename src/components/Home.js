@@ -18,7 +18,7 @@ function Home() {
   // Get the WebSocket context
   const { isConnected, emit, addListener, removeListener } = useWebSocket();
   // Add this with your other useState declarations (around line 13-19)
-const [randomElements, setRandomElements] = useState([]);
+  const [randomElements, setRandomElements] = useState([]);
   const [topTokens, setTopTokens] = useState([]);
   const [featuredToken, setFeaturedToken] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,100 +40,6 @@ const [randomElements, setRandomElements] = useState([]);
       document.body.classList.remove('on-homepage');
     };
   }, []);
-
-  // WebSocket connection and event listeners setup
-  useEffect(() => {
-    if (isConnected) {
-      console.log("[Home] WebSocket is connected, setting up event listeners");
-      setLoading(true);
-      setDataSource('websocket');
-      
-      // Define handlers once and store in ref
-      if (!handlersRef.current.tokensListUpdate) {
-        // Handler for token list updates (just for display)
-        handlersRef.current.tokensListUpdate = (data) => {
-          if (data && data.tokens) {
-            const tokens = data.tokens;
-            
-            // Set top 5 tokens for the list
-            setTopTokens(tokens.slice(0, 5));
-            
-            // Set featured token (highest market cap)
-            setFeaturedToken(tokens[0]);
-            
-            setLoading(false);
-            console.log("[Home] Updated display tokens via WebSocket");
-          }
-        };
-        
-        // Handler for global statistics
-        handlersRef.current.globalStatsUpdate = (statsData) => {
-          if (statsData) {
-            console.log("[Home] Received global stats:", statsData);
-            setStats({
-              totalTokens: statsData.totalTokens || 0,
-              totalVolume: statsData.totalVolume || 0,
-              totalMarketCap: statsData.totalMarketCap || 0
-            });
-          }
-        };
-        
-        // Handler for individual token updates
-        handlersRef.current.tokenUpdate = (updatedToken) => {
-          // Update token in the list if it exists
-          setTopTokens(currentTokens => 
-            currentTokens.map(token => 
-              token.contractAddress === updatedToken.contractAddress 
-                ? { ...token, ...updatedToken } 
-                : token
-            )
-          );
-          
-          // Update featured token if it matches
-          setFeaturedToken(current => {
-            if (current && current.contractAddress === updatedToken.contractAddress) {
-              return { ...current, ...updatedToken };
-            }
-            return current;
-          });
-        };
-        
-        // Error handler
-        handlersRef.current.error = (errorData) => {
-          console.error('[Home] WebSocket error:', errorData);
-          fallbackToHttpPolling();
-        };
-      }
-      
-      // Register all event listeners
-      addListener('tokens-list-update', handlersRef.current.tokensListUpdate);
-      addListener('token-update', handlersRef.current.tokenUpdate);
-      addListener('global-stats-update', handlersRef.current.globalStatsUpdate);
-      addListener('error', handlersRef.current.error);
-      
-      // Request tokens for display
-      emit('get-tokens', {
-        sort: 'marketCap',
-        direction: 'desc',
-        page: 1
-      });
-      
-      // Request global statistics
-      emit('get-global-stats');
-      
-      // Cleanup function
-      return () => {
-        console.log("[Home] Cleaning up WebSocket listeners");
-        removeListener('tokens-list-update', handlersRef.current.tokensListUpdate);
-        removeListener('token-update', handlersRef.current.tokenUpdate);
-        removeListener('global-stats-update', handlersRef.current.globalStatsUpdate);
-        removeListener('error', handlersRef.current.error);
-      };
-    } else {
-      console.log("[Home] WebSocket not connected, falling back to HTTP");
-      fallbackToHttpPolling();
-    }
-  }, [isConnected, addListener, removeListener, emit]); // Removed featuredToken from dependencies
 
   // Fallback to HTTP polling when WebSocket isn't available
   const fallbackToHttpPolling = useCallback(() => {
@@ -192,6 +98,103 @@ const [randomElements, setRandomElements] = useState([]);
 
     fetchData();
   }, [dataSource]);
+
+  // WebSocket connection and event listeners setup
+  useEffect(() => {
+    // Fix #1: Store a copy of the current handlers ref for cleanup
+    const currentHandlers = handlersRef.current;
+    
+    if (isConnected) {
+      console.log("[Home] WebSocket is connected, setting up event listeners");
+      setLoading(true);
+      setDataSource('websocket');
+      
+      // Define handlers once and store in ref
+      if (!currentHandlers.tokensListUpdate) {
+        // Handler for token list updates (just for display)
+        currentHandlers.tokensListUpdate = (data) => {
+          if (data && data.tokens) {
+            const tokens = data.tokens;
+            
+            // Set top 5 tokens for the list
+            setTopTokens(tokens.slice(0, 5));
+            
+            // Set featured token (highest market cap)
+            setFeaturedToken(tokens[0]);
+            
+            setLoading(false);
+            console.log("[Home] Updated display tokens via WebSocket");
+          }
+        };
+        
+        // Handler for global statistics
+        currentHandlers.globalStatsUpdate = (statsData) => {
+          if (statsData) {
+            console.log("[Home] Received global stats:", statsData);
+            setStats({
+              totalTokens: statsData.totalTokens || 0,
+              totalVolume: statsData.totalVolume || 0,
+              totalMarketCap: statsData.totalMarketCap || 0
+            });
+          }
+        };
+        
+        // Handler for individual token updates
+        currentHandlers.tokenUpdate = (updatedToken) => {
+          // Update token in the list if it exists
+          setTopTokens(currentTokens => 
+            currentTokens.map(token => 
+              token.contractAddress === updatedToken.contractAddress 
+                ? { ...token, ...updatedToken } 
+                : token
+            )
+          );
+          
+          // Update featured token if it matches
+          setFeaturedToken(current => {
+            if (current && current.contractAddress === updatedToken.contractAddress) {
+              return { ...current, ...updatedToken };
+            }
+            return current;
+          });
+        };
+        
+        // Error handler
+        currentHandlers.error = (errorData) => {
+          console.error('[Home] WebSocket error:', errorData);
+          fallbackToHttpPolling();
+        };
+      }
+      
+      // Register all event listeners
+      addListener('tokens-list-update', currentHandlers.tokensListUpdate);
+      addListener('token-update', currentHandlers.tokenUpdate);
+      addListener('global-stats-update', currentHandlers.globalStatsUpdate);
+      addListener('error', currentHandlers.error);
+      
+      // Request tokens for display
+      emit('get-tokens', {
+        sort: 'marketCap',
+        direction: 'desc',
+        page: 1
+      });
+      
+      // Request global statistics
+      emit('get-global-stats');
+      
+      // Cleanup function
+      return () => {
+        console.log("[Home] Cleaning up WebSocket listeners");
+        removeListener('tokens-list-update', currentHandlers.tokensListUpdate);
+        removeListener('token-update', currentHandlers.tokenUpdate);
+        removeListener('global-stats-update', currentHandlers.globalStatsUpdate);
+        removeListener('error', currentHandlers.error);
+      };
+    } else {
+      console.log("[Home] WebSocket not connected, falling back to HTTP");
+      fallbackToHttpPolling();
+    }
+  }, [isConnected, addListener, removeListener, emit, fallbackToHttpPolling]); // Fix #2: Added fallbackToHttpPolling to deps array
 
   // Add this after your other useEffect hooks (after the WebSocket or HTTP polling effects)
   useEffect(() => {
@@ -309,7 +312,7 @@ const [randomElements, setRandomElements] = useState([]);
           <img src={jungleCrown} alt="Jungle Crown Logo" style={{ height: '80px', marginBottom: '15px' }} />
         </div>
         <h1>Welcome to KOA</h1>
-        <p>Your premier destination for Base network tokens</p>
+        <p>Built by a team of trench degens, for trench degens!</p>
         <div className="hero-buttons">
           <Link to="/deploy-token">
             Deploy A Token
@@ -427,7 +430,7 @@ const [randomElements, setRandomElements] = useState([]);
             <div className="step-number">1</div>
             <h3>Deploy Your Token</h3>
             <p>
-              Create your own token on Base network with just a few clicks. Customize name, symbol, and initial parameters.
+              Create your own token with just a few clicks on Telegram, Twitter or right here on the website. Customize name, symbol, and initial parameters.
             </p>
           </div>
           
@@ -453,7 +456,7 @@ const [randomElements, setRandomElements] = useState([]);
       <section className="cta-section">
         <h2>Ready to Launch Your Own Token?</h2>
         <p>
-          Join the Base Jungle and create your own token in minutes with our simple deployment tool.
+          Join the Base Jungle and create your own token in minutes. Reach out to the team on Telegram or Twitter for project support!
         </p>
         <Link to="/deploy-token">
           Deploy Token Now

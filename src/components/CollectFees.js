@@ -93,9 +93,7 @@ const detectWalletProvider = () => {
     // No wallet provider found
     resolve(null);
   });
-};
-
-// Improved provider safety check function that's more compatible with different wallets
+};// Improved provider safety check function that's more compatible with different wallets
 const checkProviderSafety = async (provider) => {
   try {
     // More lenient check for wallet providers
@@ -206,7 +204,27 @@ const setupWalletEventListeners = (ethereum, handleChainChanged, handleAccountsC
   return false;
 };
 
-// Pre-defined contract information for fee collection
+// Generate shill text for fee collection
+function generateFeeCollectionShillText(collectedFees = null) {
+  try {
+    const shillTexts = [
+      `🍌 Just collected my staking rewards on King of Apes! Passive income while I sleep - this is the way! Check it out: https://kingofapes.fun/ #KingOfApes #PassiveIncome #DeFi #Base`,
+      
+      `💰 Another day, another fee collection on King of Apes! Loving these $KOA rewards! Join the kingdom: https://kingofapes.fun/ #KingOfApes #DeFi #YieldFarming #Base`,
+      
+      `🐒 Fee collection day on King of Apes! My LP position keeps generating rewards. So easy to claim with one click! https://kingofapes.fun/ #KingOfApes #Rewards #DeFi #Base`,
+      
+      `⚡️ Just collected fees on King of Apes platform! My token is working for me 24/7. Want passive income too? https://kingofapes.fun/ #KingOfApes #DeFi #PassiveIncome #Base`
+    ];
+    
+    // Randomly select one of the shill texts
+    return shillTexts[Math.floor(Math.random() * shillTexts.length)];
+  } catch (error) {
+    console.error("Error generating shill text:", error);
+    // Return a safe fallback
+    return `Just collected my fees on King of Apes! Check it out: https://kingofapes.fun/`;
+  }
+}// Pre-defined contract information for fee collection
 const FEE_COLLECTOR_ADDRESS = '0xF3A8E91df4EE6f796410D528d56573B5FB4929B6';
 const FEE_COLLECTOR_ABI = [
   {
@@ -251,10 +269,12 @@ function CollectFees() {
   // Modal state
   const [showModal, setShowModal] = useState(false);
   
+  // Shill text state
+  const [shillText, setShillText] = useState('');
+  const [showShillText, setShowShillText] = useState(false);
+  
   // For random banana background
-  const [randomElements, setRandomElements] = useState([]);
-
-  // Generate random bananas effect
+  const [randomElements, setRandomElements] = useState([]);// Generate random bananas effect
   useEffect(() => {
     // Function to generate random position within viewport
     const getRandomPosition = () => {
@@ -336,9 +356,7 @@ function CollectFees() {
     
     // Clear interval on component unmount
     return () => clearInterval(intervalId);
-  }, []);
-
-  // Enhanced account change handler for wallet
+  }, []);// Enhanced account change handler for wallet
   const handleAccountsChanged = useCallback((accounts) => {
     if (accounts && accounts.length > 0 && accounts[0] !== wallet?.address) {
       // Account changed, update wallet state
@@ -556,12 +574,57 @@ function CollectFees() {
     setTxResult(null);
     setTxHash('');
     setShowModal(false);
-  };
-
-  // Get the explorer URL for the transaction
+    setShowShillText(false);
+  };// Get the explorer URL for the transaction
   const getExplorerUrl = (txHash) => {
     // Using Base Scan as the explorer
     return `https://basescan.org/tx/${txHash}`;
+  };
+
+  // Copy shill text to clipboard
+  const copyShillText = () => {
+    try {
+      navigator.clipboard.writeText(shillText).then(
+        () => {
+          alert('Shill text copied to clipboard!');
+        },
+        (err) => {
+          console.error('Could not copy text: ', err);
+          
+          // Fallback for browsers without clipboard API
+          const textArea = document.createElement("textarea");
+          textArea.value = shillText;
+          textArea.style.position = "fixed";  // Avoid scrolling to bottom
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          
+          try {
+            document.execCommand('copy');
+            alert('Shill text copied to clipboard!');
+          } catch (execError) {
+            console.error('Copy fallback failed:', execError);
+            alert('Failed to copy. Please select and copy the text manually.');
+          }
+          
+          document.body.removeChild(textArea);
+        }
+      );
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      alert('Failed to copy. Please select and copy the text manually.');
+    }
+  };
+
+  // Share to Twitter
+  const shareToTwitter = () => {
+    try {
+      const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shillText)}`;
+      window.open(twitterUrl, '_blank');
+    } catch (error) {
+      console.error('Error opening Twitter share:', error);
+      alert('Failed to open Twitter. Please copy the text and share manually.');
+    }
   };
 
   // Execute collectAllFees function
@@ -575,6 +638,7 @@ function CollectFees() {
       setIsExecuting(true);
       setError('');
       setTxResult(null);
+      setShowShillText(false);
       
       const contract = new ethers.Contract(
         FEE_COLLECTOR_ADDRESS,
@@ -598,6 +662,20 @@ function CollectFees() {
           gasUsed: receipt.gasUsed.toString(),
           explorerUrl: getExplorerUrl(receipt.hash)
         });
+
+        // Generate shill text for the fee collection
+        const generatedShillText = generateFeeCollectionShillText();
+        setShillText(generatedShillText);
+        setShowShillText(true);
+        
+        // Play a sound effect like in DeployToken
+        try {
+          const sound = new Audio('/Tarzan.mp3');
+          sound.volume = 0.7;
+          sound.play();
+        } catch (e) {
+          console.log("Error playing sound:", e);
+        }
       } catch (waitError) {
         console.error('Error waiting for transaction:', waitError);
         
@@ -612,6 +690,13 @@ function CollectFees() {
               gasUsed: receipt.gasUsed.toString(),
               explorerUrl: getExplorerUrl(receipt.hash)
             });
+
+            // Generate shill text if transaction was successful
+            if (receipt.status === 1) {
+              const generatedShillText = generateFeeCollectionShillText();
+              setShillText(generatedShillText);
+              setShowShillText(true);
+            }
           } else {
             throw new Error('Transaction may be pending');
           }
@@ -647,9 +732,7 @@ function CollectFees() {
       setError('Transaction failed: ' + errorMessage);
       setIsExecuting(false);
     }
-  };
-
-  // Check transaction status - defined using useCallback to avoid dependency issues
+  };// Check transaction status - defined using useCallback to avoid dependency issues
   const checkTransactionStatus = useCallback(async () => {
     if (!txHash || !wallet || !wallet.provider) {
       return;
@@ -659,13 +742,22 @@ function CollectFees() {
       const receipt = await wallet.provider.getTransactionReceipt(txHash);
       
       if (receipt) {
+        const isConfirmed = receipt.status === 1;
+        
         setTxResult(prevResult => ({
           ...prevResult,
-          status: receipt.status === 1 ? 'Confirmed' : 'Failed',
+          status: isConfirmed ? 'Confirmed' : 'Failed',
           blockNumber: receipt.blockNumber,
           gasUsed: receipt.gasUsed.toString(),
           explorerUrl: getExplorerUrl(txHash)
         }));
+        
+        // If transaction is confirmed and we haven't generated the shill text yet, do it now
+        if (isConfirmed && !showShillText) {
+          const generatedShillText = generateFeeCollectionShillText();
+          setShillText(generatedShillText);
+          setShowShillText(true);
+        }
       } else {
         setTxResult(prevResult => ({
           ...prevResult,
@@ -676,7 +768,7 @@ function CollectFees() {
     } catch (err) {
       console.error('Error checking transaction:', err);
     }
-  }, [txHash, wallet]);
+  }, [txHash, wallet, showShillText]);
 
   // Effect to check transaction status periodically
   useEffect(() => {
@@ -708,9 +800,7 @@ function CollectFees() {
         }
       }
     };
-  }, []);
-
-  return (
+  }, []);return (
     <div className="contract-interaction">
       {/* Random background bananas */}
       {randomElements.map(el => (
@@ -734,139 +824,157 @@ function CollectFees() {
           />
         </div>
       ))}
-      
-      <h1>Collect Fees</h1>
-      
-      <div className="wallet-connection">
-        {!wallet ? (
-          <button 
-            onClick={connectWallet} 
-            disabled={isConnecting}
-            className="connect-button"
-          >
-            {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-          </button>
-        ) : (
-          <div className="wallet-info">
-            <span>Connected: {wallet.address.substring(0, 6)}...{wallet.address.substring(38)}</span>
-            <button onClick={disconnectWallet} className="disconnect-button">Disconnect</button>
-          </div>
-        )}
+ <h1>Collect Fees</h1>
+
+<div className="wallet-connection">
+  {!wallet ? (
+    <button
+      onClick={connectWallet}
+      disabled={isConnecting}
+      className="connect-button"
+    >
+      {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+    </button>
+  ) : (
+    <div className="wallet-info">
+      <span>Connected: {wallet.address.substring(0, 6)}...{wallet.address.substring(38)}</span>
+      <button onClick={disconnectWallet} className="disconnect-button">Disconnect</button>
+    </div>
+  )}
+</div>
+
+{wallet ? (
+  <div className="contract-form-container">
+    <h2>Contract: {FEE_COLLECTOR_ADDRESS}</h2>
+    <h3>Collect All Fees</h3>
+    <p>
+      This function will collect fees from all your positions in one transaction.
+      It returns the number of positions processed and the total amounts collected.
+    </p>
+    
+    {gasPrice && (
+      <div className="gas-info">
+        Current network gas price: {gasPrice} Gwei (using network default)
       </div>
+    )}
+    
+    <button
+      onClick={collectAllFees}
+      disabled={isExecuting}
+      className="execute-button"
+    >
+      {isExecuting ? 'Collecting Fees...' : 'Collect All Fees'}
+    </button>
 
-      {wallet ? (
-        <div className="contract-form-container">
-          <h2>Contract: {FEE_COLLECTOR_ADDRESS}</h2>
-          <h3>Collect All Fees</h3>
-          <p>
-            This function will collect fees from all your positions in one transaction.
-            It returns the number of positions processed and the total amounts collected.
-          </p>
-          
-          {gasPrice && (
-            <div className="gas-info">
-              Current network gas price: {gasPrice} Gwei (using network default)
-            </div>
-          )}
-          
-          <button
-            onClick={collectAllFees}
-            disabled={isExecuting}
-            className="execute-button"
-          >
-            {isExecuting ? 'Collecting Fees...' : 'Collect All Fees'}
-          </button>
-
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
-          
-          {txHash && (
-            <div className="tx-hash">
-              Transaction hash: {txHash}
-              {!txResult && <div className="pending-indicator">Transaction pending...</div>}
-            </div>
-          )}
-          
-          {txResult && txResult.success && (
-            <div className="success-message">
-              <h4>Transaction successful!</h4>
-              <div className="tx-details">
-                <p>Transaction hash: {txResult.hash}</p>
-                <p>Block number: {txResult.blockNumber}</p>
-                <p>Gas used: {txResult.gasUsed}</p>
-                {txResult.status && <p>Status: {txResult.status}</p>}
-              </div>
-              <button 
-                onClick={() => setShowModal(true)}
-                className="close-modal-button"
-                style={{ backgroundColor: '#ffb300', color: '#000', marginTop: '15px' }}
-              >
-                View Fee Collection Details
-              </button>
-            </div>
-          )}
-
-          <div className="connection-info">
-            <p>Connected to chain ID: {wallet.chainId.toString()}</p>
-            <p>Connected address: {wallet.address}</p>
-          </div>
+    {error && (
+      <div className="error-message">
+        {error}
+      </div>
+    )}{error && (
+      <div className="error-message">
+        {error}
+      </div>
+    )}
+    
+    {txHash && (
+      <div className="tx-hash">
+        Transaction hash: {txHash}
+        {!txResult && <div className="pending-indicator">Transaction pending...</div>}
+      </div>
+    )}
+    
+    {txResult && txResult.success && (
+      <div className="success-message">
+        <h4>Transaction successful!</h4>
+        <div className="tx-details">
+          <p>Transaction hash: {txResult.hash}</p>
+          <p>Block number: {txResult.blockNumber}</p>
+          <p>Gas used: {txResult.gasUsed}</p>
+          {txResult.status && <p>Status: {txResult.status}</p>}
         </div>
-      ) : (
-        <div className="connect-prompt">
-          <p>Please connect your wallet to collect fees</p>
-        </div>
-      )}
+        <button 
+          onClick={() => setShowModal(true)}
+          className="close-modal-button"
+          style={{ backgroundColor: '#ffb300', color: '#000', marginTop: '15px' }}
+        >
+          View Fee Collection Details
+        </button>
+      </div>
+    )}
+
+    <div className="connection-info">
+      <p>Connected to chain ID: {wallet.chainId.toString()}</p>
+      <p>Connected address: {wallet.address}</p>
+    </div>
+  </div>
+) : (
+  <div className="connect-prompt">
+    <p>Please connect your wallet to collect fees</p>
+  </div>
+)}
+
+{/* Fee Collection Results Modal */}
+{/* Fee Collection Results Modal */}
+{showModal && (
+  <div className="modal-overlay" onClick={() => setShowModal(false)}>
+    <div className="modal-content" onClick={e => e.stopPropagation()}>
+      <h3>Fee Collection Results</h3>
       
-      {/* Fee Collection Results Modal */}
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h3>Fee Collection Results</h3>
-            
-            <div className="fee-results">
-              <h4>Collected Fees</h4>
-              <p>View transaction details on block explorer:</p>
-              <a 
-                href={txResult.explorerUrl} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="explorer-link"
-                style={{
-                  display: 'inline-block',
-                  padding: '10px 15px',
-                  backgroundColor: '#4CAF50',
-                  color: 'white',
-                  textDecoration: 'none',
-                  borderRadius: '4px',
-                  marginTop: '10px',
-                  marginBottom: '20px'
-                }}
-              >
-                View on Basescan
-              </a>
-            </div>
-            
-            <div className="tx-details">
-              <p>Transaction hash: {txResult.hash}</p>
-              <p>Block number: {txResult.blockNumber}</p>
-              <p>Gas used: {txResult.gasUsed}</p>
-              {txResult.status && <p>Status: {txResult.status}</p>}
-            </div>
-            
+      <div className="fee-results">
+        <h4>Collected Fees</h4>
+        <p>View transaction details on block explorer:</p>
+        <a 
+          href={txResult.explorerUrl} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="explorer-link"
+        >
+          View on Basescan
+        </a>
+      </div>
+      
+      <div className="tx-details">
+        <p>Transaction hash: {txResult.hash}</p>
+        <p>Block number: {txResult.blockNumber}</p>
+        <p>Gas used: {txResult.gasUsed}</p>
+        {txResult.status && <p>Status: <span className={`status-${txResult.status.toLowerCase()}`}>{txResult.status}</span></p>}
+      </div>
+      
+      {/* Shill Section */}
+      {showShillText && shillText && (
+        <div className="shill-section">
+          <h4>Share Your Success</h4>
+          <div className="shill-text-box">
+            <p>{shillText}</p>
+          </div>
+          <div className="shill-actions">
             <button 
-              onClick={() => setShowModal(false)}
-              className="close-modal-button"
+              onClick={copyShillText} 
+              className="copy-button"
             >
-              Close
+              Copy Text
+            </button>
+            <button 
+              onClick={shareToTwitter} 
+              className="twitter-button"
+            >
+              🐦 Post to Twitter
             </button>
           </div>
         </div>
       )}
+      
+      <button 
+        onClick={() => setShowModal(false)}
+        className="close-modal-button"
+      >
+        Close
+      </button>
     </div>
-  );
+  </div>
+)}
+</div>
+);
 }
 
 export default CollectFees;

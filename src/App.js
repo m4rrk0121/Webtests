@@ -1,6 +1,7 @@
 import React from 'react';
 import { Route, HashRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
+import AIAssistantChat from './components/AIAssistantChat';
 import CollectFees from './components/CollectFees';
 import DeployToken from './components/DeployToken';
 import Home from './components/Home';
@@ -25,11 +26,12 @@ function App() {
               <Route path="/update-token-info" element={<div className="placeholder-page"><h1>Token Info Updates Coming Soon</h1></div>} />
             </Routes>
           </div>
+          {/* AI Assistant Chat widget */}
+          <AIAssistantChat />
         </div>
       </Router>
     </WebSocketProvider>
   );
 }
-
 
 export default App;

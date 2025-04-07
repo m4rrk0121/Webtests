@@ -3,10 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@coinbase/onchainkit": "^0.38.5",
+    "@rainbow-me/rainbowkit": "^2.2.4",
+    "@tanstack/react-query": "^5.72.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^13.5.0",
+    "@walletconnect/ethereum-provider": "^2.19.2",
+    "@walletconnect/modal": "^2.7.0",
     "axios": "^1.8.3",
     "ethers": "^6.13.5",
     "express": "^4.21.2",
@@ -17,6 +22,8 @@
     "react-scripts": "5.0.1",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
+    "viem": "^2.26.0",
+    "wagmi": "^2.14.16",
     "web-vitals": "^2.1.4"
   },
   "scripts": {

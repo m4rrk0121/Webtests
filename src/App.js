@@ -2,12 +2,14 @@ import React from 'react';
 import { Route, HashRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
 
-// Wagmi and Onchain Kit imports
-import { OnchainKitProvider } from '@coinbase/onchainkit';
+// React Query
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { WagmiProvider, createConfig, http } from 'wagmi';
-import { base } from 'wagmi/chains';
-import { coinbaseWallet, walletConnect } from 'wagmi/connectors';
+
+// Import Reown AppKit
+import { createAppKit } from '@reown/appkit';
+import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
+import { base } from '@reown/appkit/networks';
+import { createConfig, http, WagmiProvider } from 'wagmi';
 
 // Import your components
 import AIAssistantChat from './components/AIAssistantChat';
@@ -22,56 +24,71 @@ import { WebSocketProvider } from './context/WebSocketContext';
 // Create a query client
 const queryClient = new QueryClient();
 
-// WalletConnect project ID
+// Your project ID from Reown Cloud or WalletConnect
+// If you don't have a Reown Cloud account yet, you can use a WalletConnect Project ID
 const projectId = 'fbca5173eb7d0c37c86a00cc855ce453';
 
-// Create Wagmi configuration
-const wagmiConfig = createConfig({
-  chains: [base],
-  connectors: [
-    coinbaseWallet({
-      appName: 'King of Apes',
-    }),
-    walletConnect({
-      projectId,
-    }),
-  ],
-  ssr: true,
+// Define networks
+const networks = [base];
+
+// Create a separate wagmi config for direct contract interactions
+export const wagmiConfig = createConfig({
+  chains: networks,
   transports: {
     [base.id]: http(),
-  },
+  }
 });
+
+// Set up Wagmi adapter
+const wagmiAdapter = new WagmiAdapter({
+  projectId,
+  networks
+});
+
+// Configure the metadata
+const metadata = {
+  name: 'King of Apes',
+  description: 'King of Apes DeFi Platform',
+  url: 'https://kingofapes.fun',
+  icons: ['https://kingofapes.fun/favicon.ico']
+};
+
+// Create the AppKit instance
+const appKit = createAppKit({
+  adapters: [wagmiAdapter],
+  networks,
+  metadata,
+  projectId,
+  features: {
+    analytics: true // Optional
+  }
+});
+
+// Export the appKit instance for use in other components
+export const appKitInstance = appKit;
 
 function App() {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <OnchainKitProvider 
-          appName="King of Apes"
-          appIcon="https://kingofapes.fun/favicon.ico"
-          chain={base}
-          walletConnectProjectId={projectId}
-          mode="dark"
-        >
-          <WebSocketProvider>
-            <Router>
-              <div className="App">
-                <Navbar />
-                <div className="content-container">
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/dashboard" element={<TokenDashboard />} />
-                    <Route path="/token/:contractAddress" element={<TokenDetailPage />} />
-                    <Route path="/collect-fees" element={<CollectFees />} />
-                    <Route path="/deploy-token" element={<DeployToken />} />
-                    <Route path="/update-token-info" element={<div className="placeholder-page"><h1>Token Info Updates Coming Soon</h1></div>} />
-                  </Routes>
-                </div>
-                <AIAssistantChat />
+        <WebSocketProvider>
+          <Router>
+            <div className="App">
+              <Navbar />
+              <div className="content-container">
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/dashboard" element={<TokenDashboard />} />
+                  <Route path="/token/:contractAddress" element={<TokenDetailPage />} />
+                  <Route path="/collect-fees" element={<CollectFees />} />
+                  <Route path="/deploy-token" element={<DeployToken />} />
+                  <Route path="/update-token-info" element={<div className="placeholder-page"><h1>Token Info Updates Coming Soon</h1></div>} />
+                </Routes>
               </div>
-            </Router>
-          </WebSocketProvider>
-        </OnchainKitProvider>
+              <AIAssistantChat />
+            </div>
+          </Router>
+        </WebSocketProvider>
       </QueryClientProvider>
     </WagmiProvider>
   );

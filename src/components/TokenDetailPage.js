@@ -1,9 +1,9 @@
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import axios from 'axios';
 import { ethers } from 'ethers';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAccount, useChainId, useWalletClient } from 'wagmi';
+import { appKitInstance } from '../App'; // Import appKitInstance
 import { useWebSocket } from '../context/WebSocketContext';
 import './modal.css';
 
@@ -228,6 +228,11 @@ function TokenDetailPage() {
   const refreshPage = useRef(window.performance?.navigation?.type === 1 || 
                             document.referrer === "" || 
                             !document.referrer.includes(window.location.host));
+
+  // Function to open the wallet connect modal
+  const openConnectModal = () => {
+    appKitInstance.open();
+  };
 
   // Fetch token data via HTTP as fallback
   const fetchTokenDataHttp = useCallback(async (address) => {
@@ -752,9 +757,7 @@ function TokenDetailPage() {
         console.error("Transaction execution error:", txError);
         
         // Provide more detailed error messages
-        if (txError.message && txError.message.includes('insufficient funds')) {
-          throw new Error('Insufficient ETH in your wallet to complete this transaction.');
-        } else if (txError.message && txError.message.includes('user rejected')) {
+        if (txError.message && txError.message.includes('user rejected')) {
           throw new Error('Transaction was rejected by the user.');
         }
         
@@ -763,7 +766,7 @@ function TokenDetailPage() {
       
       setTransactionHash(tx.hash);
       
-      // Wait for transaction to be mined
+      // Wait for transaction to be mined with better error handling
       let receipt;
       try {
         receipt = await tx.wait();
@@ -792,31 +795,16 @@ function TokenDetailPage() {
       
       setTradeSuccess(true);
       setIsTrading(false);
-      
-      // Generate shill text and show modal
-      if (tokenDetails) {
-        const generatedShillText = generateShillText(
-          tokenDetails.name, 
-          tokenDetails.symbol, 
-          contractAddress,
-          ethAmount
-        );
-        setShillText(generatedShillText);
-        setShowShillModal(true);
-      }
-      
     } catch (err) {
       console.error('Transaction error:', err);
       
       // Provide a more helpful error message
-      let errorMessage = 'Failed to buy token: ';
+      let errorMessage = 'Failed to sell token: ';
       
       if (err.reason) {
         errorMessage += err.reason;
       } else if (err.message) {
-        if (err.message.includes('insufficient funds')) {
-          errorMessage = 'Insufficient ETH in your wallet to complete this transaction.';
-        } else if (err.message.includes('user rejected')) {
+        if (err.message.includes('user rejected')) {
           errorMessage = 'Transaction was rejected by the user.';
         } else if (err.message.includes('execution reverted')) {
           errorMessage = 'Transaction failed - there may be issues with liquidity or token restrictions.';
@@ -831,9 +819,8 @@ function TokenDetailPage() {
       setIsTrading(false);
     }
   };
-
- // Execute a sell with improved error handling
- const sellToken = async () => {
+// Execute a sell with improved error handling
+const sellToken = async () => {
   if (!signer || !contractAddress || !tokenAmount || parseFloat(tokenAmount) <= 0) {
     setTradeError('Please enter a valid token amount');
     return;
@@ -958,156 +945,219 @@ function TokenDetailPage() {
     setIsTrading(false);
   }
 };
+  // Handle trade execution based on trade mode
+  const executeTrade = () => {
+    if (tradeMode === 'buy') {
+      buyToken();
+    } else {
+      sellToken();
+    }
+  };
 
-// Handle trade execution based on trade mode
-const executeTrade = () => {
-  if (tradeMode === 'buy') {
-    buyToken();
-  } else {
-    sellToken();
-  }
-};
+  // Format token balance
+  const formatTokenBalance = () => {
+    if (!tokenBalance) return "0";
+    return parseFloat(ethers.formatUnits(tokenBalance, tokenDecimals)).toFixed(6);
+  };
 
-// Format token balance
-const formatTokenBalance = () => {
-  if (!tokenBalance) return "0";
-  return parseFloat(ethers.formatUnits(tokenBalance, tokenDecimals)).toFixed(6);
-};
-
-// Render loading state
-if (loading) {
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: '#000000',
-      color: '#ffb300',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 999,
-      fontFamily: "'Chewy', cursive"
-    }}>
-      <div style={{ fontSize: '20px', marginBottom: '15px' }}>
-        Loading Token Data
-      </div>
-      
-      {contractAddress && (
-        <div style={{ fontSize: '14px', marginBottom: '20px', opacity: 0.8 }}>
-          Contract: {contractAddress.slice(0, 6)}...{contractAddress.slice(-4)}
-        </div>
-      )}
-      
-      <div className="loading-spinner" style={{ width: '40px', height: '40px' }}></div>
-      
-      <div style={{ 
-        fontSize: '12px', 
-        marginTop: '20px', 
-        opacity: 0.8,
+  // Render loading state
+  if (loading) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#000000',
+        color: '#ffb300',
         display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
         alignItems: 'center',
-        gap: '8px'
+        zIndex: 999,
+        fontFamily: "'Chewy', cursive"
       }}>
-        <span style={{ 
-          display: 'inline-block',
-          width: '8px',
-          height: '8px',
-          borderRadius: '50%',
-          background: isConnected ? '#00ff88' : '#ff4466',
-        }}></span>
-        WebSocket: {isConnected ? 'Connected' : 'Disconnected'}
-      </div>
-    </div>
-  );
-}
-
-// Render error state
-if (error || (!tokenDetails && fetchAttempted)) {
-  return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: '#000000',
-      color: '#ffb300',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 999,
-      fontFamily: "'Chewy', cursive"
-    }}>
-      <div style={{ fontSize: '20px', marginBottom: '15px', color: '#ff4466' }}>
-        {error || 'No Token Details Found'}
-      </div>
-      
-      <div style={{ display: 'flex', gap: '10px' }}>
-        <button 
-          onClick={() => navigate('/')} 
-          className="back-button"
-        >
-          ← Go to Dashboard
-        </button>
-        <button 
-          onClick={handleRetry} 
-          style={{ 
-            padding: '10px 20px', 
-            background: '#333', 
-            color: '#ffb300', 
-            border: '1px solid #ffb300', 
-            borderRadius: '6px', 
-            cursor: 'pointer',
-            fontSize: '16px'
-          }}
-        >
-          Try Again
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// Main token detail render - show content only once we have token details
-if (tokenDetails) {
-  return (
-    <div className="token-detail-page">
-      <div className="token-detail-header">
-        <button 
-          onClick={() => navigate('/')} 
-          className="back-button"
-        >
-          ← Back to Dashboard
-        </button>
+        <div style={{ fontSize: '20px', marginBottom: '15px' }}>
+          Loading Token Data
+        </div>
         
-        <h1 className="token-detail-title">{tokenDetails.name} ({tokenDetails.symbol})</h1>
+        {contractAddress && (
+          <div style={{ fontSize: '14px', marginBottom: '20px', opacity: 0.8 }}>
+            Contract: {contractAddress.slice(0, 6)}...{contractAddress.slice(-4)}
+          </div>
+        )}
         
-        <div className="token-details-summary">
-          <div className="token-detail-data">
-            <div>
-              <span className="token-detail-label">Price:</span>
-              <span className="token-detail-value">{formatCurrency(tokenDetails.price_usd)}</span>
+        <div className="loading-spinner" style={{ width: '40px', height: '40px' }}></div>
+        
+        <div style={{ 
+          fontSize: '12px', 
+          marginTop: '20px', 
+          opacity: 0.8,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span style={{ 
+            display: 'inline-block',
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            background: isConnected ? '#00ff88' : '#ff4466',
+          }}></span>
+          WebSocket: {isConnected ? 'Connected' : 'Disconnected'}
+        </div>
+      </div>
+    );
+  }
+
+  // Render error state
+  if (error || (!tokenDetails && fetchAttempted)) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#000000',
+        color: '#ffb300',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 999,
+        fontFamily: "'Chewy', cursive"
+      }}>
+        <div style={{ fontSize: '20px', marginBottom: '15px', color: '#ff4466' }}>
+          {error || 'No Token Details Found'}
+        </div>
+        
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            onClick={() => navigate('/')} 
+            className="back-button"
+          >
+            ← Go to Dashboard
+          </button>
+          <button 
+            onClick={handleRetry} 
+            style={{ 
+              padding: '10px 20px', 
+              background: '#333', 
+              color: '#ffb300', 
+              border: '1px solid #ffb300', 
+              borderRadius: '6px', 
+              cursor: 'pointer',
+              fontSize: '16px'
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Main token detail render - show content only once we have token details
+  if (tokenDetails) {
+    return (
+      <div className="token-detail-page">
+        <div className="token-detail-header">
+          <button 
+            onClick={() => navigate('/')} 
+            className="back-button"
+          >
+            ← Back to Dashboard
+          </button>
+          
+          <h1 className="token-detail-title">{tokenDetails.name} ({tokenDetails.symbol})</h1>
+          
+          <div className="token-details-summary">
+            <div className="token-detail-data">
+              <div>
+                <span className="token-detail-label">Price:</span>
+                <span className="token-detail-value">{formatCurrency(tokenDetails.price_usd)}</span>
+              </div>
+              <div>
+                <span className="token-detail-label">Market Cap:</span>
+                <span className="token-detail-value">{formatCurrency(tokenDetails.fdv_usd)}</span>
+              </div>
             </div>
-            <div>
-              <span className="token-detail-label">Market Cap:</span>
-              <span className="token-detail-value">{formatCurrency(tokenDetails.fdv_usd)}</span>
+            <div className="token-detail-data">
+              <div>
+                <span className="token-detail-label">24h Volume:</span>
+                <span className="token-detail-value">{formatCurrency(tokenDetails.volume_usd)}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="token-detail-label">Contract:</span>
+                <span className="token-detail-value">{tokenDetails.contractAddress.slice(0, 8)}...{tokenDetails.contractAddress.slice(-6)}</span>
+                <button
+                  onClick={() => copyToClipboard(tokenDetails.contractAddress)}
+                  style={{
+                    background: '#333',
+                    color: '#ffb300',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '4px 8px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Copy
+                </button>
+              </div>
             </div>
           </div>
-          <div className="token-detail-data">
-            <div>
-              <span className="token-detail-label">24h Volume:</span>
-              <span className="token-detail-value">{formatCurrency(tokenDetails.volume_usd)}</span>
+          
+          {/* Connection status indicator */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginTop: '10px'
+          }}>
+            <div style={{
+              display: 'inline-block',
+              background: '#222',
+              color: dataSource === 'websocket' ? '#00ff88' : dataSource === 'cache' ? '#ffb300' : '#ff9900',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '12px'
+            }}>
+              <span style={{ 
+                display: 'inline-block',
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: dataSource === 'websocket' ? '#00ff88' : dataSource === 'cache' ? '#ffb300' : '#ff9900',
+                marginRight: '6px'
+              }}></span>
+              {dataSource === 'websocket' ? 'Live Data' : dataSource === 'cache' ? 'Cached Data' : 'Static Data'}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="token-detail-label">Contract:</span>
-              <span className="token-detail-value">{tokenDetails.contractAddress.slice(0, 8)}...{tokenDetails.contractAddress.slice(-6)}</span>
+            
+            <div style={{
+              display: 'inline-block',
+              background: '#222',
+              color: isConnected ? '#00ff88' : '#ff4466',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '12px'
+            }}>
+              <span style={{ 
+                display: 'inline-block',
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: isConnected ? '#00ff88' : '#ff4466',
+                marginRight: '6px'
+              }}></span>
+              {isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
+            </div>
+            
+            {!isConnected && (
               <button
-                onClick={() => copyToClipboard(tokenDetails.contractAddress)}
+                onClick={() => reconnect()}
                 style={{
                   background: '#333',
                   color: '#ffb300',
@@ -1118,232 +1168,138 @@ if (tokenDetails) {
                   fontSize: '12px'
                 }}
               >
-                Copy
+                Reconnect
               </button>
-            </div>
+            )}
           </div>
         </div>
         
-        {/* Connection status indicator */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginTop: '10px'
-        }}>
-          <div style={{
-            display: 'inline-block',
-            background: '#222',
-            color: dataSource === 'websocket' ? '#00ff88' : dataSource === 'cache' ? '#ffb300' : '#ff9900',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            fontSize: '12px'
-          }}>
-            <span style={{ 
-              display: 'inline-block',
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: dataSource === 'websocket' ? '#00ff88' : dataSource === 'cache' ? '#ffb300' : '#ff9900',
-              marginRight: '6px'
-            }}></span>
-            {dataSource === 'websocket' ? 'Live Data' : dataSource === 'cache' ? 'Cached Data' : 'Static Data'}
-          </div>
+        {/* Trade Token Section - Full Width */}
+        <div className="contract-form-container" style={{ width: '100%', maxWidth: '100%' }}>
+          <h2>Trade {tokenDetails.symbol}</h2>
           
-          <div style={{
-            display: 'inline-block',
-            background: '#222',
-            color: isConnected ? '#00ff88' : '#ff4466',
-            padding: '4px 8px',
-            borderRadius: '4px',
-            fontSize: '12px'
-          }}>
-            <span style={{ 
-              display: 'inline-block',
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: isConnected ? '#00ff88' : '#ff4466',
-              marginRight: '6px'
-            }}></span>
-            {isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
-          </div>
-          
-          {!isConnected && (
-            <button
-              onClick={() => reconnect()}
-              style={{
-                background: '#333',
+          {/* Replace ConnectButton with button that opens Reown modal */}
+          <div className="wallet-connection" style={{ marginBottom: '20px' }}>
+            {!isWalletConnected ? (
+              <button 
+                onClick={openConnectModal}
+                style={{
+                  padding: '12px 20px',
+                  backgroundColor: '#ffb300',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontFamily: "'Chewy', cursive",
+                  fontSize: '16px',
+                  fontWeight: 'bold'
+                }}
+              >
+                Connect Wallet
+              </button>
+            ) : (
+              <div style={{
+                padding: '12px 20px',
+                backgroundColor: '#333',
                 color: '#ffb300',
-                border: 'none',
-                borderRadius: '4px',
-                padding: '4px 8px',
-                cursor: 'pointer',
-                fontSize: '12px'
-              }}
-            >
-              Reconnect
-            </button>
-          )}
-        </div>
-      </div>
-      
-      {/* Trade Token Section - Full Width */}
-      <div className="contract-form-container" style={{ width: '100%', maxWidth: '100%' }}>
-        <h2>Trade {tokenDetails.symbol}</h2>
-        
-        <div className="wallet-connection" style={{ marginBottom: '20px' }}>
-          <ConnectButton />
-        </div>
-        
-        {connectionError && (
-          <div className="error-message" style={{ marginBottom: '15px' }}>
-            {connectionError}
-          </div>
-        )}
-        
-        {isWalletConnected ? (
-          <div className="trade-token-form">
-            {tokenBalance !== null && (
-              <div className="token-balance-info" style={{ marginTop: '10px', color: '#ffb300' }}>
-                <p>Your {tokenDetails.symbol} Balance: {formatTokenBalance()}</p>
+                borderRadius: '8px',
+                fontFamily: "'Chewy', cursive",
+                fontSize: '16px'
+              }}>
+                Connected: {address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : ''}
               </div>
             )}
-            
-            <div className="pool-info" style={{ marginTop: '10px', color: '#ffb300' }}>
-              <p>Pool: 1% fee tier</p>
+          </div>
+          
+          {connectionError && (
+            <div className="error-message" style={{ marginBottom: '15px' }}>
+              {connectionError}
             </div>
-            
-            <div className="trade-mode-selector" style={{ 
-              display: 'flex',
-              gap: '10px',
-              marginTop: '20px'
-            }}>
-              <button 
-                className={`mode-button ${tradeMode === 'buy' ? 'active' : ''}`}
-                onClick={() => toggleTradeMode('buy')}
-                style={{
-                  flex: 1,
-                  padding: '10px 15px',
-                  background: tradeMode === 'buy' ? '#ffb300' : '#333',
-                  color: tradeMode === 'buy' ? '#000' : '#ffb300',
-                  border: '1px solid #ffb300',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontFamily: "'Chewy', cursive",
-                  fontSize: '16px'
-                }}
-              >
-                Buy
-              </button>
-              <button 
-                className={`mode-button ${tradeMode === 'sell' ? 'active' : ''}`}
-                onClick={() => toggleTradeMode('sell')}
-                style={{
-                  flex: 1,
-                  padding: '10px 15px',
-                  background: tradeMode === 'sell' ? '#ffb300' : '#333',
-                  color: tradeMode === 'sell' ? '#000' : '#ffb300',
-                  border: '1px solid #ffb300',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontFamily: "'Chewy', cursive",
-                  fontSize: '16px'
-                }}
-              >
-                Sell
-              </button>
-            </div>
-            {tradeMode === 'buy' ? (
-              <div className="input-group" style={{ 
-                position: 'relative', 
-                marginBottom: '15px',
-                marginTop: '15px',
-                maxWidth: '100%'
-              }}>
-                <label htmlFor="ethAmount" style={{ 
-                  display: 'block', 
-                  marginBottom: '8px', 
-                  fontWeight: 'bold',
-                  color: '#ffb300'
-                }}>
-                  ETH Amount:
-                </label>
-                <div style={{ 
-                  position: 'relative',
-                  width: '100%'
-                }}>
-                  <input
-                    id="ethAmount"
-                    type="number"
-                    value={ethAmount}
-                    onChange={(e) => setEthAmount(e.target.value)}
-                    placeholder="0.1"
-                    step="0.01"
-                    min="0"
-                    style={{ 
-                      width: '100%',
-                      padding: '12px 15px 12px 15px',
-                      paddingRight: '55px',
-                      fontSize: '16px',
-                      border: '2px solid #ffb300',
-                      borderRadius: '8px',
-                      backgroundColor: '#1a1a1a',
-                      color: '#ffb300',
-                      boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)',
-                      transition: 'border-color 0.2s ease',
-                      outline: 'none',
-                      boxSizing: 'border-box'
-                    }}
-                    onFocus={(e) => {
-                      e.target.style.borderColor = '#f1c40f';
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.borderColor = '#ffb300';
-                    }}
-                  />
+          )}
+          
+          {isWalletConnected ? (
+            <div className="trade-token-form">
+              {tokenBalance !== null && (
+                <div className="token-balance-info" style={{ marginTop: '10px', color: '#ffb300' }}>
+                  <p>Your {tokenDetails.symbol} Balance: {formatTokenBalance()}</p>
                 </div>
-                <small style={{ 
-                  display: 'block', 
-                  marginTop: '5px', 
-                  color: '#ffb300',
-                  fontSize: '0.85rem'
-                }}>
-                  Enter the amount of ETH you want to spend
-                </small>
+              )}
+              
+              <div className="pool-info" style={{ marginTop: '10px', color: '#ffb300' }}>
+                <p>Pool: 1% fee tier</p>
               </div>
-            ) : (
-              <div className="input-group" style={{ 
-                position: 'relative', 
-                marginBottom: '15px',
-                marginTop: '15px',
-                maxWidth: '100%'
+              
+              <div className="trade-mode-selector" style={{ 
+                display: 'flex',
+                gap: '10px',
+                marginTop: '20px'
+              }}>
+                <button 
+                  className={`mode-button ${tradeMode === 'buy' ? 'active' : ''}`}
+                  onClick={() => toggleTradeMode('buy')}
+                  style={{
+                    flex: 1,
+                    padding: '10px 15px',
+                    background: tradeMode === 'buy' ? '#ffb300' : '#333',
+                    color: tradeMode === 'buy' ? '#000' : '#ffb300',
+                    border: '1px solid #ffb300',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontFamily: "'Chewy', cursive",
+                    fontSize: '16px'
+                  }}
+                >
+                  Buy
+                </button>
+                <button 
+                  className={`mode-button ${tradeMode === 'sell' ? 'active' : ''}`}
+                  onClick={() => toggleTradeMode('sell')}
+                  style={{
+                    flex: 1,
+                    padding: '10px 15px',
+                    background: tradeMode === 'sell' ? '#ffb300' : '#333',
+                    color: tradeMode === 'sell' ? '#000' : '#ffb300',
+                    border: '1px solid #ffb300',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontFamily: "'Chewy', cursive",
+                    fontSize: '16px'
+                  }}
+                >
+                  Sell
+                </button>
+              </div>
+              {tradeMode === 'buy' ? (
+                <div className="input-group" style={{ 
+                  position: 'relative', 
+                  marginBottom: '15px',
+                  marginTop: '15px',
+                  maxWidth: '100%'
                 }}>
-                  <label htmlFor="tokenAmount" style={{ 
+                  <label htmlFor="ethAmount" style={{ 
                     display: 'block', 
                     marginBottom: '8px', 
                     fontWeight: 'bold',
                     color: '#ffb300'
                   }}>
-                    {tokenDetails.symbol} Amount:
+                    ETH Amount:
                   </label>
-                  <div className="token-input-wrapper" style={{ 
+                  <div style={{ 
                     position: 'relative',
                     width: '100%'
                   }}>
                     <input
-                      id="tokenAmount"
+                      id="ethAmount"
                       type="number"
-                      value={tokenAmount}
-                      onChange={(e) => setTokenAmount(e.target.value)}
-                      placeholder="100"
-                      step="1"
+                      value={ethAmount}
+                      onChange={(e) => setEthAmount(e.target.value)}
+                      placeholder="0.1"
+                      step="0.01"
                       min="0"
-                      className="token-amount-input"
                       style={{ 
                         width: '100%',
-                        padding: '12px 15px',
-                        paddingRight: '60px', /* Make room for MAX button */
+                        padding: '12px 15px 12px 15px',
+                        paddingRight: '55px',
                         fontSize: '16px',
                         border: '2px solid #ffb300',
                         borderRadius: '8px',
@@ -1361,27 +1317,6 @@ if (tokenDetails) {
                         e.target.style.borderColor = '#ffb300';
                       }}
                     />
-                    <button 
-                      className="max-button"
-                      onClick={() => tokenBalance && setTokenAmount(ethers.formatUnits(tokenBalance, tokenDecimals))}
-                      style={{
-                        position: 'absolute',
-                        right: '10px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        backgroundColor: '#ffb300',
-                        color: '#000',
-                        border: 'none',
-                        borderRadius: '4px',
-                        padding: '4px 8px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        zIndex: 5
-                      }}
-                    >
-                      MAX
-                    </button>
                   </div>
                   <small style={{ 
                     display: 'block', 
@@ -1389,239 +1324,318 @@ if (tokenDetails) {
                     color: '#ffb300',
                     fontSize: '0.85rem'
                   }}>
-                    Enter the amount of {tokenDetails.symbol} you want to sell
+                    Enter the amount of ETH you want to spend
                   </small>
                 </div>
-              )}
-                          
-            <div className="slippage-selector" style={{
-              marginBottom: '20px'
-            }}>
-              <label htmlFor="slippage" style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: 'bold',
-                color: '#ffb300'
+              ) : (
+                <div className="input-group" style={{ 
+                  position: 'relative', 
+                  marginBottom: '15px',
+                  marginTop: '15px',
+                  maxWidth: '100%'
+                  }}>
+                    <label htmlFor="tokenAmount" style={{ 
+                      display: 'block', 
+                      marginBottom: '8px', 
+                      fontWeight: 'bold',
+                      color: '#ffb300'
+                    }}>
+                      {tokenDetails.symbol} Amount:
+                    </label>
+                    <div className="token-input-wrapper" style={{ 
+                      position: 'relative',
+                      width: '100%'
+                    }}>
+                      <input
+                        id="tokenAmount"
+                        type="number"
+                        value={tokenAmount}
+                        onChange={(e) => setTokenAmount(e.target.value)}
+                        placeholder="100"
+                        step="1"
+                        min="0"
+                        className="token-amount-input"
+                        style={{ 
+                          width: '100%',
+                          padding: '12px 15px',
+                          paddingRight: '60px', /* Make room for MAX button */
+                          fontSize: '16px',
+                          border: '2px solid #ffb300',
+                          borderRadius: '8px',
+                          backgroundColor: '#1a1a1a',
+                          color: '#ffb300',
+                          boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1)',
+                          transition: 'border-color 0.2s ease',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = '#f1c40f';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = '#ffb300';
+                        }}
+                      />
+                      <button 
+                        className="max-button"
+                        onClick={() => tokenBalance && setTokenAmount(ethers.formatUnits(tokenBalance, tokenDecimals))}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          backgroundColor: '#ffb300',
+                          color: '#000',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          zIndex: 5
+                        }}
+                      >
+                        MAX
+                      </button>
+                    </div>
+                    <small style={{ 
+                      display: 'block', 
+                      marginTop: '5px', 
+                      color: '#ffb300',
+                      fontSize: '0.85rem'
+                    }}>
+                      Enter the amount of {tokenDetails.symbol} you want to sell
+                    </small>
+                  </div>
+                )}
+<div className="slippage-selector" style={{
+                marginBottom: '20px'
               }}>
-                Slippage Tolerance:
-              </label>
-              <select
-                id="slippage"
-                value={slippage}
-                onChange={(e) => setSlippage(parseInt(e.target.value))}
+                <label htmlFor="slippage" style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: 'bold',
+                  color: '#ffb300'
+                }}>
+                  Slippage Tolerance:
+                </label>
+                <select
+                  id="slippage"
+                  value={slippage}
+                  onChange={(e) => setSlippage(parseInt(e.target.value))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 15px',
+                    fontSize: '16px',
+                    border: '2px solid #ffb300',
+                    borderRadius: '8px',
+                    backgroundColor: '#1a1a1a',
+                    color: '#ffb300',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="1">1%</option>
+                  <option value="2">2%</option>
+                  <option value="5">5%</option>
+                  <option value="10">10%</option>
+                  <option value="15">15%</option>
+                </select>
+                <small style={{ 
+                  display: 'block', 
+                  marginTop: '5px',
+                  color: '#ffb300',
+                  fontSize: '0.85rem'
+                }}>
+                  Higher slippage may be needed for tokens with low liquidity
+                </small>
+              </div>
+              <button
+                onClick={executeTrade}
+                disabled={isTrading || isApproving || !signer || 
+                         (tradeMode === 'buy' && (!ethAmount || parseFloat(ethAmount) <= 0)) || 
+                         (tradeMode === 'sell' && (!tokenAmount || parseFloat(tokenAmount) <= 0))}
+                className="execute-button"
                 style={{
                   width: '100%',
-                  padding: '10px 15px',
-                  fontSize: '16px',
-                  border: '2px solid #ffb300',
-                  borderRadius: '8px',
-                  backgroundColor: '#1a1a1a',
-                  color: '#ffb300',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="1">1%</option>
-                <option value="2">2%</option>
-                <option value="5">5%</option>
-                <option value="10">10%</option>
-                <option value="15">15%</option>
-              </select>
-              <small style={{ 
-                display: 'block', 
-                marginTop: '5px',
-                color: '#ffb300',
-                fontSize: '0.85rem'
-              }}>
-                Higher slippage may be needed for tokens with low liquidity
-              </small>
-            </div>
-            <button
-              onClick={executeTrade}
-              disabled={isTrading || isApproving || !signer || 
-                       (tradeMode === 'buy' && (!ethAmount || parseFloat(ethAmount) <= 0)) || 
-                       (tradeMode === 'sell' && (!tokenAmount || parseFloat(tokenAmount) <= 0))}
-              className="execute-button"
-              style={{
-                width: '100%',
-                padding: '15px',
-                fontSize: '18px',
-                backgroundColor: '#ffb300',
-                color: '#000',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontFamily: "'Chewy', cursive",
-                marginTop: '20px',
-                marginBottom: '15px'
-              }}
-            >
-              {isApproving ? 'Approving...' : 
-               isTrading ? 'Processing...' :
-               tradeMode === 'buy' ? 
-                 `Buy ${tokenDetails.symbol}` : 
-                 `Sell ${tokenDetails.symbol}`}
-            </button>
-            
-            {tradeError && <div className="error-message">{tradeError}</div>}
-            
-            {transactionHash && (
-  <div className="tx-hash">
-    <p>Transaction hash: {transactionHash.substring(0, 10)}...{transactionHash.substring(58)}</p>
-    <a
-      href={`https://basescan.org/tx/${transactionHash}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={{
-        display: 'inline-block',
-        padding: '8px 12px',
-        backgroundColor: '#ffb300',
-        color: '#000',
-        textDecoration: 'none',
-        borderRadius: '4px',
-        marginTop: '10px',
-        fontFamily: "'Chewy', cursive",
-        fontSize: '14px'
-      }}
-    >
-      View on Basescan
-    </a>
-  </div>
-)}
-            
-            {tradeSuccess && (
-              <div className="success-message">
-                Transaction successful! You've {tradeMode === 'buy' ? 'bought' : 'sold'} {tokenDetails.symbol}.
-              </div>
-            )}
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', marginTop: '20px', marginBottom: '20px' }}>
-            <p style={{ color: '#ffb300', marginBottom: '10px' }}>
-              Connect your wallet to trade {tokenDetails.symbol}
-            </p>
-          </div>
-        )}
-      </div>
-      
-      {/* Shill Modal Popup */}
-      {showShillModal && shillText && (
-        <div className="modal-overlay">
-          <div className="modal-content shill-modal">
-            <h3 style={{ color: '#ffb300', textAlign: 'center' }}>🚀 Nice Buy! Share It With The World!</h3>
-            <div className="shill-text-box" style={{
-              background: '#333',
-              border: '1px solid #ffb300',
-              padding: '15px',
-              borderRadius: '8px',
-              marginBottom: '20px',
-              color: '#ffb300'
-            }}>
-              <p>{shillText}</p>
-            </div>
-            <div className="shill-actions" style={{
-              display: 'flex',
-              gap: '10px',
-              marginBottom: '20px'
-            }}>
-              <button 
-                onClick={copyShillText} 
-                className="copy-button"
-                style={{
-                  flex: '1',
-                  background: '#ffb300',
+                  padding: '15px',
+                  fontSize: '18px',
+                  backgroundColor: '#ffb300',
                   color: '#000',
                   border: 'none',
-                  borderRadius: '6px',
-                  padding: '10px',
+                  borderRadius: '8px',
                   cursor: 'pointer',
-                  fontFamily: "'Chewy', cursive"
+                  fontFamily: "'Chewy', cursive",
+                  marginTop: '20px',
+                  marginBottom: '15px'
                 }}
               >
-                Copy Text
+                {isApproving ? 'Approving...' : 
+                 isTrading ? 'Processing...' :
+                 tradeMode === 'buy' ? 
+                   `Buy ${tokenDetails.symbol}` : 
+                   `Sell ${tokenDetails.symbol}`}
               </button>
+              
+              {tradeError && <div className="error-message">{tradeError}</div>}
+              
+              {transactionHash && (
+                <div className="tx-hash">
+                  <p>Transaction hash: {transactionHash.substring(0, 10)}...{transactionHash.substring(58)}</p>
+                  <a
+                    href={`https://basescan.org/tx/${transactionHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-block',
+                      padding: '8px 12px',
+                      backgroundColor: '#ffb300',
+                      color: '#000',
+                      textDecoration: 'none',
+                      borderRadius: '4px',
+                      marginTop: '10px',
+                      fontFamily: "'Chewy', cursive",
+                      fontSize: '14px'
+                    }}
+                  >
+                    View on Basescan
+                  </a>
+                </div>
+              )}
+              
+              {tradeSuccess && (
+                <div className="success-message">
+                  Transaction successful! You've {tradeMode === 'buy' ? 'bought' : 'sold'} {tokenDetails.symbol}.
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', marginTop: '20px', marginBottom: '20px' }}>
+              <p style={{ color: '#ffb300', marginBottom: '10px' }}>
+                Connect your wallet to trade {tokenDetails.symbol}
+              </p>
+            </div>
+          )}
+        </div>
+        
+        {/* Shill Modal Popup */}
+        {showShillModal && shillText && (
+          <div className="modal-overlay">
+            <div className="modal-content shill-modal">
+              <h3 style={{ color: '#ffb300', textAlign: 'center' }}>🚀 Nice Buy! Share It With The World!</h3>
+              <div className="shill-text-box" style={{
+                background: '#333',
+                border: '1px solid #ffb300',
+                padding: '15px',
+                borderRadius: '8px',
+                marginBottom: '20px',
+                color: '#ffb300'
+              }}>
+                <p>{shillText}</p>
+              </div>
+              <div className="shill-actions" style={{
+                display: 'flex',
+                gap: '10px',
+                marginBottom: '20px'
+              }}>
+                <button 
+                  onClick={copyShillText} 
+                  className="copy-button"
+                  style={{
+                    flex: '1',
+                    background: '#ffb300',
+                    color: '#000',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '10px',
+                    cursor: 'pointer',
+                    fontFamily: "'Chewy', cursive"
+                  }}
+                >
+                  Copy Text
+                </button>
+                <button 
+                  onClick={shareToTwitter} 
+                  className="twitter-button"
+                  style={{
+                    flex: '1',
+                    background: '#1DA1F2',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '10px',
+                    cursor: 'pointer',
+                    fontFamily: "'Chewy', cursive"
+                  }}
+                >
+                  <span role="img" aria-label="Twitter">🐦</span> Post to Twitter
+                </button>
+              </div>
               <button 
-                onClick={shareToTwitter} 
-                className="twitter-button"
+                onClick={() => setShowShillModal(false)} 
+                className="close-modal-button"
                 style={{
-                  flex: '1',
-                  background: '#1DA1F2',
-                  color: 'white',
-                  border: 'none',
+                  width: '100%',
+                  background: '#333',
+                  color: '#ffb300',
+                  border: '1px solid #ffb300',
                   borderRadius: '6px',
                   padding: '10px',
                   cursor: 'pointer',
                   fontFamily: "'Chewy', cursive"
                 }}
               >
-                <span role="img" aria-label="Twitter">🐦</span> Post to Twitter
+                Close
               </button>
             </div>
-            <button 
-              onClick={() => setShowShillModal(false)} 
-              className="close-modal-button"
-              style={{
-                width: '100%',
-                background: '#333',
-                color: '#ffb300',
-                border: '1px solid #ffb300',
-                borderRadius: '6px',
-                padding: '10px',
-                cursor: 'pointer',
-                fontFamily: "'Chewy', cursive"
-              }}
-            >
-              Close
-            </button>
           </div>
+        )}
+        
+        {/* Chart Embed */}
+        <div className="token-chart-container" style={{ width: '100%' }}>
+          <iframe 
+            src={`https://dexscreener.com/base/${poolAddress || contractAddress}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartDefaultOnMobile=1&chartTheme=dark&theme=light&chartStyle=0&chartType=usd&interval=15`}
+            style={{
+              width: '100%',
+              height: '800px',
+              border: 'none',
+              backgroundColor: '#000000'
+            }}
+            title={`${tokenDetails.name} price chart`}
+          />
         </div>
-      )}
-      
-      {/* Chart Embed */}
-      <div className="token-chart-container" style={{ width: '100%' }}>
-        <iframe 
-          src={`https://dexscreener.com/base/${poolAddress || contractAddress}?embed=1&loadChartSettings=0&trades=0&tabs=0&info=0&chartLeftToolbar=0&chartDefaultOnMobile=1&chartTheme=dark&theme=light&chartStyle=0&chartType=usd&interval=15`}
-          style={{
-            width: '100%',
-            height: '800px',
-            border: 'none',
-            backgroundColor: '#000000'
-          }}
-          title={`${tokenDetails.name} price chart`}
-        />
       </div>
+    );
+  }
+
+  // Safety fallback - should never reach here if logic above is correct
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: '#000000',
+      color: '#ffb300',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 999,
+      fontFamily: "'Chewy', cursive"
+    }}>
+      <div style={{ fontSize: '20px', marginBottom: '15px', color: '#ff4466' }}>
+        Something went wrong
+      </div>
+      
+      <button 
+        onClick={() => navigate('/')} 
+        className="back-button"
+      >
+        ← Go to Dashboard
+      </button>
     </div>
   );
-}
-
-// Safety fallback - should never reach here if logic above is correct
-return (
-  <div style={{
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#000000',
-    color: '#ffb300',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-    fontFamily: "'Chewy', cursive"
-  }}>
-    <div style={{ fontSize: '20px', marginBottom: '15px', color: '#ff4466' }}>
-      Something went wrong
-    </div>
-    
-    <button 
-      onClick={() => navigate('/')} 
-      className="back-button"
-    >
-      ← Go to Dashboard
-    </button>
-  </div>
-);
 }
 
 export default TokenDetailPage;

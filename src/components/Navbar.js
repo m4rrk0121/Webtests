@@ -1,12 +1,25 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAccount } from 'wagmi'; // Import useAccount to check connection status
+import { appKitInstance } from '../App'; // Import the appKit instance
 
 function Navbar() {
   const location = useLocation();
+  const { address, isConnected } = useAccount(); // Get connection status
   
   // Function to check if a path is active
   const isActive = (path) => {
     return location.pathname === path;
+  };
+
+  // Function to open the wallet connect modal
+  const openConnectModal = () => {
+    appKitInstance.open();
+  };
+
+  // Function to open the network switch modal
+  const openNetworkModal = () => {
+    appKitInstance.open({ view: 'Networks' });
   };
 
   return (
@@ -46,8 +59,28 @@ function Navbar() {
           Update Token Info
         </Link>
       </div>
+      
+      {/* Add Reown AppKit wallet buttons */}
+      <div className="navbar-wallet">
+        {isConnected ? (
+          <button 
+            onClick={openConnectModal} 
+            className="connect-button connected"
+          >
+            {address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : 'Connected'}
+          </button>
+        ) : (
+          <button 
+            onClick={openConnectModal} 
+            className="connect-button"
+          >
+            Connect Wallet
+          </button>
+        )}
+      </div>
     </nav>
   );
 }
 
 export default Navbar;
+

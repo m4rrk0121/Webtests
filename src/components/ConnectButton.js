@@ -1,29 +1,13 @@
+import React from 'react';
+import { useAccount } from 'wagmi';
+import { appKitInstance } from '../App';
+
 const ConnectButton = () => {
-  const kitResult = useOnchainKit();
-  console.log("Full Onchain Kit result:", kitResult);
+  const { address, isConnected } = useAccount();
   
-  // Destructure with defaults to prevent errors
-  const { 
-    connect = () => console.log("Connect function not available"), 
-    disconnect = () => console.log("Disconnect function not available"), 
-    isConnected = false, 
-    address = "" 
-  } = kitResult || {};
-  
-  const handleClick = async () => {
-    console.log("Button clicked");
-    try {
-      if (isConnected) {
-        console.log("Calling disconnect function");
-        await disconnect();
-      } else {
-        console.log("Calling connect function");
-        await connect();
-      }
-      console.log("Function call completed");
-    } catch (error) {
-      console.error("Error during wallet connection:", error);
-    }
+  const handleClick = () => {
+    // Use Reown AppKit to open wallet connection modal
+    appKitInstance.open();
   };
   
   return (
@@ -49,3 +33,5 @@ const ConnectButton = () => {
     </button>
   );
 };
+
+export default ConnectButton;

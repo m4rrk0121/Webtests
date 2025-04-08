@@ -1,19 +1,8 @@
-import {
-  Address,
-  Avatar,
-  EthBalance,
-  Identity,
-  Name
-} from '@coinbase/onchainkit/identity';
-import {
-  ConnectWallet,
-  Wallet,
-  WalletDropdown,
-  WalletDropdownDisconnect
-} from '@coinbase/onchainkit/wallet';
+import { writeContract } from '@wagmi/core';
 import { ethers } from 'ethers';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAccount, useChainId } from 'wagmi';
+import { appKitInstance, wagmiConfig } from '../App'; // Import wagmiConfig and appKitInstance
 import './modal.css';
 
 // Pre-defined contract information for fee collection
@@ -46,12 +35,8 @@ const FEE_COLLECTOR_ABI = [
 
 function CollectFees() {
   // Use Wagmi hooks for wallet connection
-  const { 
-    address, 
-    isConnected, 
-    connector 
-  } = useAccount();
-  const { chain } = useChainId ();
+  const { address, isConnected } = useAccount();
+  const { chain } = useChainId();
 
   // Transaction state
   const [isExecuting, setIsExecuting] = useState(false);
@@ -74,48 +59,92 @@ function CollectFees() {
   // Error state
   const [error, setError] = useState('');
 
-  // Create ethers provider and signer
-  const [ethersProvider, setEthersProvider] = useState(null);
-  const [signer, setSigner] = useState(null);
-
-  // Setup provider and signer when connection changes
+  // Generate random bananas effect
   useEffect(() => {
-    const setupProvider = async () => {
-      if (isConnected && connector) {
+    const getRandomPosition = () => ({
+      x: Math.random() * 80,
+      y: Math.random() * 80,
+    });
+
+    const numElements = 15;
+    const elements = [];
+    const bananaImage = '/images/banana.png';
+    
+    for (let i = 0; i < numElements; i++) {
+      const position = getRandomPosition();
+      const willZoom = Math.random() > 0.5;
+      
+      elements.push({
+        id: i,
+        image: bananaImage,
+        x: position.x,
+        y: position.y,
+        size: 30 + Math.random() * 50,
+        animation: 2 + Math.random() * 5,
+        delay: Math.random() * 5,
+        zoom: willZoom
+      });
+    }
+    
+    setRandomElements(elements);
+  }, []);
+
+  // Reposition bananas periodically
+  useEffect(() => {
+    const getRandomPosition = () => ({
+      x: Math.random() * 80,
+      y: Math.random() * 80,
+    });
+
+    const intervalId = setInterval(() => {
+      setRandomElements(prevElements => {
+        const newElements = [...prevElements];
+        const numToMove = Math.floor(Math.random() * 3) + 1;
+        
+        for (let i = 0; i < numToMove; i++) {
+          const randomIndex = Math.floor(Math.random() * newElements.length);
+          const newPosition = getRandomPosition();
+          
+          newElements[randomIndex] = {
+            ...newElements[randomIndex],
+            x: newPosition.x,
+            y: newPosition.y,
+            size: 30 + Math.random() * 50,
+            animation: 2 + Math.random() * 5,
+            delay: Math.random() * 5,
+            zoom: Math.random() < 0.1 ? !newElements[randomIndex].zoom : newElements[randomIndex].zoom
+          };
+        }
+        
+        return newElements;
+      });
+    }, 4000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Fetch gas price
+  useEffect(() => {
+    const fetchGasPrice = async () => {
+      if (isConnected) {
         try {
-          // Get the provider from the connector
-          const provider = await connector.getProvider();
+          // Use ethers.js provider to get gas price
+          const provider = new ethers.JsonRpcProvider(
+            chain?.id === 8453 ? 'https://mainnet.base.org' : undefined
+          );
           
-          // Create ethers provider
-          const newEthersProvider = new ethers.BrowserProvider(provider);
-          setEthersProvider(newEthersProvider);
-          
-          // Create signer
-          const newSigner = await newEthersProvider.getSigner();
-          setSigner(newSigner);
-          
-          // Get gas price
-          try {
-            const feeData = await newEthersProvider.getFeeData();
-            if (feeData && feeData.gasPrice) {
-              setGasPrice(ethers.formatUnits(feeData.gasPrice, 'gwei'));
-            }
-          } catch (error) {
-            console.error('Error getting gas price:', error);
+          const feeData = await provider.getFeeData();
+          if (feeData && feeData.gasPrice) {
+            setGasPrice(ethers.formatUnits(feeData.gasPrice, 'gwei'));
           }
         } catch (error) {
-          console.error('Error setting up provider/signer:', error);
-          setError('Failed to initialize wallet connection');
+          console.error('Error getting gas price:', error);
         }
-      } else {
-        // Clear provider and signer if wallet disconnected
-        setEthersProvider(null);
-        setSigner(null);
       }
     };
     
-    setupProvider();
-  }, [isConnected, connector]);
+    fetchGasPrice();
+  }, [isConnected, chain]);
 
   // Generate shill text for fee collection
   function generateFeeCollectionShillText() {
@@ -188,9 +217,9 @@ function CollectFees() {
     }
   };
 
-  // Execute collectAllFees function
+  // Execute collectAllFees function using Wagmi's writeContract
   const collectAllFees = async () => {
-    if (!isConnected || !signer) {
+    if (!isConnected) {
       setError('Please connect your wallet first');
       return;
     }
@@ -201,21 +230,25 @@ function CollectFees() {
       setTxResult(null);
       setShowShillText(false);
       
-      const contract = new ethers.Contract(
-        FEE_COLLECTOR_ADDRESS,
-        FEE_COLLECTOR_ABI,
-        signer
+      // Using wagmi's writeContract function
+      const { hash } = await writeContract(wagmiConfig, {
+        address: FEE_COLLECTOR_ADDRESS,
+        abi: FEE_COLLECTOR_ABI,
+        functionName: 'collectAllFees',
+      });
+      
+      setTxHash(hash);
+      
+      // Create a provider to get transaction details
+      const provider = new ethers.JsonRpcProvider(
+        chain?.id === 8453 ? 'https://mainnet.base.org' : undefined
       );
       
-      // Call the collectAllFees function with default gas price
-      const tx = await contract.collectAllFees();
-      setTxHash(tx.hash);
-      
       // Wait for transaction to be mined
-      try {
-        const receipt = await tx.wait();
-        
-        // Set transaction result
+      const receipt = await provider.waitForTransaction(hash);
+      
+      if (receipt && receipt.status === 1) {
+        // Transaction successful
         setTxResult({
           success: true,
           hash: receipt.hash,
@@ -237,39 +270,14 @@ function CollectFees() {
         } catch (e) {
           console.log("Error playing sound:", e);
         }
-      } catch (waitError) {
-        console.error('Error waiting for transaction:', waitError);
-        
-        // Try to get receipt manually
-        try {
-          const receipt = await ethersProvider.getTransactionReceipt(tx.hash);
-          if (receipt) {
-            setTxResult({
-              success: receipt.status === 1,
-              hash: receipt.hash,
-              blockNumber: receipt.blockNumber,
-              gasUsed: receipt.gasUsed.toString(),
-              explorerUrl: getExplorerUrl(receipt.hash)
-            });
-
-            // Generate shill text if transaction was successful
-            if (receipt.status === 1) {
-              const generatedShillText = generateFeeCollectionShillText();
-              setShillText(generatedShillText);
-              setShowShillText(true);
-            }
-          } else {
-            throw new Error('Transaction may be pending');
-          }
-        } catch (receiptError) {
-          console.error('Error getting receipt:', receiptError);
-          setTxResult({
-            success: false,
-            hash: tx.hash,
-            status: 'Unknown',
-            explorerUrl: getExplorerUrl(tx.hash)
-          });
-        }
+      } else {
+        // Transaction failed
+        setTxResult({
+          success: false,
+          hash: hash,
+          status: 'Failed',
+          explorerUrl: getExplorerUrl(hash)
+        });
       }
       
       setIsExecuting(false);
@@ -295,113 +303,10 @@ function CollectFees() {
     }
   };
 
-  // Generate random bananas effect
-  useEffect(() => {
-    const getRandomPosition = () => ({
-      x: Math.random() * 80,
-      y: Math.random() * 80,
-    });
-
-    const numElements = 15;
-    const elements = [];
-    const bananaImage = '/images/banana.png';
-    
-    for (let i = 0; i < numElements; i++) {
-      const position = getRandomPosition();
-      const willZoom = Math.random() > 0.5;
-      
-      elements.push({
-        id: i,
-        image: bananaImage,
-        x: position.x,
-        y: position.y,
-        size: 30 + Math.random() * 50,
-        animation: 2 + Math.random() * 5,
-        delay: Math.random() * 5,
-        zoom: willZoom
-      });
-    }
-    
-    setRandomElements(elements);
-  }, []);
-
-  // Reposition bananas periodically
-  useEffect(() => {
-    const getRandomPosition = () => ({
-      x: Math.random() * 80,
-      y: Math.random() * 80,
-    });
-
-    const intervalId = setInterval(() => {
-      setRandomElements(prevElements => {
-        const newElements = [...prevElements];
-        const numToMove = Math.floor(Math.random() * 3) + 1;
-        
-        for (let i = 0; i < numToMove; i++) {
-          const randomIndex = Math.floor(Math.random() * newElements.length);
-          const newPosition = getRandomPosition();
-          
-          newElements[randomIndex] = {
-            ...newElements[randomIndex],
-            x: newPosition.x,
-            y: newPosition.y,
-            size: 30 + Math.random() * 50,
-            animation: 2 + Math.random() * 5,
-            delay: Math.random() * 5,
-            zoom: Math.random() < 0.1 ? !newElements[randomIndex].zoom : newElements[randomIndex].zoom
-          };
-        }
-        
-        return newElements;
-      });
-    }, 4000);
-    
-    return () => clearInterval(intervalId);
-  }, []);
-
-  // Check transaction status
-  const checkTransactionStatus = useCallback(async () => {
-    if (!txHash || !ethersProvider) return;
-
-    try {
-      const receipt = await ethersProvider.getTransactionReceipt(txHash);
-      
-      if (receipt) {
-        const isConfirmed = receipt.status === 1;
-        
-        setTxResult(prevResult => ({
-          ...prevResult,
-          status: isConfirmed ? 'Confirmed' : 'Failed',
-          blockNumber: receipt.blockNumber,
-          gasUsed: receipt.gasUsed.toString(),
-          explorerUrl: getExplorerUrl(txHash)
-        }));
-        
-        if (isConfirmed && !showShillText) {
-          const generatedShillText = generateFeeCollectionShillText();
-          setShillText(generatedShillText);
-          setShowShillText(true);
-        }
-      } else {
-        setTxResult(prevResult => ({
-          ...prevResult,
-          status: 'Pending',
-          explorerUrl: getExplorerUrl(txHash)
-        }));
-      }
-    } catch (err) {
-      console.error('Error checking transaction:', err);
-    }
-  }, [txHash, ethersProvider, showShillText]);
-
-  // Effect to check transaction status periodically
-  useEffect(() => {
-    if (txHash && ethersProvider) {
-      checkTransactionStatus();
-      const interval = setInterval(checkTransactionStatus, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [txHash, ethersProvider, checkTransactionStatus]);
+  // Function to open wallet connect modal
+  const openConnectModal = () => {
+    appKitInstance.open();
+  };
 
   return (
     <div className="contract-interaction">
@@ -430,22 +335,19 @@ function CollectFees() {
 
       <h1>Collect Fees</h1>
 
-      <div className="wallet-connection">
-        <Wallet>
-          <ConnectWallet>
-            <Avatar className="h-6 w-6" />
-            <Name />
-          </ConnectWallet>
-          <WalletDropdown>
-            <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
-              <Avatar />
-              <Name />
-              <Address />
-              <EthBalance />
-            </Identity>
-            <WalletDropdownDisconnect />
-          </WalletDropdown>
-        </Wallet>
+      <div className="wallet-status">
+        {isConnected ? (
+          <div className="connected-status">
+            <span className="wallet-address">
+              Connected: {address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : ''}
+            </span>
+          </div>
+        ) : (
+          <div className="not-connected">
+            <span>Wallet not connected</span>
+            {/* Removed redundant connect button - using the nav bar button instead */}
+          </div>
+        )}
       </div>
 
       {error && (
@@ -514,7 +416,7 @@ function CollectFees() {
         </div>
       )}
 
-      {/* Fee Collection Results Modal */}
+      {/* Fee Collection Results Modal - This remains unchanged */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>

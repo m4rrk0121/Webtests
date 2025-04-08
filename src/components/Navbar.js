@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAccount } from 'wagmi'; // Import useAccount to check connection status
-import { appKitInstance } from '../App'; // Import the appKit instance
+import { useAccount } from 'wagmi';
+import { appKitInstance } from '../App';
+import ConnectButton from './ConnectButton'; // Import the new ConnectButton
 
 function Navbar() {
   const location = useLocation();
-  const { address, isConnected } = useAccount(); // Get connection status
+  const { address, isConnected } = useAccount();
   
   // Function to check if a path is active
   const isActive = (path) => {
@@ -17,70 +18,113 @@ function Navbar() {
     appKitInstance.open();
   };
 
-  // Function to open the network switch modal
-  const openNetworkModal = () => {
-    appKitInstance.open({ view: 'Networks' });
-  };
-
   return (
-    <nav className="navbar">
-      <div className="navbar-brand">
-        <h2>KOA</h2>
+    <nav 
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '15px 50px', // Increased horizontal padding
+        backgroundColor: '#000000',
+        borderBottom: '3px solid #ffb300'
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <h2 style={{ 
+          color: '#ffb300', 
+          fontFamily: "'Chewy', cursive", 
+          margin: '0 30px 0 0' 
+        }}>
+          KOA
+        </h2>
       </div>
-      <div className="navbar-menu">
+      
+      <div 
+        style={{ 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          gap: '20px',
+          marginRight: '-50px' // Add additional right margin to the links container
+        }}
+      >
         <Link 
           to="/" 
-          className={`navbar-item ${isActive('/') ? 'active' : ''}`}
+          style={{
+            color: '#ffb300',
+            textDecoration: 'none',
+            fontFamily: "'Chewy', cursive",
+            padding: '10px 15px',
+            borderRadius: '4px',
+            backgroundColor: isActive('/') ? '#ffb300' : 'transparent',
+            color: isActive('/') ? '#000000' : '#ffb300'
+          }}
         >
           Home
         </Link>
         <Link 
           to="/dashboard" 
-          className={`navbar-item ${isActive('/dashboard') ? 'active' : ''}`}
+          style={{
+            color: '#ffb300',
+            textDecoration: 'none',
+            fontFamily: "'Chewy', cursive",
+            padding: '10px 15px',
+            borderRadius: '4px',
+            backgroundColor: isActive('/dashboard') ? '#ffb300' : 'transparent',
+            color: isActive('/dashboard') ? '#000000' : '#ffb300'
+          }}
         >
           Token Dashboard
         </Link>
         <Link 
           to="/deploy-token" 
-          className={`navbar-item ${isActive('/deploy-token') ? 'active' : ''}`}
+          style={{
+            color: '#ffb300',
+            textDecoration: 'none',
+            fontFamily: "'Chewy', cursive",
+            padding: '10px 15px',
+            borderRadius: '4px',
+            backgroundColor: isActive('/deploy-token') ? '#ffb300' : 'transparent',
+            color: isActive('/deploy-token') ? '#000000' : '#ffb300'
+          }}
         >
           Deploy Token
         </Link>
         <Link 
           to="/collect-fees" 
-          className={`navbar-item ${isActive('/collect-fees') ? 'active' : ''}`}
+          style={{
+            color: '#ffb300',
+            textDecoration: 'none',
+            fontFamily: "'Chewy', cursive",
+            padding: '10px 15px',
+            borderRadius: '4px',
+            backgroundColor: isActive('/collect-fees') ? '#ffb300' : 'transparent',
+            color: isActive('/collect-fees') ? '#000000' : '#ffb300'
+          }}
         >
           Collect Fees
         </Link>
         <Link 
           to="/update-token-info" 
-          className={`navbar-item ${isActive('/update-token-info') ? 'active' : ''}`}
+          style={{
+            color: '#ffb300',
+            textDecoration: 'none',
+            fontFamily: "'Chewy', cursive",
+            padding: '10px 15px',
+            borderRadius: '4px',
+            backgroundColor: isActive('/update-token-info') ? '#ffb300' : 'transparent',
+            color: isActive('/update-token-info') ? '#000000' : '#ffb300'
+          }}
         >
           Update Token Info
         </Link>
       </div>
       
-      {/* Add Reown AppKit wallet buttons */}
-      <div className="navbar-wallet">
-        {isConnected ? (
-          <button 
-            onClick={openConnectModal} 
-            className="connect-button connected"
-          >
-            {address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : 'Connected'}
-          </button>
-        ) : (
-          <button 
-            onClick={openConnectModal} 
-            className="connect-button"
-          >
-            Connect Wallet
-          </button>
-        )}
+      <div>
+        <ConnectButton />
       </div>
     </nav>
   );
 }
 
 export default Navbar;
-

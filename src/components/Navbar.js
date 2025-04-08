@@ -1,8 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAccount } from 'wagmi';
-import { appKitInstance } from '../App';
-import ConnectButton from './ConnectButton'; // Import the new ConnectButton
+import ConnectButton from './ConnectButton';
 
 function Navbar() {
   const location = useLocation();
@@ -13,16 +12,12 @@ function Navbar() {
     return location.pathname === path;
   };
 
-  // Function to open the wallet connect modal
-  const openConnectModal = () => {
-    appKitInstance.open();
-  };
-
   return (
     <nav 
       style={{
         display: 'flex',
         justifyContent: 'space-between',
+        top: 0,
         alignItems: 'center',
         padding: '15px 50px', // Increased horizontal padding
         backgroundColor: '#000000',
@@ -43,21 +38,22 @@ function Navbar() {
         style={{ 
           display: 'flex', 
           justifyContent: 'center', 
+          top: 0,
           alignItems: 'center', 
           gap: '20px',
-          marginRight: '-50px' // Add additional right margin to the links container
+          marginRight: '20px' // Add slight right margin to shift links
         }}
       >
         <Link 
-          to="/" 
+          to="/home" 
           style={{
             color: '#ffb300',
             textDecoration: 'none',
             fontFamily: "'Chewy', cursive",
             padding: '10px 15px',
             borderRadius: '4px',
-            backgroundColor: isActive('/') ? '#ffb300' : 'transparent',
-            color: isActive('/') ? '#000000' : '#ffb300'
+            backgroundColor: isActive('/home') ? '#ffb300' : 'transparent',
+            color: isActive('/home') ? '#000000' : '#ffb300'
           }}
         >
           Home

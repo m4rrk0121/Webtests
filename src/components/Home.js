@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWebSocket } from '../context/WebSocketContext';
 import MusicPlayer from './MusicPlayer';
-
+import { appKitInstance } from '../App'; // Import appKitInstance
 
 // Import images directly
 import meditatingMonkey from '../images/7.png';

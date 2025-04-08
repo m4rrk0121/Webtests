@@ -25,7 +25,6 @@ import { WebSocketProvider } from './context/WebSocketContext';
 const queryClient = new QueryClient();
 
 // Your project ID from Reown Cloud or WalletConnect
-// If you don't have a Reown Cloud account yet, you can use a WalletConnect Project ID
 const projectId = 'fbca5173eb7d0c37c86a00cc855ce453';
 
 // Define networks
@@ -74,10 +73,11 @@ function App() {
         <WebSocketProvider>
           <Router>
             <div className="App">
-              <Navbar />
+              <Navbar /> {/* Navbar is now outside of the Routes */}
               <div className="content-container">
                 <Routes>
-                  <Route path="/" element={<Home />} />
+                  <Route path="/home" element={<Home />} />
+                  <Route path="/" element={<Home />} /> {/* This ensures both paths work */}
                   <Route path="/dashboard" element={<TokenDashboard />} />
                   <Route path="/token/:contractAddress" element={<TokenDetailPage />} />
                   <Route path="/collect-fees" element={<CollectFees />} />

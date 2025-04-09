@@ -29,13 +29,13 @@ function Navbar() {
         display: 'flex',
         justifyContent: 'space-between',
         flexDirection: isMobile ? 'column' : 'row',
+        position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
-        position: 'fixed',
         width: '100%',
         alignItems: 'center',
-        padding: isMobile ? '10px 15px' : '15px 50px',
+        padding: isMobile ? '10px 15px' : '15px 30px',
         backgroundColor: '#000000',
         borderBottom: '3px solid #ffb300',
         zIndex: 1001
@@ -50,7 +50,8 @@ function Navbar() {
         <h2 style={{ 
           color: '#ffb300', 
           fontFamily: "'Chewy', cursive", 
-          margin: '0 30px 0 0' 
+          margin: '0 30px 0 0',
+          fontSize: isMobile ? '1.5rem' : '1.8rem'
         }}>
           KOA
         </h2>
@@ -75,9 +76,9 @@ function Navbar() {
             color: '#ffb300',
             textDecoration: 'none',
             fontFamily: "'Chewy', cursive",
-            padding: isMobile ? '5px 8px' : '10px 15px',
+            padding: isMobile ? '5px 8px' : '8px 12px',
             borderRadius: '4px',
-            fontSize: isMobile ? '0.8rem' : '1rem',
+            fontSize: isMobile ? '0.8rem' : '0.9rem',
             backgroundColor: isActive('/home') ? '#ffb300' : 'transparent',
             color: isActive('/home') ? '#000000' : '#ffb300'
           }}
@@ -90,9 +91,9 @@ function Navbar() {
             color: '#ffb300',
             textDecoration: 'none',
             fontFamily: "'Chewy', cursive",
-            padding: isMobile ? '5px 8px' : '10px 15px',
+            padding: isMobile ? '5px 8px' : '8px 12px',
             borderRadius: '4px',
-            fontSize: isMobile ? '0.8rem' : '1rem',
+            fontSize: isMobile ? '0.8rem' : '0.9rem',
             backgroundColor: isActive('/dashboard') ? '#ffb300' : 'transparent',
             color: isActive('/dashboard') ? '#000000' : '#ffb300'
           }}
@@ -105,9 +106,9 @@ function Navbar() {
             color: '#ffb300',
             textDecoration: 'none',
             fontFamily: "'Chewy', cursive",
-            padding: isMobile ? '5px 8px' : '10px 15px',
+            padding: isMobile ? '5px 8px' : '8px 12px',
             borderRadius: '4px',
-            fontSize: isMobile ? '0.8rem' : '1rem',
+            fontSize: isMobile ? '0.8rem' : '0.9rem',
             backgroundColor: isActive('/deploy-token') ? '#ffb300' : 'transparent',
             color: isActive('/deploy-token') ? '#000000' : '#ffb300'
           }}
@@ -120,9 +121,9 @@ function Navbar() {
             color: '#ffb300',
             textDecoration: 'none',
             fontFamily: "'Chewy', cursive",
-            padding: isMobile ? '5px 8px' : '10px 15px',
+            padding: isMobile ? '5px 8px' : '8px 12px',
             borderRadius: '4px',
-            fontSize: isMobile ? '0.8rem' : '1rem',
+            fontSize: isMobile ? '0.8rem' : '0.9rem',
             backgroundColor: isActive('/collect-fees') ? '#ffb300' : 'transparent',
             color: isActive('/collect-fees') ? '#000000' : '#ffb300'
           }}
@@ -135,9 +136,9 @@ function Navbar() {
             color: '#ffb300',
             textDecoration: 'none',
             fontFamily: "'Chewy', cursive",
-            padding: isMobile ? '5px 8px' : '10px 15px',
+            padding: isMobile ? '5px 8px' : '8px 12px',
             borderRadius: '4px',
-            fontSize: isMobile ? '0.8rem' : '1rem',
+            fontSize: isMobile ? '0.8rem' : '0.9rem',
             backgroundColor: isActive('/update-token-info') ? '#ffb300' : 'transparent',
             color: isActive('/update-token-info') ? '#000000' : '#ffb300'
           }}
@@ -150,7 +151,8 @@ function Navbar() {
         display: 'flex',
         justifyContent: isMobile ? 'center' : 'flex-end',
         width: isMobile ? '100%' : 'auto',
-        marginTop: isMobile ? '5px' : '0'
+        marginTop: isMobile ? '5px' : '0',
+        padding: '0 5px'
       }}>
         <ConnectButton />
       </div>

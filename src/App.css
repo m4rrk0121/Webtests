@@ -4450,3 +4450,77 @@ body.on-homepage nav {
     padding-top: 170px !important; /* Further increased for smallest screens */
   }
 }
+/* Add these styles to your CSS file for the Connect button */
+.connect-wallet-button {
+  background: #ffb300;
+  color: #000000;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 30px;
+}
+
+.connect-wallet-button:hover {
+  transform: scale(1.05);
+}
+
+/* Responsive adjustments for the navbar */
+@media screen and (max-width: 992px) {
+  nav {
+    padding: 10px 15px !important;
+  }
+  
+  .connect-wallet-button {
+    font-size: 0.9rem;
+    padding: 6px 12px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  nav {
+    padding: 10px !important;
+    flex-direction: column !important;
+  }
+  
+  nav > div:nth-child(3) {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+  }
+  
+  .connect-wallet-button {
+    font-size: 0.85rem;
+    padding: 5px 10px;
+    max-width: 150px;
+    }
+}
+
+@media screen and (max-width: 576px) {
+  .connect-wallet-button {
+    font-size: 0.8rem;
+    padding: 4px 8px;
+    max-width: 120px;
+  }
+  
+  /* Make the address text shorter on mobile */
+  .connect-wallet-button span {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+  }
+}

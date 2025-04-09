@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWebSocket } from '../context/WebSocketContext';
 import MusicPlayer from './MusicPlayer';
-import { appKitInstance } from '../App'; // Import appKitInstance
 
 // Import images directly
 import meditatingMonkey from '../images/7.png';
@@ -35,9 +34,22 @@ function Home() {
   
   // Add class to body when on homepage
   useEffect(() => {
+    // Add class to body when on homepage, but don't interfere with navbar
     document.body.classList.add('on-homepage');
+    
+    // Make sure content container has appropriate spacing
+    const contentContainer = document.querySelector('.content-container');
+    if (contentContainer) {
+      contentContainer.style.paddingTop = '80px';
+    }
+    
     return () => {
       document.body.classList.remove('on-homepage');
+      
+      // Reset content container padding when leaving homepage
+      if (contentContainer) {
+        contentContainer.style.paddingTop = '';
+      }
     };
   }, []);
 

@@ -4332,3 +4332,121 @@ body.on-homepage {
   }
   
 }
+/* Ensure navbar is always visible and fixed at the top */
+nav {
+  position: fixed !important;
+  width: 100% !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 1001 !important; /* Higher z-index to ensure it's above other content */
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  background-color: #000000 !important;
+  border-bottom: 3px solid #ffb300 !important;
+}
+
+/* Add padding to the content to prevent it from being hidden behind the navbar */
+.content-container {
+  padding-top: 80px !important; /* Adjust based on your navbar height */
+}
+
+/* Fix for homepage specific issues */
+body.on-homepage nav {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Fix for z-index issues with homepage background */
+.homepage::before {
+  z-index: -1 !important; /* Ensure background is below the navbar */
+}
+
+.homepage {
+  z-index: 0 !important;
+  padding-top: 60px !important; /* Add padding to account for fixed navbar */
+}
+/* Responsive navbar styles for different screen sizes */
+@media screen and (max-width: 992px) {
+  nav {
+    padding: 10px 20px !important;
+  }
+  
+  nav > div {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+  
+  /* Center navigation links */
+  nav > div:nth-child(2) {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+  
+  /* Ensure links are visible */
+  nav a {
+    font-size: 0.9rem !important;
+    padding: 8px 12px !important;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  nav {
+    flex-direction: column !important;
+    padding: 10px !important;
+  }
+  
+  nav > div:nth-child(2) {
+    margin-top: 10px !important;
+    margin-bottom: 10px !important;
+    width: 100% !important;
+    justify-content: center !important;
+    gap: 5px !important;
+  }
+  
+  nav a {
+    font-size: 0.8rem !important;
+    padding: 6px 8px !important;
+  }
+  
+  .content-container {
+    padding-top: 120px !important; /* Increased to account for taller navbar on mobile */
+  }
+}
+@media screen and (max-width: 576px) {
+  nav > div:nth-child(2) {
+    flex-wrap: wrap !important;
+    gap: 5px !important;
+  }
+  
+  nav a {
+    font-size: 0.75rem !important;
+    padding: 5px 7px !important;
+  }
+  
+  .content-container {
+    padding-top: 150px !important; /* Increased to account for multi-row navbar on small screens */
+  }
+}
+
+@media screen and (max-width: 380px) {
+  nav a {
+    font-size: 0.7rem !important;
+    padding: 4px 6px !important;
+  }
+  
+  nav > div:nth-child(1) h2 {
+    font-size: 1.2rem !important;
+  }
+  
+  nav > div:nth-child(3) button {
+    font-size: 0.8rem !important;
+    padding: 6px 12px !important;
+  }
+  
+  .content-container {
+    padding-top: 170px !important; /* Further increased for smallest screens */
+  }
+}

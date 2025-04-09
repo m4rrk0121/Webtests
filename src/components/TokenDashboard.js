@@ -33,11 +33,15 @@ const ThemeToggle = () => {
       setIsDarkMode(true);
     }
   }, []);
-
   return (
     <button 
       className="theme-toggle-button" 
       onClick={toggleTheme}
+      style={{
+        position: 'flex',
+        right: '90px', // Position from the left instead of right
+               zIndex: 100
+      }}
     >
       {isDarkMode ? 'Light Mode' : 'Dark Mode'}
     </button>

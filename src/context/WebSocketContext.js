@@ -13,18 +13,22 @@ export const WebSocketProvider = ({ children }) => {
   const listenersRef = useRef({});
 
   useEffect(() => {
-    // Get environment-appropriate WebSocket URL
-    const SOCKET_URL = process.env.NODE_ENV === 'production'
-      ? 'https://websocket-okv9.onrender.com'  // Production URL
-      : 'https://websocket-okv9.onrender.com';               // Development URL - FIXED PORT TO MATCH SERVER
+    // Keep the WebSocket URL consistent
+    const SOCKET_URL = 'https://websocket-okv9.onrender.com';
       
     console.log(`[WebSocketContext] Connecting to WebSocket server at: ${SOCKET_URL}`);
     
-    // Initialize socket connection
+    // Initialize socket connection with improved connection parameters
     socketRef.current = io(SOCKET_URL, {
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      timeout: 20000
+      reconnectionAttempts: 10,      // Increased from 5
+      reconnectionDelay: 2000,       // Increased from 1000
+      timeout: 30000,                // Increased from 20000
+      transports: ['websocket', 'polling'],  // Try WebSocket first, then polling
+      forceNew: true,                // Force a new connection
+      autoConnect: true,             // Auto connect
+      extraHeaders: {                // Add explicit CORS headers
+        "Origin": window.location.origin
+      }
     });
     
     // Connection event handlers
@@ -38,11 +42,22 @@ export const WebSocketProvider = ({ children }) => {
       console.error('[WebSocketContext] Socket connection error:', err);
       setIsConnected(false);
       setConnectionError(err.message || 'Connection error');
+      console.log('[WebSocketContext] WebSocket connection failed, app will use HTTP polling fallback');
     });
     
     socketRef.current.on('disconnect', (reason) => {
       console.log('[WebSocketContext] Disconnected from WebSocket server. Reason:', reason);
       setIsConnected(false);
+      
+      // If the disconnect was unexpected, try to reconnect
+      if (reason === 'io server disconnect' || reason === 'transport close') {
+        console.log('[WebSocketContext] Attempting to reconnect...');
+        socketRef.current.connect();
+      }
+    });
+    
+    socketRef.current.on('error', (error) => {
+      console.error('[WebSocketContext] Socket error:', error);
     });
     
     // Clean up on unmount
@@ -106,7 +121,9 @@ export const WebSocketProvider = ({ children }) => {
     if (socketRef.current) {
       console.log('[WebSocketContext] Forcing reconnection...');
       socketRef.current.disconnect();
-      socketRef.current.connect();
+      setTimeout(() => {
+        socketRef.current.connect();
+      }, 1000); // Short delay before reconnecting
       return true;
     }
     return false;

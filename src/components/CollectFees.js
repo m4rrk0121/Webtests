@@ -1,4 +1,55 @@
+import { writeContract } from '@wagmi/core';
+import { ethers } from 'ethers';
+import React, { useEffect, useState } from 'react';
+import { useAccount, useChainId } from 'wagmi';
+import { appKitInstance, wagmiConfig } from '../App'; // Import wagmiConfig and appKitInstance
+import './modal.css';
 
+// Pre-defined contract information for fee collection
+const FEE_COLLECTOR_ADDRESS = '0xF3A8E91df4EE6f796410D528d56573B5FB4929B6';
+const FEE_COLLECTOR_ABI = [
+  {
+    "inputs": [],
+    "name": "collectAllFees",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "positionsCount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalAmount0",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalAmount1",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+];
+
+function CollectFees() {
+  // Use Wagmi hooks for wallet connection
+  const { address, isConnected } = useAccount();
+  const { chain } = useChainId();
+
+  // Transaction state
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [txHash, setTxHash] = useState('');
+  const [txResult, setTxResult] = useState(null);
+  
+  // Gas state
+  const [gasPrice, setGasPrice] = useState('');
+  
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  
+  // Shill text state
   const [shillText, setShillText] = useState('');
   const [showShillText, setShowShillText] = useState(false);
   
@@ -72,6 +123,29 @@
     return () => clearInterval(intervalId);
   }, []);
 
+  // Fetch gas price
+  useEffect(() => {
+    const fetchGasPrice = async () => {
+      if (isConnected) {
+        try {
+          // Use ethers.js provider to get gas price
+          const provider = new ethers.JsonRpcProvider(
+            chain?.id === 8453 ? 'https://mainnet.base.org' : undefined
+          );
+          
+          const feeData = await provider.getFeeData();
+          if (feeData && feeData.gasPrice) {
+            setGasPrice(ethers.formatUnits(feeData.gasPrice, 'gwei'));
+          }
+        } catch (error) {
+          console.error('Error getting gas price:', error);
+        }
+      }
+    };
+    
+    fetchGasPrice();
+  }, [isConnected, chain]);
+
   // Generate shill text for fee collection
   function generateFeeCollectionShillText() {
     try {
@@ -143,85 +217,96 @@
     }
   };
 
-  // Simple function to handle the collect fees action
-  const collectAllFees = () => {
+  // Execute collectAllFees function using Wagmi's writeContract
+  const collectAllFees = async () => {
     if (!isConnected) {
       setError('Please connect your wallet first');
       return;
     }
 
-    setIsExecuting(true);
-    setError('');
-    setTxResult(null);
-    setShowShillText(false);
-    setModalShownForCurrentTx(false); // Reset for new transaction
-
-    // Use the AppKit method that works across all platforms
-    appKitInstance.sendTransaction({
-      to: FEE_COLLECTOR_ADDRESS,
-      data: '0x79c1bb78', // Function selector for collectAllFees()
-    })
-    .then(response => {
-      // Handle successful transaction
-      const hash = response?.hash || 'unknown';
-      setTxHash(hash);
+    try {
+      setIsExecuting(true);
+      setError('');
+      setTxResult(null);
+      setShowShillText(false);
       
-      // Set success result
-      setTxResult({
-        success: true,
-        hash: hash,
-        blockNumber: 'Pending',
-        gasUsed: 'Pending',
-        status: 'Submitted',
-        explorerUrl: getExplorerUrl(hash)
+      // Using wagmi's writeContract function
+      const { hash } = await writeContract(wagmiConfig, {
+        address: FEE_COLLECTOR_ADDRESS,
+        abi: FEE_COLLECTOR_ABI,
+        functionName: 'collectAllFees',
       });
       
-      // Only automatically show modal if it hasn't been shown for this transaction
-      if (!modalShownForCurrentTx) {
-        setShowModal(true);
-        setModalShownForCurrentTx(true);
+      setTxHash(hash);
+      
+      // Create a provider to get transaction details
+      const provider = new ethers.JsonRpcProvider(
+        chain?.id === 8453 ? 'https://mainnet.base.org' : undefined
+      );
+      
+      // Wait for transaction to be mined
+      const receipt = await provider.waitForTransaction(hash);
+      
+      if (receipt && receipt.status === 1) {
+        // Transaction successful
+        setTxResult({
+          success: true,
+          hash: receipt.hash,
+          blockNumber: receipt.blockNumber,
+          gasUsed: receipt.gasUsed.toString(),
+          explorerUrl: getExplorerUrl(receipt.hash)
+        });
+
+        // Generate shill text for the fee collection
+        const generatedShillText = generateFeeCollectionShillText();
+        setShillText(generatedShillText);
+        setShowShillText(true);
+        
+        // Play a sound effect
+        try {
+          const sound = new Audio('/Tarzan.mp3');
+          sound.volume = 0.7;
+          sound.play();
+        } catch (e) {
+          console.log("Error playing sound:", e);
+        }
+      } else {
+        // Transaction failed
+        setTxResult({
+          success: false,
+          hash: hash,
+          status: 'Failed',
+          explorerUrl: getExplorerUrl(hash)
+        });
       }
       
-      // Generate shill text
-      const generatedShillText = generateFeeCollectionShillText();
-      setShillText(generatedShillText);
-      setShowShillText(true);
-      
-      // Play a sound effect
-      try {
-        const sound = new Audio('/Tarzan.mp3');
-        sound.volume = 0.7;
-        sound.play();
-      } catch (e) {
-        console.log("Error playing sound:", e);
-      }
-    })
-    .catch(error => {
-      console.error('Transaction error:', error);
-      setError(`Transaction failed: ${error.message || 'Unknown error'}`);
-    })
-    .finally(() => {
       setIsExecuting(false);
-    });
+    } catch (err) {
+      console.error('Transaction error:', err);
+      
+      // Try to extract useful error message
+      let errorMessage = err.message || 'Unknown error';
+      
+      // Check for common error patterns
+      if (errorMessage.includes('insufficient funds')) {
+        errorMessage = 'Insufficient funds for transaction. Please check your balance.';
+      } else if (errorMessage.includes('gas required exceeds allowance')) {
+        errorMessage = 'Gas required exceeds your set limit.';
+      } else if (errorMessage.includes('nonce')) {
+        errorMessage = 'Transaction nonce error. Try refreshing the page and reconnecting your wallet.';
+      } else if (errorMessage.includes('user denied') || errorMessage.includes('user rejected')) {
+        errorMessage = 'Transaction was rejected in your wallet.';
+      }
+      
+      setError('Transaction failed: ' + errorMessage);
+      setIsExecuting(false);
+    }
   };
 
   // Function to open wallet connect modal
   const openConnectModal = () => {
     appKitInstance.open();
   };
-
-  // Close modal and prevent it from reappearing
-  const handleCloseModal = () => {
-    setShowModal(false);
-  };
-
-  // Effect to reset relevant state when modal is closed
-  useEffect(() => {
-    if (!showModal) {
-      // Mark that the modal has been shown for the current transaction
-      setModalShownForCurrentTx(true);
-    }
-  }, [showModal]);
 
   return (
     <div className="contract-interaction">
@@ -260,22 +345,7 @@
         ) : (
           <div className="not-connected">
             <span>Wallet not connected</span>
-            <button 
-              onClick={openConnectModal}
-              style={{
-                backgroundColor: '#ffb300',
-                color: '#000',
-                border: 'none',
-                borderRadius: '4px',
-                padding: '5px 15px',
-                marginLeft: '15px',
-                cursor: 'pointer',
-                fontFamily: "'Chewy', cursive",
-                fontSize: '0.9rem'
-              }}
-            >
-              Connect Wallet
-            </button>
+            {/* Removed redundant connect button - using the nav bar button instead */}
           </div>
         )}
       </div>
@@ -295,6 +365,12 @@
             It returns the number of positions processed and the total amounts collected.
           </p>
           
+          {gasPrice && (
+            <div className="gas-info">
+              Current network gas price: {gasPrice} Gwei (using network default)
+            </div>
+          )}
+          
           <button
             onClick={collectAllFees}
             disabled={isExecuting}
@@ -312,17 +388,16 @@
           
           {txResult && txResult.success && (
             <div className="success-message">
-              <h4>Transaction submitted!</h4>
+              <h4>Transaction successful!</h4>
               <div className="tx-details">
                 <p>Transaction hash: {txResult.hash}</p>
-                <p>Status: Transaction submitted</p>
+                <p>Block number: {txResult.blockNumber}</p>
+                <p>Gas used: {txResult.gasUsed}</p>
+                {txResult.status && <p>Status: {txResult.status}</p>}
               </div>
               <button 
-                onClick={() => {
-                  setModalShownForCurrentTx(false);
-                  setShowModal(true);
-                }}
-                className="view-details-button"
+                onClick={() => setShowModal(true)}
+                className="close-modal-button"
                 style={{ backgroundColor: '#ffb300', color: '#000', marginTop: '15px' }}
               >
                 View Fee Collection Details
@@ -331,7 +406,7 @@
           )}
 
           <div className="connection-info">
-            <p>Connected to chain ID: {chainId?.toString() || 'Unknown'}</p>
+            <p>Connected to chain ID: {chain?.id?.toString() || 'Unknown'}</p>
             <p>Connected address: {address}</p>
           </div>
         </div>
@@ -341,9 +416,9 @@
         </div>
       )}
 
-      {/* Fee Collection Results Modal */}
+      {/* Fee Collection Results Modal - This remains unchanged */}
       {showModal && (
-        <div className="modal-overlay" onClick={handleCloseModal}>
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h3>Fee Collection Results</h3>
             
@@ -351,7 +426,7 @@
               <h4>Collected Fees</h4>
               <p>View transaction details on block explorer:</p>
               <a 
-                href={txResult?.explorerUrl || "https://basescan.org"} 
+                href={txResult.explorerUrl} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="explorer-link"
@@ -361,8 +436,10 @@
             </div>
             
             <div className="tx-details">
-              <p>Transaction hash: {txResult?.hash || "Submitted"}</p>
-              <p>Status: Transaction submitted</p>
+              <p>Transaction hash: {txResult.hash}</p>
+              <p>Block number: {txResult.blockNumber}</p>
+              <p>Gas used: {txResult.gasUsed}</p>
+              {txResult.status && <p>Status: <span className={`status-${txResult.status.toLowerCase()}`}>{txResult.status}</span></p>}
             </div>
             
             {/* Shill Section */}
@@ -390,7 +467,7 @@
             )}
             
             <button 
-              onClick={handleCloseModal}
+              onClick={() => setShowModal(false)}
               className="close-modal-button"
             >
               Close

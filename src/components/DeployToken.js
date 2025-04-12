@@ -1627,11 +1627,22 @@ return (
           </div>
 <button 
   onClick={() => {
-    setShowShillText(false);
-    // Force clear all intervals
+    // First, clear all intervals to stop periodic checks
     for (let i = 1; i < 10000; i++) {
       window.clearInterval(i);
     }
+    
+    // Force hide the modal with DOM manipulation
+    const modalOverlay = document.querySelector('.modal-overlay');
+    if (modalOverlay) {
+      modalOverlay.style.display = 'none';
+    }
+    
+    // Set internal state with slight delay
+    setTimeout(() => {
+      setModalWasManuallyClosed(true);
+      setShowShillText(false);
+    }, 100);
   }} 
   className="close-modal-button"
 >

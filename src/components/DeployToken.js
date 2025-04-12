@@ -231,7 +231,7 @@ const LAUNCH_MODES = {
 // Fixed fee tier (1%)
 const FEE_TIER = 10000;
 
-const [modalWasManuallyClosed, setModalWasManuallyClosed] = useState(false);
+
 
 // Fixed tick spacing for 1% fee tier
 const TICK_SPACING = 200;
@@ -335,6 +335,7 @@ function DeployToken() {
   const [tokenSymbol, setTokenSymbol] = useState('');
   const [tokenSupply, setTokenSupply] = useState('100000');
   const [feeClaimerAddress, setFeeClaimerAddress] = useState('');
+  const [modalWasManuallyClosed, setModalWasManuallyClosed] = useState(false);
   
   // Launch mode selection
   const [launchMode, setLaunchMode] = useState('BUILDER');

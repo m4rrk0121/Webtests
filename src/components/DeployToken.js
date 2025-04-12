@@ -231,6 +231,8 @@ const LAUNCH_MODES = {
 // Fixed fee tier (1%)
 const FEE_TIER = 10000;
 
+const [modalWasManuallyClosed, setModalWasManuallyClosed] = useState(false);
+
 // Fixed tick spacing for 1% fee tier
 const TICK_SPACING = 200;
 
@@ -1622,10 +1624,13 @@ return (
               <span role="img" aria-label="Chart">📊</span> Dexscreener
             </button>
           </div>
-          <button 
-            onClick={() => setShowShillText(false)} 
-            className="close-modal-button"
-          >
+<button 
+  onClick={() => {
+    setShowShillText(false);
+    setModalWasManuallyClosed(true);
+  }} 
+  className="close-modal-button"
+>
             Close
           </button>
         </div>

@@ -1628,7 +1628,10 @@ return (
 <button 
   onClick={() => {
     setShowShillText(false);
-    setModalWasManuallyClosed(true);
+    // Force clear all intervals
+    for (let i = 1; i < 10000; i++) {
+      window.clearInterval(i);
+    }
   }} 
   className="close-modal-button"
 >

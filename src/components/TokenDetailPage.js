@@ -239,7 +239,7 @@ function TokenDetailPage() {
     try {
       console.log('[TokenDetailPage] Fetching token data via HTTP');
       const response = await axios.get(
-        `https://website-4g84.onrender.com/api/tokens/${address}`,
+        `https://websocket-okv9.onrender.com/api/tokens/${address}`,
         { timeout: 15000 }
       );
       

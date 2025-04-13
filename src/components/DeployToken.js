@@ -763,6 +763,13 @@ function DeployToken() {
             tickToUse = saltResult.initialTick;
           }
 
+          // Create contract instance for mobile
+          const contract = new ethers.Contract(
+            TOKEN_DEPLOYER_ADDRESS,
+            TOKEN_DEPLOYER_ABI,
+            signer
+          );
+
           // Create a new transaction object for mobile
           const tx = {
             to: TOKEN_DEPLOYER_ADDRESS,

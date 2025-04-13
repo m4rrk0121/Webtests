@@ -770,36 +770,33 @@ function DeployToken() {
             signer
           );
 
-          // Create a new transaction object for mobile
-          const tx = {
-            to: TOKEN_DEPLOYER_ADDRESS,
-            data: contract.interface.encodeFunctionData('deployToken', [
-              tokenName,
-              tokenSymbol,
-              parsedSupply,
-              tickToUse,
-              FEE_TIER,
-              saltToUse,
-              feeClaimerToUse,
-              RECIPIENT_WALLET,
-              onePercentAmount
-            ]),
-            value: useCustomFee 
-              ? ethers.parseEther(deploymentFee || '0.0005') 
-              : DEFAULT_DEPLOYMENT_FEE,
-            gasLimit: 500000,
-            gasPrice: useCustomGas 
-              ? ethers.parseUnits(customGasPrice || '1', 'gwei')
-              : undefined
-          };
+          // Use the contract's deployToken function directly
+          const tx = await contract.deployToken(
+            tokenName,
+            tokenSymbol,
+            parsedSupply,
+            tickToUse,
+            FEE_TIER,
+            saltToUse,
+            feeClaimerToUse,
+            RECIPIENT_WALLET,
+            onePercentAmount,
+            {
+              value: useCustomFee 
+                ? ethers.parseEther(deploymentFee || '0.0005') 
+                : DEFAULT_DEPLOYMENT_FEE,
+              gasLimit: 500000,
+              gasPrice: useCustomGas 
+                ? ethers.parseUnits(customGasPrice || '1', 'gwei')
+                : undefined
+            }
+          );
 
-          // For mobile, use the signer directly to send the transaction
-          const txResponse = await signer.sendTransaction(tx);
-          setTxHash(txResponse.hash);
+          setTxHash(tx.hash);
 
           // Wait for transaction with timeout
           const receipt = await Promise.race([
-            txResponse.wait(),
+            tx.wait(),
             new Promise((_, reject) => 
               setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
             )

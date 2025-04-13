@@ -207,6 +207,11 @@ const DEFAULT_DEPLOYMENT_FEE = ethers.parseEther("0.0005");
 
 // Launch Mode market caps
 const LAUNCH_MODES = {
+  ULTRA_DEGEN: {
+    name: "Ultra Degen",
+    marketCap: 1500,
+    description: "Extreme risk, extreme reward. Launch at $1,500 market cap."
+  },
   DEGEN: {
     name: "Degen",
     marketCap: 4000,
@@ -337,8 +342,8 @@ function DeployToken() {
   const [modalWasManuallyClosed, setModalWasManuallyClosed] = useState(false);
   
   // Launch mode selection
-  const [launchMode, setLaunchMode] = useState('BUILDER');
-  const [targetMarketCap, setTargetMarketCap] = useState(LAUNCH_MODES.BUILDER.marketCap);
+  const [launchMode, setLaunchMode] = useState('ULTRA_DEGEN');
+  const [targetMarketCap, setTargetMarketCap] = useState(LAUNCH_MODES.ULTRA_DEGEN.marketCap);
   
   // Use wagmi hooks for wallet connection
   const { address, isConnected } = useAccount();
@@ -1389,6 +1394,17 @@ function DeployToken() {
           <div className="launch-mode-section">
             <h4>Select Launch Mode</h4>
             <div className="launch-mode-options">
+              <div 
+                className={`launch-mode-option ${launchMode === 'ULTRA_DEGEN' ? 'active' : ''}`}
+                onClick={() => setLaunchMode('ULTRA_DEGEN')}
+              >
+                <div className="launch-mode-header">
+                  <span className="launch-mode-icon">💎</span>
+                  <h5>Ultra Degen</h5>
+                </div>
+                <p className="launch-mode-description">{LAUNCH_MODES.ULTRA_DEGEN.description}</p>
+              </div>
+              
               <div 
                 className={`launch-mode-option ${launchMode === 'DEGEN' ? 'active' : ''}`}
                 onClick={() => setLaunchMode('DEGEN')}

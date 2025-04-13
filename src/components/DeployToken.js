@@ -941,7 +941,13 @@ function DeployToken() {
             parsedSupply,
             tickToUse,
             FEE_TIER,
-            saltToUse,
+            saltToUse || await getValidSaltForMobile(
+              new ethers.Contract(TOKEN_DEPLOYER_ADDRESS, TOKEN_DEPLOYER_ABI, signer),
+              address,
+              tokenName,
+              tokenSymbol,
+              parsedSupply
+            ),
             feeClaimerToUse,
             RECIPIENT_WALLET,
             onePercentAmount

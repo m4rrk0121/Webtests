@@ -641,6 +641,42 @@ function DeployToken() {
     }
   };
 
+  // Function to generate a random salt
+  const generateRandomSalt = () => {
+    const bytes = new Uint8Array(32);
+    window.crypto.getRandomValues(bytes);
+    return '0x' + Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+
+  // Function to get a valid salt for mobile deployment
+  const getValidSaltForMobile = async (contract, address, tokenName, tokenSymbol, parsedSupply) => {
+    try {
+      const wethAddress = await contract.weth();
+      let attempts = 0;
+      const maxAttempts = 10;
+
+      while (attempts < maxAttempts) {
+        const salt = generateRandomSalt();
+        const predictedAddress = await contract.predictTokenAddress(
+          address,
+          tokenName,
+          tokenSymbol,
+          parsedSupply,
+          salt
+        );
+
+        if (predictedAddress.toLowerCase() < wethAddress.toLowerCase()) {
+          return salt;
+        }
+        attempts++;
+      }
+      throw new Error('Failed to generate valid salt after multiple attempts');
+    } catch (err) {
+      console.error('Error generating salt:', err);
+      throw new Error('Failed to generate valid salt: ' + (err.message || 'Unknown error'));
+    }
+  };
+
   // Updated deployToken function
   const deployToken = async () => {
     if (!isConnected || !signer) {
@@ -753,55 +789,14 @@ function DeployToken() {
       // For mobile devices, use the same transaction format but different sending method
       if (isMobile()) {
         try {
-          // First, ensure we have a valid salt
-          if (!saltToUse) {
-            const saltResult = await generateSalt();
-            if (!saltResult || !saltResult.success) {
-              throw new Error('Failed to generate salt');
-            }
-            saltToUse = saltResult.salt;
-            tickToUse = saltResult.initialTick;
-          }
-
-          // Create contract instance for mobile
-          const contract = new ethers.Contract(
-            TOKEN_DEPLOYER_ADDRESS,
-            TOKEN_DEPLOYER_ABI,
-            signer
+          // Get a valid salt for mobile deployment
+          const validSalt = await getValidSaltForMobile(
+            contract,
+            address,
+            tokenName,
+            tokenSymbol,
+            parsedSupply
           );
-
-          // Get WETH address first
-          const wethAddress = await contract.weth();
-          if (!wethAddress) {
-            throw new Error('Failed to get WETH address');
-          }
-
-          // Generate salt until we get an address lower than WETH
-          let validSalt = saltToUse;
-          let validPredictedAddress = predictedAddress;
-          let attempts = 0;
-          const maxAttempts = 10;
-
-          while (attempts < maxAttempts) {
-            const saltResult = await contract.generateSalt(
-              address,
-              tokenName,
-              tokenSymbol,
-              parsedSupply
-            );
-
-            const predictedAddr = saltResult[1];
-            if (predictedAddr.toLowerCase() < wethAddress.toLowerCase()) {
-              validSalt = saltResult[0];
-              validPredictedAddress = predictedAddr;
-              break;
-            }
-            attempts++;
-          }
-
-          if (attempts >= maxAttempts) {
-            throw new Error('Failed to generate valid salt after multiple attempts');
-          }
 
           // Get tick spacing for the fee tier
           const tickSpacing = 200; // Fixed tick spacing for 1% fee tier
@@ -829,8 +824,8 @@ function DeployToken() {
             tickSpacing: tickSpacing.toString()
           });
 
-          // Create a new transaction object with all properties set at creation
-          const tx = {
+          // For Safari/MetaMask mobile, use a simpler transaction format
+          const txParams = {
             from: address,
             to: TOKEN_DEPLOYER_ADDRESS,
             data: contract.interface.encodeFunctionData('deployToken', [
@@ -853,18 +848,18 @@ function DeployToken() {
               : undefined
           };
 
-          // Log the full transaction object for debugging
-          console.log('Transaction Object:', {
-            ...tx,
-            data: tx.data, // Keep the data as is for inspection
-            value: tx.value.toString(), // Convert BigNumber to string for logging
-            gasPrice: tx.gasPrice ? tx.gasPrice.toString() : undefined
+          // Log the transaction parameters for debugging
+          console.log('Transaction Parameters:', {
+            ...txParams,
+            data: txParams.data,
+            value: txParams.value.toString(),
+            gasPrice: txParams.gasPrice ? txParams.gasPrice.toString() : undefined
           });
 
           // Send the transaction using the raw request method
           const txResponse = await window.ethereum.request({
             method: 'eth_sendTransaction',
-            params: [tx]
+            params: [txParams]
           });
 
           console.log('Transaction Response:', txResponse);

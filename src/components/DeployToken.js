@@ -748,11 +748,21 @@ function DeployToken() {
 
       // Handle null values for function parameters
       const feeClaimerToUse = feeClaimerAddress || address;
-      const saltToUse = saltResult ? saltResult.salt : generatedSalt;
+      const saltToUse = generatedSalt;
 
       // For mobile devices, use the same transaction format but different sending method
       if (isMobile()) {
         try {
+          // First, ensure we have a valid salt
+          if (!saltToUse) {
+            const saltResult = await generateSalt();
+            if (!saltResult || !saltResult.success) {
+              throw new Error('Failed to generate salt');
+            }
+            saltToUse = saltResult.salt;
+            tickToUse = saltResult.initialTick;
+          }
+
           // Use the same transaction format as desktop
           const { request } = await publicClient.simulateContract({
             address: TOKEN_DEPLOYER_ADDRESS,

@@ -804,7 +804,7 @@ function DeployToken() {
           }
 
           // Get tick spacing for the fee tier
-          const tickSpacing = await contract.uniswapV3Factory.feeAmountTickSpacing(FEE_TIER);
+          const tickSpacing = 200; // Fixed tick spacing for 1% fee tier
           if (!tickSpacing) {
             throw new Error('Failed to get tick spacing');
           }

@@ -322,11 +322,6 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
   }
 }
 
-// Add mobile detection helper
-const isMobile = () => {
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-};
-
 function DeployToken() {
   // State variables for token deployment
   const [tokenName, setTokenName] = useState('');
@@ -809,43 +804,8 @@ function DeployToken() {
       
       // Handle null values for function parameters
       const feeClaimerToUse = feeClaimerAddress || address;
-
-      // Mobile-specific handling
-      if (isMobile()) {
-        try {
-          // For mobile, we need to ensure the transaction is properly formatted
-          const txData = contract.interface.encodeFunctionData('deployToken', [
-            tokenName,
-            tokenSymbol,
-            parsedSupply,
-            tickToUse,
-            FEE_TIER,
-            saltToUse,
-            feeClaimerToUse,
-            RECIPIENT_WALLET,
-            onePercentAmount
-          ]);
-
-          // Create a transaction object that's mobile-friendly
-          const tx = {
-            to: TOKEN_DEPLOYER_ADDRESS,
-            data: txData,
-            value: options.value,
-            gasLimit: options.gasLimit,
-            gasPrice: options.gasPrice,
-          };
-
-          // Send the transaction using the signer
-          const response = await signer.sendTransaction(tx);
-          setTxHash(response.hash);
-          return response;
-        } catch (mobileError) {
-          console.error('Mobile transaction error:', mobileError);
-          throw new Error('Mobile transaction failed: ' + (mobileError.message || 'Unknown error'));
-        }
-      }
       
-      // Call the deployToken function for desktop
+      // Call the deployToken function
       let tx;
       try {
         tx = await contract.deployToken(

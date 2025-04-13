@@ -763,12 +763,10 @@ function DeployToken() {
             tickToUse = saltResult.initialTick;
           }
 
-          // Use the same transaction format as desktop
-          const { request } = await publicClient.simulateContract({
-            address: TOKEN_DEPLOYER_ADDRESS,
-            abi: TOKEN_DEPLOYER_ABI,
-            functionName: 'deployToken',
-            args: [
+          // Create a new transaction object for mobile
+          const tx = {
+            to: TOKEN_DEPLOYER_ADDRESS,
+            data: contract.interface.encodeFunctionData('deployToken', [
               tokenName,
               tokenSymbol,
               parsedSupply,
@@ -778,14 +776,18 @@ function DeployToken() {
               feeClaimerToUse,
               RECIPIENT_WALLET,
               onePercentAmount
-            ],
+            ]),
             value: useCustomFee 
               ? ethers.parseEther(deploymentFee || '0.0005') 
-              : DEFAULT_DEPLOYMENT_FEE
-          });
+              : DEFAULT_DEPLOYMENT_FEE,
+            gasLimit: 500000,
+            gasPrice: useCustomGas 
+              ? ethers.parseUnits(customGasPrice || '1', 'gwei')
+              : undefined
+          };
 
           // For mobile, use the signer directly to send the transaction
-          const txResponse = await signer.sendTransaction(request);
+          const txResponse = await signer.sendTransaction(tx);
           setTxHash(txResponse.hash);
 
           // Wait for transaction with timeout

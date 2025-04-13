@@ -758,66 +758,65 @@ function DeployToken() {
           signer
         );
 
-        // Encode the transaction data separately
-        const txData = contract.interface.encodeFunctionData('deployToken', [
-          tokenName,
-          tokenSymbol,
-          parsedSupply,
-          tickToUse,
-          FEE_TIER,
-          saltToUse,
-          feeClaimerToUse,
-          RECIPIENT_WALLET,
-          onePercentAmount
-        ]);
-
-        // Create a mobile-friendly transaction object
-        const tx = {
-          to: TOKEN_DEPLOYER_ADDRESS,
-          data: txData,
-          value: useCustomFee 
-            ? ethers.parseEther(deploymentFee || '0.0005') 
-            : DEFAULT_DEPLOYMENT_FEE,
-          gasLimit: 500000, // Set a reasonable gas limit
-          gasPrice: useCustomGas 
-            ? ethers.parseUnits(customGasPrice || '1', 'gwei')
-            : undefined // Let the wallet estimate gas price
-        };
-
-        // Send the transaction using the signer directly
-        const txResponse = await signer.sendTransaction(tx);
-        setTxHash(txResponse.hash);
-
-        // Wait for transaction with timeout
-        const receipt = await Promise.race([
-          txResponse.wait(),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
-          )
-        ]);
-
-        if (receipt.status === 1) {
-          // Transaction successful
-          setTxResult({
-            success: true,
-            hash: receipt.hash,
-            blockNumber: receipt.blockNumber,
-            gasUsed: receipt.gasUsed.toString(),
-            explorerUrl: `https://basescan.org/tx/${receipt.hash}`
-          });
-          
-          // Generate and show shill text
-          const generatedShillText = generateShillText(
-            tokenName, 
-            tokenSymbol, 
-            receipt.hash, 
-            marketCapStats ? marketCapStats.actualMarketCap : targetMarketCap, 
-            LAUNCH_MODES[launchMode].name
+        try {
+          // Use the contract's deployToken function directly
+          const tx = await contract.deployToken(
+            tokenName,
+            tokenSymbol,
+            parsedSupply,
+            tickToUse,
+            FEE_TIER,
+            saltToUse,
+            feeClaimerToUse,
+            RECIPIENT_WALLET,
+            onePercentAmount,
+            {
+              value: useCustomFee 
+                ? ethers.parseEther(deploymentFee || '0.0005') 
+                : DEFAULT_DEPLOYMENT_FEE,
+              gasLimit: 500000,
+              gasPrice: useCustomGas 
+                ? ethers.parseUnits(customGasPrice || '1', 'gwei')
+                : undefined
+            }
           );
-          setShillText(generatedShillText);
-          setShowShillText(true);
-        } else {
-          throw new Error('Transaction failed on-chain');
+
+          setTxHash(tx.hash);
+
+          // Wait for transaction with timeout
+          const receipt = await Promise.race([
+            tx.wait(),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
+            )
+          ]);
+
+          if (receipt.status === 1) {
+            // Transaction successful
+            setTxResult({
+              success: true,
+              hash: receipt.hash,
+              blockNumber: receipt.blockNumber,
+              gasUsed: receipt.gasUsed.toString(),
+              explorerUrl: `https://basescan.org/tx/${receipt.hash}`
+            });
+            
+            // Generate and show shill text
+            const generatedShillText = generateShillText(
+              tokenName, 
+              tokenSymbol, 
+              receipt.hash, 
+              marketCapStats ? marketCapStats.actualMarketCap : targetMarketCap, 
+              LAUNCH_MODES[launchMode].name
+            );
+            setShillText(generatedShillText);
+            setShowShillText(true);
+          } else {
+            throw new Error('Transaction failed on-chain');
+          }
+        } catch (err) {
+          console.error('Mobile transaction error:', err);
+          throw new Error('Failed to send transaction: ' + (err.message || 'Unknown error'));
         }
       } else {
         // For desktop, use the existing writeContract approach

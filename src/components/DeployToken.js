@@ -1,7 +1,8 @@
 import { ethers } from 'ethers';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAccount, useChainId, useWalletClient } from 'wagmi';
-import { appKitInstance } from '../App'; // Import appKitInstance
+import { writeContract, getPublicClient } from '@wagmi/core';
+import { appKitInstance, wagmiConfig } from '../App'; // Import appKitInstance and wagmiConfig
 import './modal.css';
 
 /* global BigInt */
@@ -529,24 +530,6 @@ function DeployToken() {
     }
   }, []);
   
-  // Define the checkReceiptManually function outside of the deployToken function
-  // This fixes the ESLint warning by avoiding function declaration in a loop
-  const checkReceiptManually = async (txHash, attempt) => {
-    if (!provider) return null;
-    
-    try {
-      const receiptResult = await provider.getTransactionReceipt(txHash);
-      if (receiptResult) {
-        console.log(`Retrieved receipt manually after wait failure (attempt ${attempt})`);
-        return receiptResult;
-      }
-      return null;
-    } catch (manualError) {
-      console.warn('Failed to retrieve receipt manually:', manualError);
-      return null;
-    }
-  };
-  
   // Modified generateSalt function
   const generateSalt = async () => {
     if (!isConnected || !signer || !tokenName || !tokenSymbol || !tokenSupply) {
@@ -734,19 +717,12 @@ function DeployToken() {
       setTxResult(null);
       setShowShillText(false);
       
-      // Get the contract instance
-      let contract;
-      try {
-        contract = new ethers.Contract(
-          TOKEN_DEPLOYER_ADDRESS,
-          TOKEN_DEPLOYER_ABI,
-          signer
-        );
-      } catch (contractError) {
-        console.error('Error creating contract instance:', contractError);
-        throw new Error('Failed to create contract instance: ' + contractError.message);
+      // Get the public client
+      const publicClient = getPublicClient(wagmiConfig);
+      if (!publicClient) {
+        throw new Error('Failed to get public client');
       }
-      
+
       // Calculate token supply
       let parsedSupply;
       try {
@@ -759,56 +735,22 @@ function DeployToken() {
       // Safely calculate 1% amount
       let onePercentAmount;
       try {
-        // Direct BigInt division for ethers v6
         onePercentAmount = parsedSupply * BigInt(1) / BigInt(100);
       } catch (calcError) {
         console.error('Error calculating percentage with BigInt:', calcError);
-        
-        // Last resort fallback - arithmetic operation
         onePercentAmount = parsedSupply / 100n;
       }
-      
-      // Prepare transaction options
-      let options = {};
-      
-      // Handle value (deployment fee)
-      try {
-        options.value = useCustomFee 
-          ? ethers.parseEther(deploymentFee || '0.0005') 
-          : DEFAULT_DEPLOYMENT_FEE;
-      } catch (valueError) {
-        console.error('Error setting transaction value:', valueError);
-        throw new Error('Failed to set transaction value: ' + valueError.message);
-      }
-      
-      // Handle gas price if custom is selected
-      if (useCustomGas && customGasPrice) {
-        try {
-          options.gasPrice = ethers.parseUnits(customGasPrice, 'gwei');
-        } catch (gasPriceError) {
-          console.error('Error setting gas price:', gasPriceError);
-          // Continue without setting gas price
-        }
-      }
-      
-      // Set high gas limit for deployment
-      try {
-        options.gasLimit = 8000000;
-      } catch (gasLimitError) {
-        console.error('Error setting gas limit:', gasLimitError);
-        // Continue without explicit gas limit, let the provider estimate
-      }
-      
-      // Use either the stored salt or the newly generated one
-      const saltToUse = saltResult ? saltResult.salt : generatedSalt;
-      
+
       // Handle null values for function parameters
       const feeClaimerToUse = feeClaimerAddress || address;
-      
-      // Call the deployToken function
-      let tx;
-      try {
-        tx = await contract.deployToken(
+      const saltToUse = saltResult ? saltResult.salt : generatedSalt;
+
+      // Prepare the transaction
+      const { request } = await publicClient.simulateContract({
+        address: TOKEN_DEPLOYER_ADDRESS,
+        abi: TOKEN_DEPLOYER_ABI,
+        functionName: 'deployToken',
+        args: [
           tokenName,
           tokenSymbol,
           parsedSupply,
@@ -817,100 +759,61 @@ function DeployToken() {
           saltToUse,
           feeClaimerToUse,
           RECIPIENT_WALLET,
-          onePercentAmount,
-          options
+          onePercentAmount
+        ],
+        value: useCustomFee 
+          ? ethers.parseEther(deploymentFee || '0.0005') 
+          : DEFAULT_DEPLOYMENT_FEE
+      });
+
+      // Send the transaction
+      const hash = await writeContract(wagmiConfig, request);
+      
+      if (!hash) {
+        throw new Error('Transaction hash not received');
+      }
+      
+      setTxHash(hash);
+      
+      // Wait for transaction with timeout
+      const receipt = await Promise.race([
+        publicClient.waitForTransactionReceipt({ hash }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
+        )
+      ]);
+      
+      if (!receipt) {
+        throw new Error('Transaction receipt not received');
+      }
+
+      if (receipt.status === 'success' || receipt.status === 1) {
+        // Transaction successful
+        setTxResult({
+          success: true,
+          hash: receipt.transactionHash || receipt.hash,
+          blockNumber: receipt.blockNumber,
+          gasUsed: receipt.gasUsed?.toString() || '0',
+          explorerUrl: `https://basescan.org/tx/${receipt.transactionHash || receipt.hash}`
+        });
+        
+        // Generate and show shill text
+        const generatedShillText = generateShillText(
+          tokenName, 
+          tokenSymbol, 
+          hash, 
+          marketCapStats ? marketCapStats.actualMarketCap : targetMarketCap, 
+          LAUNCH_MODES[launchMode].name
         );
-      } catch (txError) {
-        console.error('Transaction failed:', txError);
-        
-        // Try to extract useful error message
-        let errorMessage = txError.message || 'Unknown error';
-        
-        // Some providers include the error in a data property
-        if (txError.data) {
-          errorMessage += ' - ' + (txError.data.message || txError.data);
-        }
-        
-        // Check for common error patterns
-        if (errorMessage.includes('insufficient funds')) {
-          errorMessage = 'Insufficient funds for transaction. Please check your balance.';
-        } else if (errorMessage.includes('gas required exceeds allowance')) {
-          errorMessage = 'Gas required exceeds your set limit. Try increasing the gas limit or gas price.';
-        } else if (errorMessage.includes('nonce')) {
-          errorMessage = 'Transaction nonce error. Try refreshing the page and reconnecting your wallet.';
-        } else if (errorMessage.includes('user denied') || errorMessage.includes('user rejected')) {
-          errorMessage = 'Transaction was rejected in your wallet.';
-        }
-        
-        throw new Error('Transaction failed: ' + errorMessage);
-      }
-
-      // Set transaction hash for tracking
-      if (tx && tx.hash) {
-        setTxHash(tx.hash);
-        console.log('Transaction hash set:', tx.hash);
+        setShillText(generatedShillText);
+        setShowShillText(true);
       } else {
-        console.warn('Transaction sent but no hash returned');
+        throw new Error('Transaction failed on-chain');
       }
-
-      // Define the getReceipt function
-      const getReceipt = async () => {
-        try {
-          console.log('Waiting for transaction receipt...');
-          return await Promise.race([
-            tx.wait(),
-            new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Transaction confirmation timeout')), 60000)
-            )
-          ]);
-        } catch (waitError) {
-          console.warn('Wait error during transaction confirmation:', waitError);
-          return null;
-        }
-      };
-
-      // Wait for transaction to be mined with timeout and retry logic
-      let receipt = null;
-      let retryCount = 0;
-      const maxRetries = 5;
-
-      while (!receipt && retryCount < maxRetries) {
-        console.log(`Attempt ${retryCount + 1} to get receipt...`);
-        receipt = await getReceipt();
-        
-        if (!receipt) {
-          retryCount++;
-          console.log(`Receipt not found, retry ${retryCount}/${maxRetries}`);
-          
-          if (retryCount >= maxRetries) {
-            console.error('Max retries reached waiting for transaction confirmation');
-            break;
-          }
-          
-          const backoffDelay = 2000 * Math.pow(2, retryCount);
-          console.log(`Waiting ${backoffDelay}ms before next retry...`);
-          await new Promise(resolve => setTimeout(resolve, backoffDelay));
-          
-          const manualReceipt = await checkReceiptManually(tx.hash, retryCount);
-          if (manualReceipt) {
-            console.log('Manual receipt retrieval successful');
-            receipt = manualReceipt;
-            break;
-          }
-        }
-      }
-
-      if (receipt) {
-        console.log('Transaction receipt received:', receipt);
-        // Process receipt and update state...
-      } else {
-        console.warn('No receipt received after all retries');
-      }
-
-      setIsExecuting(false);
     } catch (err) {
-      console.error('Deployment error:', err);
-      setError('Deployment failed: ' + (err.message || 'Unknown error'));
+      console.error('Token deployment error:', err);
+      setError('Failed to deploy token: ' + (err.message || 'Unknown error'));
+    } finally {
       setIsExecuting(false);
     }
   };
@@ -990,7 +893,7 @@ function DeployToken() {
 
   // Enhanced transaction status checking for ethers v6 compatibility
   const checkTransactionStatus = useCallback(async () => {
-    if (!txHash || !provider) {
+    if (!txHash && provider) {
       return false;
     }
 
@@ -1513,7 +1416,7 @@ function DeployToken() {
                   <>
                     <p>Token address: {txResult.tokenAddress}</p>
                     <a 
-                      href={`https://basescan.org/address/${txResult.tokenAddress}`} 
+                      href={txResult.explorerUrl} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="explorer-link"

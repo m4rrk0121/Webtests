@@ -770,33 +770,74 @@ function DeployToken() {
             signer
           );
 
-          // Use the contract's deployToken function directly
-          const tx = await contract.deployToken(
-            tokenName,
-            tokenSymbol,
-            parsedSupply,
-            tickToUse,
-            FEE_TIER,
-            saltToUse,
-            feeClaimerToUse,
-            RECIPIENT_WALLET,
-            onePercentAmount,
-            {
-              value: useCustomFee 
-                ? ethers.parseEther(deploymentFee || '0.0005') 
-                : DEFAULT_DEPLOYMENT_FEE,
-              gasLimit: 500000,
-              gasPrice: useCustomGas 
-                ? ethers.parseUnits(customGasPrice || '1', 'gwei')
-                : undefined
-            }
-          );
+          // Get WETH address first
+          const wethAddress = await contract.weth();
+          if (!wethAddress) {
+            throw new Error('Failed to get WETH address');
+          }
 
-          setTxHash(tx.hash);
+          // Generate salt until we get an address lower than WETH
+          let validSalt = saltToUse;
+          let validPredictedAddress = predictedAddress;
+          let attempts = 0;
+          const maxAttempts = 10;
+
+          while (attempts < maxAttempts) {
+            const saltResult = await contract.generateSalt(
+              address,
+              tokenName,
+              tokenSymbol,
+              parsedSupply
+            );
+
+            const predictedAddr = saltResult[1];
+            if (predictedAddr.toLowerCase() < wethAddress.toLowerCase()) {
+              validSalt = saltResult[0];
+              validPredictedAddress = predictedAddr;
+              break;
+            }
+            attempts++;
+          }
+
+          if (attempts >= maxAttempts) {
+            throw new Error('Failed to generate valid salt after multiple attempts');
+          }
+
+          // Create a new transaction object with all properties set at creation
+          const tx = {
+            from: address,
+            to: TOKEN_DEPLOYER_ADDRESS,
+            data: contract.interface.encodeFunctionData('deployToken', [
+              tokenName,
+              tokenSymbol,
+              parsedSupply,
+              tickToUse,
+              FEE_TIER,
+              validSalt,
+              feeClaimerToUse,
+              RECIPIENT_WALLET,
+              onePercentAmount
+            ]),
+            value: useCustomFee 
+              ? ethers.parseEther(deploymentFee || '0.0005') 
+              : DEFAULT_DEPLOYMENT_FEE,
+            gasLimit: 500000,
+            gasPrice: useCustomGas 
+              ? ethers.parseUnits(customGasPrice || '1', 'gwei')
+              : undefined
+          };
+
+          // Send the transaction using the raw request method
+          const txResponse = await window.ethereum.request({
+            method: 'eth_sendTransaction',
+            params: [tx]
+          });
+
+          setTxHash(txResponse);
 
           // Wait for transaction with timeout
           const receipt = await Promise.race([
-            tx.wait(),
+            provider.waitForTransaction(txResponse),
             new Promise((_, reject) => 
               setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
             )

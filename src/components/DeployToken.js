@@ -789,6 +789,13 @@ function DeployToken() {
       // For mobile devices, use the same transaction format but different sending method
       if (isMobile()) {
         try {
+          // Create contract instance for mobile deployment
+          const contract = new ethers.Contract(
+            TOKEN_DEPLOYER_ADDRESS,
+            TOKEN_DEPLOYER_ABI,
+            signer
+          );
+
           // Get a valid salt for mobile deployment
           const validSalt = await getValidSaltForMobile(
             contract,

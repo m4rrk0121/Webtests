@@ -651,25 +651,44 @@ function DeployToken() {
   // Function to get a valid salt for mobile deployment
   const getValidSaltForMobile = async (contract, address, tokenName, tokenSymbol, parsedSupply) => {
     try {
+      // Get WETH address first
       const wethAddress = await contract.weth();
+      
+      // Generate a random salt
+      const salt = generateRandomSalt();
+      
+      // Call generateSalt to get the predicted address
+      const [generatedSalt, predictedAddress] = await contract.generateSalt(
+        address,
+        tokenName,
+        tokenSymbol,
+        parsedSupply
+      );
+      
+      // Check if the predicted address is valid
+      if (predictedAddress.toLowerCase() < wethAddress.toLowerCase()) {
+        return generatedSalt;
+      }
+      
+      // If not valid, try a few more times
       let attempts = 0;
-      const maxAttempts = 10;
-
+      const maxAttempts = 5;
+      
       while (attempts < maxAttempts) {
-        const salt = generateRandomSalt();
-        const predictedAddress = await contract.predictTokenAddress(
+        const newSalt = generateRandomSalt();
+        const [newGeneratedSalt, newPredictedAddress] = await contract.generateSalt(
           address,
           tokenName,
           tokenSymbol,
-          parsedSupply,
-          salt
+          parsedSupply
         );
-
-        if (predictedAddress.toLowerCase() < wethAddress.toLowerCase()) {
-          return salt;
+        
+        if (newPredictedAddress.toLowerCase() < wethAddress.toLowerCase()) {
+          return newGeneratedSalt;
         }
         attempts++;
       }
+      
       throw new Error('Failed to generate valid salt after multiple attempts');
     } catch (err) {
       console.error('Error generating salt:', err);

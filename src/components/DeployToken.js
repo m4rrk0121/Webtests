@@ -323,6 +323,11 @@ function generateShillText(tokenName, tokenSymbol, tokenAddress, marketCapUSD, l
   }
 }
 
+// Add mobile detection helper
+const isMobile = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
 function DeployToken() {
   // State variables for token deployment
   const [tokenName, setTokenName] = useState('');
@@ -745,12 +750,16 @@ function DeployToken() {
       const feeClaimerToUse = feeClaimerAddress || address;
       const saltToUse = saltResult ? saltResult.salt : generatedSalt;
 
-      // Prepare the transaction
-      const { request } = await publicClient.simulateContract({
-        address: TOKEN_DEPLOYER_ADDRESS,
-        abi: TOKEN_DEPLOYER_ABI,
-        functionName: 'deployToken',
-        args: [
+      // For mobile devices, use a simpler transaction format
+      if (isMobile()) {
+        const contract = new ethers.Contract(
+          TOKEN_DEPLOYER_ADDRESS,
+          TOKEN_DEPLOYER_ABI,
+          signer
+        );
+
+        // Encode the transaction data separately
+        const txData = contract.interface.encodeFunctionData('deployToken', [
           tokenName,
           tokenSymbol,
           parsedSupply,
@@ -760,55 +769,122 @@ function DeployToken() {
           feeClaimerToUse,
           RECIPIENT_WALLET,
           onePercentAmount
-        ],
-        value: useCustomFee 
-          ? ethers.parseEther(deploymentFee || '0.0005') 
-          : DEFAULT_DEPLOYMENT_FEE
-      });
+        ]);
 
-      // Send the transaction
-      const hash = await writeContract(wagmiConfig, request);
-      
-      if (!hash) {
-        throw new Error('Transaction hash not received');
-      }
-      
-      setTxHash(hash);
-      
-      // Wait for transaction with timeout
-      const receipt = await Promise.race([
-        publicClient.waitForTransactionReceipt({ hash }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
-        )
-      ]);
-      
-      if (!receipt) {
-        throw new Error('Transaction receipt not received');
-      }
+        // Create a mobile-friendly transaction object
+        const tx = {
+          to: TOKEN_DEPLOYER_ADDRESS,
+          data: txData,
+          value: useCustomFee 
+            ? ethers.parseEther(deploymentFee || '0.0005') 
+            : DEFAULT_DEPLOYMENT_FEE,
+          gasLimit: 500000, // Set a reasonable gas limit
+          gasPrice: useCustomGas 
+            ? ethers.parseUnits(customGasPrice || '1', 'gwei')
+            : undefined // Let the wallet estimate gas price
+        };
 
-      if (receipt.status === 'success' || receipt.status === 1) {
-        // Transaction successful
-        setTxResult({
-          success: true,
-          hash: receipt.transactionHash || receipt.hash,
-          blockNumber: receipt.blockNumber,
-          gasUsed: receipt.gasUsed?.toString() || '0',
-          explorerUrl: `https://basescan.org/tx/${receipt.transactionHash || receipt.hash}`
-        });
-        
-        // Generate and show shill text
-        const generatedShillText = generateShillText(
-          tokenName, 
-          tokenSymbol, 
-          hash, 
-          marketCapStats ? marketCapStats.actualMarketCap : targetMarketCap, 
-          LAUNCH_MODES[launchMode].name
-        );
-        setShillText(generatedShillText);
-        setShowShillText(true);
+        // Send the transaction using the signer directly
+        const txResponse = await signer.sendTransaction(tx);
+        setTxHash(txResponse.hash);
+
+        // Wait for transaction with timeout
+        const receipt = await Promise.race([
+          txResponse.wait(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
+          )
+        ]);
+
+        if (receipt.status === 1) {
+          // Transaction successful
+          setTxResult({
+            success: true,
+            hash: receipt.hash,
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed.toString(),
+            explorerUrl: `https://basescan.org/tx/${receipt.hash}`
+          });
+          
+          // Generate and show shill text
+          const generatedShillText = generateShillText(
+            tokenName, 
+            tokenSymbol, 
+            receipt.hash, 
+            marketCapStats ? marketCapStats.actualMarketCap : targetMarketCap, 
+            LAUNCH_MODES[launchMode].name
+          );
+          setShillText(generatedShillText);
+          setShowShillText(true);
+        } else {
+          throw new Error('Transaction failed on-chain');
+        }
       } else {
-        throw new Error('Transaction failed on-chain');
+        // For desktop, use the existing writeContract approach
+        const { request } = await publicClient.simulateContract({
+          address: TOKEN_DEPLOYER_ADDRESS,
+          abi: TOKEN_DEPLOYER_ABI,
+          functionName: 'deployToken',
+          args: [
+            tokenName,
+            tokenSymbol,
+            parsedSupply,
+            tickToUse,
+            FEE_TIER,
+            saltToUse,
+            feeClaimerToUse,
+            RECIPIENT_WALLET,
+            onePercentAmount
+          ],
+          value: useCustomFee 
+            ? ethers.parseEther(deploymentFee || '0.0005') 
+            : DEFAULT_DEPLOYMENT_FEE
+        });
+
+        // Send the transaction
+        const hash = await writeContract(wagmiConfig, request);
+        
+        if (!hash) {
+          throw new Error('Transaction hash not received');
+        }
+        
+        setTxHash(hash);
+        
+        // Wait for transaction with timeout
+        const receipt = await Promise.race([
+          publicClient.waitForTransactionReceipt({ hash }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
+          )
+        ]);
+        
+        if (!receipt) {
+          throw new Error('Transaction receipt not received');
+        }
+
+        if (receipt.status === 'success' || receipt.status === 1) {
+          // Transaction successful
+          setTxResult({
+            success: true,
+            hash: receipt.transactionHash || receipt.hash,
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed?.toString() || '0',
+            explorerUrl: `https://basescan.org/tx/${receipt.transactionHash || receipt.hash}`
+          });
+          
+          // Generate and show shill text
+          const generatedShillText = generateShillText(
+            tokenName, 
+            tokenSymbol, 
+            hash, 
+            marketCapStats ? marketCapStats.actualMarketCap : targetMarketCap, 
+            LAUNCH_MODES[launchMode].name
+          );
+          setShillText(generatedShillText);
+          setShowShillText(true);
+        } else {
+          throw new Error('Transaction failed on-chain');
+        }
       }
     } catch (err) {
       console.error('Token deployment error:', err);

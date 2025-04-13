@@ -750,42 +750,37 @@ function DeployToken() {
       const feeClaimerToUse = feeClaimerAddress || address;
       const saltToUse = saltResult ? saltResult.salt : generatedSalt;
 
-      // For mobile devices, use a simpler transaction format
+      // For mobile devices, use the same transaction format but different sending method
       if (isMobile()) {
-        const contract = new ethers.Contract(
-          TOKEN_DEPLOYER_ADDRESS,
-          TOKEN_DEPLOYER_ABI,
-          signer
-        );
-
         try {
-          // Use the contract's deployToken function directly
-          const tx = await contract.deployToken(
-            tokenName,
-            tokenSymbol,
-            parsedSupply,
-            tickToUse,
-            FEE_TIER,
-            saltToUse,
-            feeClaimerToUse,
-            RECIPIENT_WALLET,
-            onePercentAmount,
-            {
-              value: useCustomFee 
-                ? ethers.parseEther(deploymentFee || '0.0005') 
-                : DEFAULT_DEPLOYMENT_FEE,
-              gasLimit: 500000,
-              gasPrice: useCustomGas 
-                ? ethers.parseUnits(customGasPrice || '1', 'gwei')
-                : undefined
-            }
-          );
+          // Use the same transaction format as desktop
+          const { request } = await publicClient.simulateContract({
+            address: TOKEN_DEPLOYER_ADDRESS,
+            abi: TOKEN_DEPLOYER_ABI,
+            functionName: 'deployToken',
+            args: [
+              tokenName,
+              tokenSymbol,
+              parsedSupply,
+              tickToUse,
+              FEE_TIER,
+              saltToUse,
+              feeClaimerToUse,
+              RECIPIENT_WALLET,
+              onePercentAmount
+            ],
+            value: useCustomFee 
+              ? ethers.parseEther(deploymentFee || '0.0005') 
+              : DEFAULT_DEPLOYMENT_FEE
+          });
 
-          setTxHash(tx.hash);
+          // For mobile, use the signer directly to send the transaction
+          const txResponse = await signer.sendTransaction(request);
+          setTxHash(txResponse.hash);
 
           // Wait for transaction with timeout
           const receipt = await Promise.race([
-            tx.wait(),
+            txResponse.wait(),
             new Promise((_, reject) => 
               setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
             )

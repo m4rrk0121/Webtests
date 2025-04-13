@@ -7,20 +7,15 @@ import './modal.css';
 /* global BigInt */
 
 // Helper function for safe BigInt conversion with better browser compatibility
-// eslint-disable-next-line no-unused-vars
 const safeBigInt = (value) => {
-  // Check if native BigInt is supported
   if (typeof BigInt !== 'undefined') {
     try {
       return BigInt(value);
     } catch (error) {
       console.warn('Error converting to BigInt:', error);
-      // Fall back to Number for compatibility
       return Number(value);
     }
   }
-  
-  // Fallback for browsers without BigInt (like IE)
   return Number(value);
 };
 
@@ -230,8 +225,6 @@ const LAUNCH_MODES = {
 
 // Fixed fee tier (1%)
 const FEE_TIER = 10000;
-
-
 
 // Fixed tick spacing for 1% fee tier
 const TICK_SPACING = 200;
@@ -554,11 +547,11 @@ function DeployToken() {
     }
   };
   
-  // Modified generateSalt function for wagmi/RainbowKit
+  // Modified generateSalt function
   const generateSalt = async () => {
     if (!isConnected || !signer || !tokenName || !tokenSymbol || !tokenSupply) {
       setError('Please connect wallet and provide token details');
-      return { success: false }; // Return object with success status
+      return { success: false };
     }
 
     try {
@@ -587,7 +580,7 @@ function DeployToken() {
         throw new Error('Failed to parse token supply: ' + parseError.message);
       }
 
-      // Increment the salt generation count (for UI feedback)
+      // Increment the salt generation count
       setSaltGenerationCount(prevCount => prevCount + 1);
 
       let result;
@@ -604,8 +597,8 @@ function DeployToken() {
       }
 
       // Extract salt and predicted address from result
-      let salt = result[0]; // First return value
-      let predictedAddr = result[1]; // Second return value
+      let salt = result[0];
+      let predictedAddr = result[1];
 
       if (!salt || !predictedAddr) {
         throw new Error('Invalid salt or address returned from contract');
@@ -624,7 +617,7 @@ function DeployToken() {
         
         // Calculate initial tick based on the selected launch mode
         const tickResult = calculateTickForMarketCap(
-          targetMarketCap, // Use the current target market cap
+          targetMarketCap,
           effectiveSupply,
           ethPriceUSD,
           TICK_SPACING
@@ -645,7 +638,6 @@ function DeployToken() {
 
       setIsGeneratingSalt(false);
 
-      // Return all the calculated values along with success status
       return { 
         success: true,
         salt: salt,
@@ -661,7 +653,7 @@ function DeployToken() {
     }
   };
 
-  // Updated deployToken function for wagmi/RainbowKit
+  // Updated deployToken function
   const deployToken = async () => {
     if (!isConnected || !signer) {
       setError('Please connect your wallet first');
@@ -698,19 +690,19 @@ function DeployToken() {
     }
 
     // Automatically generate salt if not already done
-    let saltData = null;
+    let saltResult = null;
     let tickToUse = initialTick;
     
     if (!generatedSalt) {
       setError(''); // Clear any existing errors
       try {
-        saltData = await generateSalt();
-        if (!saltData || !saltData.success) {
+        saltResult = await generateSalt();
+        if (!saltResult || !saltResult.success) {
           setError('Failed to generate salt. Please try again.');
           return;
         }
         // Use the returned initialTick value directly
-        tickToUse = saltData.initialTick;
+        tickToUse = saltResult.initialTick;
       } catch (saltError) {
         console.error('Error generating salt:', saltError);
         setError('Failed to generate salt: ' + (saltError.message || 'Unknown error'));
@@ -808,7 +800,7 @@ function DeployToken() {
       }
       
       // Use either the stored salt or the newly generated one
-      const saltToUse = saltData ? saltData.salt : generatedSalt;
+      const saltToUse = saltResult ? saltResult.salt : generatedSalt;
       
       // Handle null values for function parameters
       const feeClaimerToUse = feeClaimerAddress || address;
@@ -839,831 +831,775 @@ function DeployToken() {
           errorMessage += ' - ' + (txError.data.message || txError.data);
         }
         
-  // Check for common error patterns
-  if (errorMessage.includes('insufficient funds')) {
-    errorMessage = 'Insufficient funds for transaction. Please check your balance.';
-  } else if (errorMessage.includes('gas required exceeds allowance')) {
-    errorMessage = 'Gas required exceeds your set limit. Try increasing the gas limit or gas price.';
-  } else if (errorMessage.includes('nonce')) {
-    errorMessage = 'Transaction nonce error. Try refreshing the page and reconnecting your wallet.';
-  } else if (errorMessage.includes('user denied') || errorMessage.includes('user rejected')) {
-    errorMessage = 'Transaction was rejected in your wallet.';
-  }
-  
-  throw new Error('Transaction failed: ' + errorMessage);
-}
-
-// Set transaction hash for tracking
-if (tx && tx.hash) {
-  setTxHash(tx.hash);
-} else {
-  console.warn('Transaction sent but no hash returned');
-}
-
-// Define the getReceipt function outside the loop to avoid ESLint warnings
-const getReceipt = async () => {
-  try {
-    return await Promise.race([
-      tx.wait(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Transaction confirmation timeout')), 60000)
-      )
-    ]);
-  } catch (waitError) {
-    console.warn(`Wait error during transaction confirmation:`, waitError);
-    return null;
-  }
-};
-
-// Wait for transaction to be mined with timeout and retry logic
-let receipt = null;
-let retryCount = 0;
-const maxRetries = 5;
-
-// Fixed loop without function declarations inside - this resolves the ESLint warning
-while (!receipt && retryCount < maxRetries) {
-  receipt = await getReceipt();
-  
-  if (!receipt) {
-    retryCount++;
-    
-    // If we've reached max retries, don't throw, continue with receipt null
-    if (retryCount >= maxRetries) {
-      console.error('Max retries reached waiting for transaction confirmation');
-      break;
-    }
-    
-    // Exponential backoff
-    await new Promise(resolve => setTimeout(resolve, 2000 * Math.pow(2, retryCount)));
-    
-    // Use the helper function with explicit parameter passing instead of declaring in loop
-    const manualReceipt = await checkReceiptManually(tx.hash, retryCount);
-    if (manualReceipt) {
-      receipt = manualReceipt;
-      break;
-    }
-  }
-}
-
-// Try to extract token address and token ID from events
-let tokenAddress = '';
-let tokenId = '';
-
-if (receipt && receipt.logs) {
-  // Look for TokenCreated event
-  for (const log of receipt.logs) {
-    try {
-      const iface = new ethers.Interface([
-        "event TokenCreated(address tokenAddress, uint256 lpNftId, address deployer, string name, string symbol, uint256 supply, address recipient, uint256 recipientAmount)"
-      ]);
-      
-      // Note: In ethers v6, parseLog takes the full log object
-      const parsedLog = iface.parseLog(log);
-      
-      if (parsedLog && parsedLog.name === "TokenCreated") {
-        tokenAddress = parsedLog.args[0]; // changed from tokenAddress to args[0]
-        tokenId = parsedLog.args[1].toString(); // changed from lpNftId to args[1]
-        break;
+        // Check for common error patterns
+        if (errorMessage.includes('insufficient funds')) {
+          errorMessage = 'Insufficient funds for transaction. Please check your balance.';
+        } else if (errorMessage.includes('gas required exceeds allowance')) {
+          errorMessage = 'Gas required exceeds your set limit. Try increasing the gas limit or gas price.';
+        } else if (errorMessage.includes('nonce')) {
+          errorMessage = 'Transaction nonce error. Try refreshing the page and reconnecting your wallet.';
+        } else if (errorMessage.includes('user denied') || errorMessage.includes('user rejected')) {
+          errorMessage = 'Transaction was rejected in your wallet.';
+        }
+        
+        throw new Error('Transaction failed: ' + errorMessage);
       }
-    } catch (logError) {
-      // Not the event we're looking for, continue to next log
-      continue;
+
+      // Set transaction hash for tracking
+      if (tx && tx.hash) {
+        setTxHash(tx.hash);
+        console.log('Transaction hash set:', tx.hash);
+      } else {
+        console.warn('Transaction sent but no hash returned');
+      }
+
+      // Define the getReceipt function
+      const getReceipt = async () => {
+        try {
+          console.log('Waiting for transaction receipt...');
+          return await Promise.race([
+            tx.wait(),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Transaction confirmation timeout')), 60000)
+            )
+          ]);
+        } catch (waitError) {
+          console.warn('Wait error during transaction confirmation:', waitError);
+          return null;
+        }
+      };
+
+      // Wait for transaction to be mined with timeout and retry logic
+      let receipt = null;
+      let retryCount = 0;
+      const maxRetries = 5;
+
+      while (!receipt && retryCount < maxRetries) {
+        console.log(`Attempt ${retryCount + 1} to get receipt...`);
+        receipt = await getReceipt();
+        
+        if (!receipt) {
+          retryCount++;
+          console.log(`Receipt not found, retry ${retryCount}/${maxRetries}`);
+          
+          if (retryCount >= maxRetries) {
+            console.error('Max retries reached waiting for transaction confirmation');
+            break;
+          }
+          
+          const backoffDelay = 2000 * Math.pow(2, retryCount);
+          console.log(`Waiting ${backoffDelay}ms before next retry...`);
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+          
+          const manualReceipt = await checkReceiptManually(tx.hash, retryCount);
+          if (manualReceipt) {
+            console.log('Manual receipt retrieval successful');
+            receipt = manualReceipt;
+            break;
+          }
+        }
+      }
+
+      if (receipt) {
+        console.log('Transaction receipt received:', receipt);
+        // Process receipt and update state...
+      } else {
+        console.warn('No receipt received after all retries');
+      }
+
+      setIsExecuting(false);
+    } catch (err) {
+      console.error('Deployment error:', err);
+      setError('Deployment failed: ' + (err.message || 'Unknown error'));
+      setIsExecuting(false);
     }
-  }
-} else {
-  console.warn('No receipt or logs available to extract token information');
-}
+  };
 
-// Create result data even if receipt is incomplete
-const txResultData = {
-  success: true,
-  hash: tx.hash,
-  blockNumber: receipt ? receipt.blockNumber : 'Pending',
-  gasUsed: receipt && receipt.gasUsed ? receipt.gasUsed.toString() : 'Unknown',
-  tokenAddress,
-  tokenId
-};
-
-setTxResult(txResultData);
-
-// Generate shill text for the new token if we have an address
-if (tokenAddress) {
-  // Use either the stored marketCapStats or the newly generated one
-  const marketCapValue = saltData && saltData.marketCapStats 
-    ? saltData.marketCapStats.actualMarketCap 
-    : (marketCapStats ? marketCapStats.actualMarketCap : targetMarketCap);
-    
-  const generatedShillText = generateShillText(
-    tokenName, 
-    tokenSymbol, 
-    tokenAddress, 
-    marketCapValue, 
-    LAUNCH_MODES[launchMode].name
-  );
-  
-  setShillText(generatedShillText);
-  setShowShillText(true);
-  try {
-    const sound = new Audio('/Tarzan.mp3');
-    sound.volume = 0.7;
-    sound.play();
-  } catch (e) {
-    console.log("Error playing sound:", e);
-  }
-}
-
-setIsExecuting(false);
-} catch (err) {
-console.error('Deployment error:', err);
-setError('Deployment failed: ' + (err.message || 'Unknown error'));
-setIsExecuting(false);
-}
-};
-
-// Copy shill text to clipboard
-const copyShillText = () => {
-try {
-navigator.clipboard.writeText(shillText).then(
-  () => {
-    alert('Shill text copied to clipboard!');
-  },
-  (err) => {
-    console.error('Could not copy text: ', err);
-    
-    // Fallback for browsers without clipboard API
-    const textArea = document.createElement("textarea");
-    textArea.value = shillText;
-    textArea.style.position = "fixed";  // Avoid scrolling to bottom
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-    
+  // Copy shill text to clipboard
+  const copyShillText = () => {
     try {
-      document.execCommand('copy');
-      alert('Shill text copied to clipboard!');
-    } catch (execError) {
-      console.error('Copy fallback failed:', execError);
+      navigator.clipboard.writeText(shillText).then(
+        () => {
+          alert('Shill text copied to clipboard!');
+        },
+        (err) => {
+          console.error('Could not copy text: ', err);
+          
+          // Fallback for browsers without clipboard API
+          const textArea = document.createElement("textarea");
+          textArea.value = shillText;
+          textArea.style.position = "fixed";  // Avoid scrolling to bottom
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          
+          try {
+            document.execCommand('copy');
+            alert('Shill text copied to clipboard!');
+          } catch (execError) {
+            console.error('Copy fallback failed:', execError);
+            alert('Failed to copy. Please select and copy the text manually.');
+          }
+          
+          document.body.removeChild(textArea);
+        }
+      );
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
       alert('Failed to copy. Please select and copy the text manually.');
     }
-    
-    document.body.removeChild(textArea);
-  }
-);
-} catch (error) {
-console.error('Error copying to clipboard:', error);
-alert('Failed to copy. Please select and copy the text manually.');
-}
-};
+  };
 
-// Share to Twitter
-const shareToTwitter = () => {
-try {
-const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shillText)}`;
-window.open(twitterUrl, '_blank');
-} catch (error) {
-console.error('Error opening Twitter share:', error);
-alert('Failed to open Twitter. Please copy the text and share manually.');
-}
-};
-
-// Open Sigma buy bot
-const openSigmaBuyBot = () => {
-try {
-const sigmaUrl = "https://t.me/Sigma_buyBot?start=ref=1374068003";
-window.open(sigmaUrl, '_blank');
-} catch (error) {
-console.error('Error opening Sigma buy bot:', error);
-alert('Failed to open Sigma buy bot. Please visit the link manually.');
-}
-};
-
-// Open Dexscreener for the token
-const openDexscreener = () => {
-if (!txResult || !txResult.tokenAddress) {
-alert('Token address not available yet');
-return;
-}
-
-try {
-const dexscreenerUrl = `https://dexscreener.com/base/${txResult.tokenAddress}`;
-window.open(dexscreenerUrl, '_blank');
-} catch (error) {
-console.error('Error opening Dexscreener:', error);
-alert('Failed to open Dexscreener. Please visit the link manually.');
-}
-};
-
-// Enhanced transaction status checking for ethers v6 compatibility
-const checkTransactionStatus = useCallback(async () => {
-if (!txHash || !provider) {
-return false;
-}
-
-try {
-// Get receipt using ethers v6 provider
-let receipt;
-try {
-  receipt = await provider.getTransactionReceipt(txHash);
-} catch (receiptError) {
-  console.error('Error getting transaction receipt:', receiptError);
-  return false;
-}
-
-if (receipt) {
-  // Determine status (in ethers v6, status is typically 1 for success, 0 for failure)
-  let status = 'Unknown';
-  
-  if (receipt.status === 1) {
-    status = 'Confirmed';
-  } else if (receipt.status === 0) {
-    status = 'Failed';
-  }
-  
-  // Extract tokenAddress and tokenId from logs
-  let tokenAddress = '';
-  let tokenId = '';
-  
-  if (receipt.logs && receipt.logs.length > 0) {
-    for (const log of receipt.logs) {
-      try {
-        const iface = new ethers.Interface([
-          "event TokenCreated(address tokenAddress, uint256 lpNftId, address deployer, string name, string symbol, uint256 supply, address recipient, uint256 recipientAmount)"
-        ]);
-        
-        // In ethers v6, parseLog takes the whole log object
-        const parsedLog = iface.parseLog(log);
-        
-        if (parsedLog && parsedLog.name === "TokenCreated") {
-          // In ethers v6, args are accessed by index or name
-          tokenAddress = parsedLog.args[0]; // First argument is tokenAddress
-          tokenId = parsedLog.args[1].toString(); // Second argument is lpNftId
-          break;
-        }
-      } catch (e) {
-        // Not the event we're looking for
-        continue;
-      }
-    }
-  }
-  
-  setTxResult(prevResult => {
-    const updatedResult = {
-      ...prevResult,
-      status,
-      blockNumber: receipt.blockNumber,
-      gasUsed: receipt.gasUsed ? receipt.gasUsed.toString() : 
-              (prevResult?.gasUsed || 'Unknown')
-    };
-    
-    // Only update token info if we found it and it wasn't already set
-    if (tokenAddress && !prevResult?.tokenAddress) {
-      updatedResult.tokenAddress = tokenAddress;
-    }
-    
-    if (tokenId && !prevResult?.tokenId) {
-      updatedResult.tokenId = tokenId;
-    }
-    
-    return updatedResult;
-  });
-  
-  // If this is a confirmed transaction with token address, show shill text if not already shown
-  if (status === 'Confirmed' && tokenAddress && !showShillText) {
-    const marketCapValue = marketCapStats 
-      ? marketCapStats.actualMarketCap 
-      : targetMarketCap;
-      
-    const generatedShillText = generateShillText(
-      tokenName, 
-      tokenSymbol, 
-      tokenAddress, 
-      marketCapValue, 
-      LAUNCH_MODES[launchMode].name
-    );
-    
-    setShillText(generatedShillText);
-    setShowShillText(true);
-  }
-  
-  return true; // Receipt found and processed
-} else {
-  // No receipt means still pending
-  setTxResult(prevResult => ({
-    ...prevResult,
-    status: 'Pending'
-  }));
-  return false; // No receipt yet
-}
-} catch (err) {
-console.error('Error checking transaction:', err);
-return false;
-}
-}, [txHash, provider, launchMode, marketCapStats, showShillText, targetMarketCap, tokenName, tokenSymbol]);
-
-// Update target market cap when launch mode changes
-useEffect(() => {
-setTargetMarketCap(LAUNCH_MODES[launchMode].marketCap);
-
-// Re-calculate market cap stats if we have the necessary data
-if (ethPriceUSD && tokenSupply) {
-try {
-  // Calculate 99% for LP (1% goes to recipient)
-  const effectiveSupply = parseFloat(tokenSupply) * 0.99;
-  
-  // Calculate initial tick
-  const tickResult = calculateTickForMarketCap(
-    LAUNCH_MODES[launchMode].marketCap,
-    effectiveSupply,
-    ethPriceUSD,
-    TICK_SPACING
-  );
-  
-  // Update the state
-  setInitialTick(tickResult.validTick);
-  setMarketCapStats({
-    targetMarketCap: LAUNCH_MODES[launchMode].marketCap,
-    actualMarketCap: Math.round(tickResult.actualMarketCapUSD),
-    tokenPriceUSD: tickResult.actualPriceUSD,
-    tokenPriceETH: tickResult.actualPriceETH
-  });
-} catch (error) {
-  console.error('Error calculating market cap stats:', error);
-  // Don't update state if calculation fails
-}
-}
-}, [launchMode, ethPriceUSD, tokenSupply]);
-
-// Main wallet event setup function
-const setupWalletEvents = useCallback(() => {
-const ethereum = window.ethereum || 
-              window.web3?.currentProvider || 
-              window.injectedWeb3;
-              
-if (ethereum) {
-// Define chain change handler
-const handleChainChanged = async (chainId) => {
-  // Convert chainId from hex to decimal
-  let chainIdDecimal;
-  try {
-    // Handle different chainId formats
-    if (typeof chainId === 'string' && chainId.startsWith('0x')) {
-      chainIdDecimal = parseInt(chainId, 16);
-    } else if (typeof chainId === 'number') {
-      chainIdDecimal = chainId;
-    } else if (typeof chainId === 'bigint') {
-      chainIdDecimal = Number(chainId);
-    } else {
-      chainIdDecimal = parseInt(chainId);
-    }
-  } catch (error) {
-    console.error('Error parsing chainId:', error);
-    chainIdDecimal = -1; // Invalid chain ID
-  }
-  
-  if (chainIdDecimal !== BASE_CHAIN_ID) {
-    const userConfirmed = window.confirm(
-      'This application requires the Base network. Would you like to switch back to Base?'
-    );
-    
-    if (userConfirmed) {
-      await switchToBaseNetwork();
-    } else {
-      setError('Please connect to Base network to use this application. Some features may not work correctly.');
-    }
-  } else {
-    // Clear any network-related errors if we're now on the correct network
-    setError('');
-    
-    // Refresh wallet connection to ensure we have the latest data
+  // Share to Twitter
+  const shareToTwitter = () => {
     try {
-      // Quietly refresh without full reconnect UI
-      const provider = new ethers.BrowserProvider(ethereum);
-      const signer = await provider.getSigner();
-      
-      setSigner(signer);
-      setProvider(provider);
-      
-      // Refresh gas price
-      const feeData = await provider.getFeeData();
-      if (feeData && feeData.gasPrice) {
-        const gasPriceGwei = ethers.formatUnits(feeData.gasPrice, 'gwei');
-        setGasPrice(gasPriceGwei);
-        setCustomGasPrice(gasPriceGwei);
-      }
-    } catch (refreshError) {
-      console.error('Error refreshing wallet after chain change:', refreshError);
-      // Don't show an error to the user, just log it
+      const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shillText)}`;
+      window.open(twitterUrl, '_blank');
+    } catch (error) {
+      console.error('Error opening Twitter share:', error);
+      alert('Failed to open Twitter. Please copy the text and share manually.');
     }
-  }
-};
+  };
 
-// Set up wallet event listeners
-setupWalletEventListeners(ethereum, handleChainChanged, handleAccountsChanged);
-}
-}, [handleAccountsChanged, switchToBaseNetwork]);
+  // Open Sigma buy bot
+  const openSigmaBuyBot = () => {
+    try {
+      const sigmaUrl = "https://t.me/Sigma_buyBot?start=ref=1374068003";
+      window.open(sigmaUrl, '_blank');
+    } catch (error) {
+      console.error('Error opening Sigma buy bot:', error);
+      alert('Failed to open Sigma buy bot. Please visit the link manually.');
+    }
+  };
 
-// Set up wallet events when connected
-useEffect(() => {
-setupWalletEvents();
+  // Open Dexscreener for the token
+  const openDexscreener = () => {
+    if (!txResult || !txResult.tokenAddress) {
+      alert('Token address not available yet');
+      return;
+    }
 
-// Cleanup function to remove event listeners
-return () => {
-const ethereum = window.ethereum || 
-                window.web3?.currentProvider || 
-                window.injectedWeb3;
-                
-if (ethereum) {
-  // Remove listeners using whatever method is available
-  if (ethereum.removeListener) {
-    ethereum.removeListener('chainChanged', () => {});
-    ethereum.removeListener('accountsChanged', () => {});
-  } else if (ethereum.removeEventListener) {
-    ethereum.removeEventListener('chainChanged', () => {});
-    ethereum.removeEventListener('accountsChanged', () => {});
-  }
-}
-};
-}, [setupWalletEvents]);
+    try {
+      const dexscreenerUrl = `https://dexscreener.com/base/${txResult.tokenAddress}`;
+      window.open(dexscreenerUrl, '_blank');
+    } catch (error) {
+      console.error('Error opening Dexscreener:', error);
+      alert('Failed to open Dexscreener. Please visit the link manually.');
+    }
+  };
 
-// Effect to check transaction status periodically
-useEffect(() => {
-if (txHash && provider) {
-// Initial check
-checkTransactionStatus();
+  // Enhanced transaction status checking for ethers v6 compatibility
+  const checkTransactionStatus = useCallback(async () => {
+    if (!txHash || !provider) {
+      return false;
+    }
 
-// Set up interval
-const interval = setInterval(() => {
-  checkTransactionStatus()
-    .then(found => {
-      // If transaction is confirmed or failed, stop checking
-      if (found) {
-        clearInterval(interval);
+    try {
+      // Get receipt using ethers v6 provider
+      let receipt;
+      try {
+        receipt = await provider.getTransactionReceipt(txHash);
+      } catch (receiptError) {
+        console.error('Error getting transaction receipt:', receiptError);
+        return false;
       }
-    })
-    .catch(error => {
-      console.error('Error in transaction check interval:', error);
-    });
-}, 5000);
 
-// Clean up interval
-return () => clearInterval(interval);
-}
-}, [txHash, provider, checkTransactionStatus]);
+      if (receipt) {
+        // Determine status (in ethers v6, status is typically 1 for success, 0 for failure)
+        let status = 'Unknown';
+        
+        if (receipt.status === 1) {
+          status = 'Confirmed';
+        } else if (receipt.status === 0) {
+          status = 'Failed';
+        }
+        
+        // Extract tokenAddress and tokenId from logs
+        let tokenAddress = '';
+        let tokenId = '';
+        
+        if (receipt.logs && receipt.logs.length > 0) {
+          for (const log of receipt.logs) {
+            try {
+              const iface = new ethers.Interface([
+                "event TokenCreated(address tokenAddress, uint256 lpNftId, address deployer, string name, string symbol, uint256 supply, address recipient, uint256 recipientAmount)"
+              ]);
+              
+              // In ethers v6, parseLog takes the full log object
+              const parsedLog = iface.parseLog(log);
+              
+              if (parsedLog && parsedLog.name === "TokenCreated") {
+                // In ethers v6, args are accessed by index or name
+                tokenAddress = parsedLog.args[0]; // First argument is tokenAddress
+                tokenId = parsedLog.args[1].toString(); // Second argument is lpNftId
+                break;
+              }
+            } catch (e) {
+              // Not the event we're looking for
+              continue;
+            }
+          }
+        }
+        
+        setTxResult(prevResult => {
+          const updatedResult = {
+            ...prevResult,
+            status,
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed ? receipt.gasUsed.toString() : 
+                    (prevResult?.gasUsed || 'Unknown')
+          };
+          
+          // Only update token info if we found it and it wasn't already set
+          if (tokenAddress && !prevResult?.tokenAddress) {
+            updatedResult.tokenAddress = tokenAddress;
+          }
+          
+          if (tokenId && !prevResult?.tokenId) {
+            updatedResult.tokenId = tokenId;
+          }
+          
+          return updatedResult;
+        });
+        
+        // If this is a confirmed transaction with token address, show shill text if not already shown
+        // AND if the modal wasn't manually closed
+        if (status === 'Confirmed' && tokenAddress && !showShillText && !modalWasManuallyClosed) {
+          const marketCapValue = marketCapStats 
+            ? marketCapStats.actualMarketCap 
+            : targetMarketCap;
+            
+          const generatedShillText = generateShillText(
+            tokenName, 
+            tokenSymbol, 
+            tokenAddress, 
+            marketCapValue, 
+            LAUNCH_MODES[launchMode].name
+          );
+          
+          setShillText(generatedShillText);
+          setShowShillText(true);
+        }
+        
+        return true; // Receipt found and processed
+      } else {
+        // No receipt means still pending
+        setTxResult(prevResult => ({
+          ...prevResult,
+          status: 'Pending'
+        }));
+        return false; // No receipt yet
+      }
+    } catch (err) {
+      console.error('Error checking transaction:', err);
+      return false;
+    }
+  }, [txHash, provider, launchMode, marketCapStats, showShillText, targetMarketCap, tokenName, tokenSymbol, modalWasManuallyClosed]);
 
-// Function to open the wallet connect modal
-const openConnectModal = () => {
-appKitInstance.open();
-};
+  // Update target market cap when launch mode changes
+  useEffect(() => {
+    setTargetMarketCap(LAUNCH_MODES[launchMode].marketCap);
 
-return (
-<div className="contract-interaction">
-{/* Random background bananas */}
-{randomElements.map(el => (
-  <div 
-    key={el.id}
-    className={`floating-background-element ${el.zoom ? 'zoom' : 'no-zoom'}`}
-    style={{
-      left: `${el.x}%`,
-      top: `${el.y}%`,
-      animationDuration: `${el.animation}s`,
-      animationDelay: `${el.delay}s`
-    }}
-  >
-    <img 
-      src={el.image} 
-      alt="" 
-      style={{
-        height: `${el.size}px`,
-        width: 'auto',
-      }}
-    />
-  </div>
-))}
-<h1>Deploy New Token</h1>
+    // Re-calculate market cap stats if we have the necessary data
+    if (ethPriceUSD && tokenSupply) {
+      try {
+        // Calculate 99% for LP (1% goes to recipient)
+        const effectiveSupply = parseFloat(tokenSupply) * 0.99;
+        
+        // Calculate initial tick
+        const tickResult = calculateTickForMarketCap(
+          LAUNCH_MODES[launchMode].marketCap,
+          effectiveSupply,
+          ethPriceUSD,
+          TICK_SPACING
+        );
+        
+        // Update the state
+        setInitialTick(tickResult.validTick);
+        setMarketCapStats({
+          targetMarketCap: LAUNCH_MODES[launchMode].marketCap,
+          actualMarketCap: Math.round(tickResult.actualMarketCapUSD),
+          tokenPriceUSD: tickResult.actualPriceUSD,
+          tokenPriceETH: tickResult.actualPriceETH
+        });
+      } catch (error) {
+        console.error('Error calculating market cap stats:', error);
+        // Don't update state if calculation fails
+      }
+    }
+  }, [launchMode, ethPriceUSD, tokenSupply]);
 
-{/* Wallet connection status display - no button here since we use the navbar button */}
-<div className="wallet-status">
-  {isConnected ? (
-    <div className="connected-status">
-      <span className="wallet-address">
-        Connected: {address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : ''}
-      </span>
-    </div>
-  ) : (
-    <div className="not-connected">
-      <span>Wallet not connected</span>
-    </div>
-  )}
-</div>
+  // Main wallet event setup function
+  const setupWalletEvents = useCallback(() => {
+    const ethereum = window.ethereum || 
+                  window.web3?.currentProvider || 
+                  window.injectedWeb3;
+                  
+    if (ethereum) {
+      // Define chain change handler
+      const handleChainChanged = async (chainId) => {
+        // Convert chainId from hex to decimal
+        let chainIdDecimal;
+        try {
+          // Handle different chainId formats
+          if (typeof chainId === 'string' && chainId.startsWith('0x')) {
+            chainIdDecimal = parseInt(chainId, 16);
+          } else if (typeof chainId === 'number') {
+            chainIdDecimal = chainId;
+          } else if (typeof chainId === 'bigint') {
+            chainIdDecimal = Number(chainId);
+          } else {
+            chainIdDecimal = parseInt(chainId);
+          }
+        } catch (error) {
+          console.error('Error parsing chainId:', error);
+          chainIdDecimal = -1; // Invalid chain ID
+        }
+        
+        if (chainIdDecimal !== BASE_CHAIN_ID) {
+          const userConfirmed = window.confirm(
+            'This application requires the Base network. Would you like to switch back to Base?'
+          );
+          
+          if (userConfirmed) {
+            await switchToBaseNetwork();
+          } else {
+            setError('Please connect to Base network to use this application. Some features may not work correctly.');
+          }
+        } else {
+          // Clear any network-related errors if we're now on the correct network
+          setError('');
+          
+          // Refresh wallet connection to ensure we have the latest data
+          try {
+            // Quietly refresh without full reconnect UI
+            const provider = new ethers.BrowserProvider(ethereum);
+            const signer = await provider.getSigner();
+            
+            setSigner(signer);
+            setProvider(provider);
+            
+            // Refresh gas price
+            const feeData = await provider.getFeeData();
+            if (feeData && feeData.gasPrice) {
+              const gasPriceGwei = ethers.formatUnits(feeData.gasPrice, 'gwei');
+              setGasPrice(gasPriceGwei);
+              setCustomGasPrice(gasPriceGwei);
+            }
+          } catch (refreshError) {
+            console.error('Error refreshing wallet after chain change:', refreshError);
+            // Don't show an error to the user, just log it
+          }
+        }
+      };
 
-{isConnected ? (
-  <div className="contract-form-container">
-    <h3>Deploy New Token</h3>
-    <p>
-      This will deploy a new token with a Uniswap V3 pool. Select your launch mode below.
-    </p>
-    
-    {/* Launch Mode Selector */}
-    <div className="launch-mode-section">
-      <h4>Select Launch Mode</h4>
-      <div className="launch-mode-options">
+      // Set up wallet event listeners
+      setupWalletEventListeners(ethereum, handleChainChanged, handleAccountsChanged);
+    }
+  }, [handleAccountsChanged, switchToBaseNetwork]);
+
+  // Set up wallet events when connected
+  useEffect(() => {
+    setupWalletEvents();
+
+    // Cleanup function to remove event listeners
+    return () => {
+      const ethereum = window.ethereum || 
+                      window.web3?.currentProvider || 
+                      window.injectedWeb3;
+                      
+      if (ethereum) {
+        // Remove listeners using whatever method is available
+        if (ethereum.removeListener) {
+          ethereum.removeListener('chainChanged', () => {});
+          ethereum.removeListener('accountsChanged', () => {});
+        } else if (ethereum.removeEventListener) {
+          ethereum.removeEventListener('chainChanged', () => {});
+          ethereum.removeEventListener('accountsChanged', () => {});
+        }
+      }
+    };
+  }, [setupWalletEvents]);
+
+  // Effect to check transaction status periodically
+  useEffect(() => {
+    if (txHash && provider && !modalWasManuallyClosed) {
+      // Initial check
+      checkTransactionStatus();
+
+      // Set up interval
+      const interval = setInterval(() => {
+        checkTransactionStatus()
+          .then(found => {
+            // If transaction is confirmed or failed, stop checking
+            if (found) {
+              clearInterval(interval);
+            }
+          })
+          .catch(error => {
+            console.error('Error in transaction check interval:', error);
+          });
+      }, 5000);
+
+      // Clean up interval
+      return () => clearInterval(interval);
+    }
+  }, [txHash, provider, checkTransactionStatus, modalWasManuallyClosed]);
+
+  // Function to open the wallet connect modal
+  const openConnectModal = () => {
+    appKitInstance.open();
+  };
+
+  return (
+    <div className="contract-interaction">
+      {/* Random background bananas */}
+      {randomElements.map(el => (
         <div 
-          className={`launch-mode-option ${launchMode === 'DEGEN' ? 'active' : ''}`}
-          onClick={() => setLaunchMode('DEGEN')}
+          key={el.id}
+          className={`floating-background-element ${el.zoom ? 'zoom' : 'no-zoom'}`}
+          style={{
+            left: `${el.x}%`,
+            top: `${el.y}%`,
+            animationDuration: `${el.animation}s`,
+            animationDelay: `${el.delay}s`
+          }}
         >
-          <div className="launch-mode-header">
-            <span className="launch-mode-icon">🔥</span>
-            <h5>Degen</h5>
-          </div>
-          <p className="launch-mode-description">{LAUNCH_MODES.DEGEN.description}</p>
-        </div>
-        
-        <div 
-          className={`launch-mode-option ${launchMode === 'STANDARD' ? 'active' : ''}`}
-          onClick={() => setLaunchMode('STANDARD')}
-        >
-          <div className="launch-mode-header">
-            <span className="launch-mode-icon">⚖️</span>
-            <h5>Standard</h5>
-          </div>
-          <p className="launch-mode-description">{LAUNCH_MODES.STANDARD.description}</p>
-        </div>
-        
-        <div 
-          className={`launch-mode-option ${launchMode === 'BUILDER' ? 'active' : ''}`}
-          onClick={() => setLaunchMode('BUILDER')}
-        >
-          <div className="launch-mode-header">
-            <span className="launch-mode-icon">🏗️</span>
-            <h5>Builder</h5>
-          </div>
-          <p className="launch-mode-description">{LAUNCH_MODES.BUILDER.description}</p>
-        </div>
-      </div>
-    </div>
-      
-    <div className="token-form-section">
-      <div className="token-data-row">
-        <div className="form-group">
-          <label htmlFor="tokenName">Token Name:</label>
-          <input
-            id="tokenName"
-            type="text"
-            value={tokenName}
-            onChange={(e) => setTokenName(e.target.value)}
-            placeholder="My Token"
-            required
+          <img 
+            src={el.image} 
+            alt="" 
+            style={{
+              height: `${el.size}px`,
+              width: 'auto',
+            }}
           />
         </div>
-        
-        <div className="form-group">
-          <label htmlFor="tokenSymbol">Token Symbol:</label>
-          <input
-            id="tokenSymbol"
-            type="text"
-            value={tokenSymbol}
-            onChange={(e) => setTokenSymbol(e.target.value)}
-            placeholder="TKN"
-            required
-          />
-        </div>
-      </div>
-      
-      <div className="token-data-row">
-        <div className="form-group">
-          <label htmlFor="tokenSupply">Total Supply (tokens):</label>
-          <input
-            id="tokenSupply"
-            type="text"
-            value={tokenSupply}
-            onChange={(e) => setTokenSupply(e.target.value)}
-            placeholder="100000"
-            required
-          />
-          <small>Default: 100,000 tokens</small>
-        </div>
-        
-        <div className="form-group">
-          <label htmlFor="feeClaimerAddress">Fee Claimer Address:</label>
-          <input
-            id="feeClaimerAddress"
-            type="text"
-            value={feeClaimerAddress}
-            onChange={(e) => setFeeClaimerAddress(e.target.value)}
-            placeholder={address}
-          />
-          <small>This address will receive LP fees. Defaults to your wallet address.</small>
-        </div>
-      </div>
-    </div>
-    
-    <div className="deployment-details">
-      <h4>Deployment Details</h4>
-      <p>• Fee Tier: 1% (fixed)</p>
-      <p>• Launch Mode: {LAUNCH_MODES[launchMode].name} (${LAUNCH_MODES[launchMode].marketCap} target)</p>
-      {ethPriceUSD && <p>• Current ETH Price: ${ethPriceUSD.toFixed(2)}</p>}
-      {initialTick && <p>• Calculated Initial Tick: {initialTick}</p>}
-      {marketCapStats && (
-        <>
-          <p>• Target Market Cap: ${marketCapStats.targetMarketCap}</p>
-          <p>• Actual Market Cap: ${marketCapStats.actualMarketCap}</p>
-          <p>• Token Price: ${marketCapStats.tokenPriceUSD.toFixed(8)} (${marketCapStats.tokenPriceETH.toFixed(8)} ETH)</p>
-        </>
-      )}
-    </div>
-    
-    <div className="checkbox-wrapper">
-      <label className="checkbox-container">
-        Override default buy amount (0.0005 ETH)
-        <input 
-          type="checkbox" 
-          checked={useCustomFee} 
-          onChange={(e) => setUseCustomFee(e.target.checked)} 
-        />
-        <span className="checkmark"></span>
-      </label>
-    </div>
-    
-    {useCustomFee && (
-      <div className="form-group">
-        <label htmlFor="deploymentFee">Custom buy amount (ETH):</label>
-        <input
-          id="deploymentFee"
-          type="text"
-          value={deploymentFee}
-          onChange={(e) => setDeploymentFee(e.target.value)}
-          placeholder="0.0005"
-        />
-        <small>Enter the amount of ETH you want to send with deployment</small>
-      </div>
-    )}
-    
-    {/* Salt generation info section */}
-    {generatedSalt && (
-      <div className="salt-result">
-        <p>Salt Generated: {`${generatedSalt.substring(0, 10)}...${generatedSalt.substring(58)}`}</p>
-        <p>Predicted Token Address: {predictedAddress}</p>
-      </div>
-    )}
-    {isGeneratingSalt && (
-      <div className="generating-message">
-        <p>Generating Salt... (Attempt {saltGenerationCount})</p>
-      </div>
-    )}
-    
-    <div className="gas-options">
-      <div className="checkbox-wrapper">
-        <label className="checkbox-container">
-          Use custom gas price
-          <input 
-            type="checkbox" 
-            checked={useCustomGas} 
-            onChange={(e) => setUseCustomGas(e.target.checked)} 
-          />
-          <span className="checkmark"></span>
-        </label>
-      </div>
-      
-      {useCustomGas && (
-        <div className="form-group">
-          <label htmlFor="gasPrice">Gas Price (Gwei):</label>
-          <input
-            id="gasPrice"
-            type="text"
-            value={customGasPrice}
-            onChange={(e) => setCustomGasPrice(e.target.value)}
-            placeholder={gasPrice}
-          />
-        </div>
-      )}
-      
-      {gasPrice && (
-        <div className="current-gas">
-          Current network gas price: {gasPrice} Gwei
-        </div>
-      )}
-    </div>
-    
-    <button
-      onClick={deployToken}
-      disabled={isExecuting || !signer || !tokenName || !tokenSymbol || !tokenSupply}
-      className="execute-button deploy-button"
-    >
-      {isExecuting ? 'Deploying Token...' : 'Deploy Token'}
-    </button>
-    
-    {error && (
-      <div className="error-message">
-        {error}
-      </div>
-    )}
-    
-    {txHash && (
-      <div className="tx-hash">
-        Transaction hash: {txHash}
-        {!txResult && <div className="pending-indicator">Transaction pending...</div>}
-      </div>
-    )}
+      ))}
+      <h1>Deploy New Token</h1>
 
-    {txResult && txResult.success && (
-      <div className="success-message">
-        <h4>Transaction successful!</h4>
-        <div className="tx-details">
-          <p>Transaction hash: {txResult.hash}</p>
-          <p>Block number: {txResult.blockNumber}</p>
-          <p>Gas used: {txResult.gasUsed}</p>
-          {txResult.status && <p>Status: {txResult.status}</p>}
-          {txResult.tokenAddress && (
-            <>
-              <p>Token address: {txResult.tokenAddress}</p>
-              <a 
-                href={`https://basescan.org/address/${txResult.tokenAddress}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="explorer-link"
+      {/* Wallet connection status display - no button here since we use the navbar button */}
+      <div className="wallet-status">
+        {isConnected ? (
+          <div className="connected-status">
+            <span className="wallet-address">
+              Connected: {address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : ''}
+            </span>
+          </div>
+        ) : (
+          <div className="not-connected">
+            <span>Wallet not connected</span>
+          </div>
+        )}
+      </div>
+
+      {isConnected ? (
+        <div className="contract-form-container">
+          <h3>Deploy New Token</h3>
+          <p>
+            This will deploy a new token with a Uniswap V3 pool. Select your launch mode below.
+          </p>
+          
+          {/* Launch Mode Selector */}
+          <div className="launch-mode-section">
+            <h4>Select Launch Mode</h4>
+            <div className="launch-mode-options">
+              <div 
+                className={`launch-mode-option ${launchMode === 'DEGEN' ? 'active' : ''}`}
+                onClick={() => setLaunchMode('DEGEN')}
               >
-                View on BaseScan
-              </a>
-            </>
+                <div className="launch-mode-header">
+                  <span className="launch-mode-icon">🔥</span>
+                  <h5>Degen</h5>
+                </div>
+                <p className="launch-mode-description">{LAUNCH_MODES.DEGEN.description}</p>
+              </div>
+              
+              <div 
+                className={`launch-mode-option ${launchMode === 'STANDARD' ? 'active' : ''}`}
+                onClick={() => setLaunchMode('STANDARD')}
+              >
+                <div className="launch-mode-header">
+                  <span className="launch-mode-icon">⚖️</span>
+                  <h5>Standard</h5>
+                </div>
+                <p className="launch-mode-description">{LAUNCH_MODES.STANDARD.description}</p>
+              </div>
+              
+              <div 
+                className={`launch-mode-option ${launchMode === 'BUILDER' ? 'active' : ''}`}
+                onClick={() => setLaunchMode('BUILDER')}
+              >
+                <div className="launch-mode-header">
+                  <span className="launch-mode-icon">🏗️</span>
+                  <h5>Builder</h5>
+                </div>
+                <p className="launch-mode-description">{LAUNCH_MODES.BUILDER.description}</p>
+              </div>
+            </div>
+          </div>
+            
+          <div className="token-form-section">
+            <div className="token-data-row">
+              <div className="form-group">
+                <label htmlFor="tokenName">Token Name:</label>
+                <input
+                  id="tokenName"
+                  type="text"
+                  value={tokenName}
+                  onChange={(e) => setTokenName(e.target.value)}
+                  placeholder="My Token"
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="tokenSymbol">Token Symbol:</label>
+                <input
+                  id="tokenSymbol"
+                  type="text"
+                  value={tokenSymbol}
+                  onChange={(e) => setTokenSymbol(e.target.value)}
+                  placeholder="TKN"
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="token-data-row">
+              <div className="form-group">
+                <label htmlFor="tokenSupply">Total Supply (tokens):</label>
+                <input
+                  id="tokenSupply"
+                  type="text"
+                  value={tokenSupply}
+                  onChange={(e) => setTokenSupply(e.target.value)}
+                  placeholder="100000"
+                  required
+                />
+                <small>Default: 100,000 tokens</small>
+              </div>
+              
+              <div className="form-group">
+                <label htmlFor="feeClaimerAddress">Fee Claimer Address:</label>
+                <input
+                  id="feeClaimerAddress"
+                  type="text"
+                  value={feeClaimerAddress}
+                  onChange={(e) => setFeeClaimerAddress(e.target.value)}
+                  placeholder={address}
+                />
+                <small>This address will receive LP fees. Defaults to your wallet address.</small>
+              </div>
+            </div>
+          </div>
+          
+          <div className="deployment-details">
+            <h4>Deployment Details</h4>
+            <p>• Fee Tier: 1% (fixed)</p>
+            <p>• Launch Mode: {LAUNCH_MODES[launchMode].name} (${LAUNCH_MODES[launchMode].marketCap} target)</p>
+            {ethPriceUSD && <p>• Current ETH Price: ${ethPriceUSD.toFixed(2)}</p>}
+            {initialTick && <p>• Calculated Initial Tick: {initialTick}</p>}
+            {marketCapStats && (
+              <>
+                <p>• Target Market Cap: ${marketCapStats.targetMarketCap}</p>
+                <p>• Actual Market Cap: ${marketCapStats.actualMarketCap}</p>
+                <p>• Token Price: ${marketCapStats.tokenPriceUSD.toFixed(8)} (${marketCapStats.tokenPriceETH.toFixed(8)} ETH)</p>
+              </>
+            )}
+          </div>
+          
+          <div className="checkbox-wrapper">
+            <label className="checkbox-container">
+              Override default buy amount (0.0005 ETH)
+              <input 
+                type="checkbox" 
+                checked={useCustomFee} 
+                onChange={(e) => setUseCustomFee(e.target.checked)} 
+              />
+              <span className="checkmark"></span>
+            </label>
+          </div>
+          
+          {useCustomFee && (
+            <div className="form-group">
+              <label htmlFor="deploymentFee">Custom buy amount (ETH):</label>
+              <input
+                id="deploymentFee"
+                type="text"
+                value={deploymentFee}
+                onChange={(e) => setDeploymentFee(e.target.value)}
+                placeholder="0.0005"
+              />
+              <small>Enter the amount of ETH you want to send with deployment</small>
+            </div>
           )}
-          {txResult.tokenId && <p>Position ID: {txResult.tokenId}</p>}
-        </div>
-      </div>
-    )}
-    
-    {/* Shill Text Modal Popup */}
-    {showShillText && shillText && (
-      <div className="modal-overlay">
-        <div className="modal-content shill-modal">
-          <h3>🚀 Your Token Is Live!</h3>
-          <div className="shill-text-box">
-            <p>{shillText}</p>
+          
+          {/* Salt generation info section */}
+          {generatedSalt && (
+            <div className="salt-result">
+              <p>Salt Generated: {`${generatedSalt.substring(0, 10)}...${generatedSalt.substring(58)}`}</p>
+              <p>Predicted Token Address: {predictedAddress}</p>
+            </div>
+          )}
+          {isGeneratingSalt && (
+            <div className="generating-message">
+              <p>Generating Salt... (Attempt {saltGenerationCount})</p>
+            </div>
+          )}
+          
+          <div className="gas-options">
+            <div className="checkbox-wrapper">
+              <label className="checkbox-container">
+                Use custom gas price
+                <input 
+                  type="checkbox" 
+                  checked={useCustomGas} 
+                  onChange={(e) => setUseCustomGas(e.target.checked)} 
+                />
+                <span className="checkmark"></span>
+              </label>
+            </div>
+            
+            {useCustomGas && (
+              <div className="form-group">
+                <label htmlFor="gasPrice">Gas Price (Gwei):</label>
+                <input
+                  id="gasPrice"
+                  type="text"
+                  value={customGasPrice}
+                  onChange={(e) => setCustomGasPrice(e.target.value)}
+                  placeholder={gasPrice}
+                />
+              </div>
+            )}
+            
+            {gasPrice && (
+              <div className="current-gas">
+                Current network gas price: {gasPrice} Gwei
+              </div>
+            )}
           </div>
-          <div className="shill-actions">
-            <button 
-              onClick={copyShillText} 
-              className="copy-button"
-            >
-              Copy Text
-            </button>
-            <button 
-              onClick={shareToTwitter} 
-              className="twitter-button"
-            >
-              <span role="img" aria-label="Twitter">🐦</span> Post to Twitter
-            </button>
-            <button 
-              onClick={openSigmaBuyBot} 
-              className="sigma-button"
-            >
-              <span role="img" aria-label="Robot">🤖</span> Buy with Sigma
-            </button>
-            <button 
-              onClick={openDexscreener} 
-              className="dexscreener-button"
-            >
-              <span role="img" aria-label="Chart">📊</span> Dexscreener
-            </button>
-          </div>
-<button 
-  onClick={() => {
-    // First, clear all intervals to stop periodic checks
-    for (let i = 1; i < 10000; i++) {
-      window.clearInterval(i);
-    }
-    
-    // Force hide the modal with DOM manipulation
-    const modalOverlay = document.querySelector('.modal-overlay');
-    if (modalOverlay) {
-      modalOverlay.style.display = 'none';
-    }
-    
-    // Set internal state with slight delay
-    setTimeout(() => {
-      setModalWasManuallyClosed(true);
-      setShowShillText(false);
-    }, 100);
-  }} 
-  className="close-modal-button"
->
-            Close
+          
+          <button
+            onClick={deployToken}
+            disabled={isExecuting || !signer || !tokenName || !tokenSymbol || !tokenSupply}
+            className="execute-button deploy-button"
+          >
+            {isExecuting ? 'Deploying Token...' : 'Deploy Token'}
           </button>
-        </div>
-      </div>
-    )}
+          
+          {error && (
+            <div className="error-message">
+              {error}
+            </div>
+          )}
+          
+          {txHash && (
+            <div className="tx-hash">
+              Transaction hash: {txHash}
+              {!txResult && <div className="pending-indicator">Transaction pending...</div>}
+            </div>
+          )}
 
-    <div className="connection-info">
-      <p>Connected to chain ID: {chainId}</p>
-      <p>Connected address: {address}</p>
+          {txResult && txResult.success && (
+            <div className="success-message">
+              <h4>Transaction successful!</h4>
+              <div className="tx-details">
+                <p>Transaction hash: {txResult.hash}</p>
+                <p>Block number: {txResult.blockNumber}</p>
+                <p>Gas used: {txResult.gasUsed}</p>
+                {txResult.status && <p>Status: {txResult.status}</p>}
+                {txResult.tokenAddress && (
+                  <>
+                    <p>Token address: {txResult.tokenAddress}</p>
+                    <a 
+                      href={`https://basescan.org/address/${txResult.tokenAddress}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="explorer-link"
+                    >
+                      View on BaseScan
+                    </a>
+                  </>
+                )}
+                {txResult.tokenId && <p>Position ID: {txResult.tokenId}</p>}
+              </div>
+            </div>
+          )}
+          
+          {/* Shill Text Modal Popup */}
+          {showShillText && shillText && (
+            <div className="modal-overlay">
+              <div className="modal-content shill-modal">
+                <h3>🚀 Your Token Is Live!</h3>
+                <div className="shill-text-box">
+                  <p>{shillText}</p>
+                </div>
+                <div className="shill-actions">
+                  <button 
+                    onClick={copyShillText} 
+                    className="copy-button"
+                  >
+                    Copy Text
+                  </button>
+                  <button 
+                    onClick={shareToTwitter} 
+                    className="twitter-button"
+                  >
+                    <span role="img" aria-label="Twitter">🐦</span> Post to Twitter
+                  </button>
+                  <button 
+                    onClick={openSigmaBuyBot} 
+                    className="sigma-button"
+                  >
+                    <span role="img" aria-label="Robot">🤖</span> Buy with Sigma
+                  </button>
+                  <button 
+                    onClick={openDexscreener} 
+                    className="dexscreener-button"
+                  >
+                    <span role="img" aria-label="Chart">📊</span> Dexscreener
+                  </button>
+                </div>
+                <button 
+                  onClick={() => {
+                    // First, clear all intervals to stop periodic checks
+                    for (let i = 1; i < 10000; i++) {
+                      window.clearInterval(i);
+                    }
+                    
+                    // Force hide the modal with DOM manipulation
+                    const modalOverlay = document.querySelector('.modal-overlay');
+                    if (modalOverlay) {
+                      modalOverlay.style.display = 'none';
+                    }
+                    
+                    // Set internal state with slight delay
+                    setTimeout(() => {
+                      setModalWasManuallyClosed(true);
+                      setShowShillText(false);
+                    }, 100);
+                  }} 
+                  className="close-modal-button"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="connection-info">
+            <p>Connected to chain ID: {chainId}</p>
+            <p>Connected address: {address}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="connect-prompt">
+          <p>Please connect your wallet to deploy a token</p>
+        </div>
+      )}
     </div>
-  </div>
-) : (
-  <div className="connect-prompt">
-    <p>Please connect your wallet to deploy a token</p>
-  </div>
-)}
-</div>
-);
+  );
 }
 
 export default DeployToken;

@@ -1,4 +1,4 @@
-import { writeContract } from '@wagmi/core';
+import { writeContract, getPublicClient } from '@wagmi/core';
 import { ethers } from 'ethers';
 import React, { useEffect, useState } from 'react';
 import { useAccount, useChainId } from 'wagmi';
@@ -128,23 +128,21 @@ function CollectFees() {
     const fetchGasPrice = async () => {
       if (isConnected) {
         try {
-          // Use ethers.js provider to get gas price
-          const provider = new ethers.JsonRpcProvider(
-            chain?.id === 8453 ? 'https://mainnet.base.org' : undefined
-          );
-          
-          const feeData = await provider.getFeeData();
-          if (feeData && feeData.gasPrice) {
-            setGasPrice(ethers.formatUnits(feeData.gasPrice, 'gwei'));
+          const publicClient = getPublicClient(wagmiConfig);
+          const gasPrice = await publicClient.getGasPrice();
+          if (gasPrice) {
+            setGasPrice(ethers.formatUnits(gasPrice, 'gwei'));
           }
         } catch (error) {
           console.error('Error getting gas price:', error);
+          // Set a default gas price if the fetch fails
+          setGasPrice('0.1');
         }
       }
     };
     
     fetchGasPrice();
-  }, [isConnected, chain]);
+  }, [isConnected]);
 
   // Generate shill text for fee collection
   function generateFeeCollectionShillText() {
@@ -230,75 +228,67 @@ function CollectFees() {
       setTxResult(null);
       setShowShillText(false);
       
-      // Using wagmi's writeContract function
-      const { hash } = await writeContract(wagmiConfig, {
+      // Validate contract address and chain ID
+      if (!FEE_COLLECTOR_ADDRESS) {
+        throw new Error('Fee collector contract address not configured');
+      }
+
+      // Get the current chain ID
+      const publicClient = getPublicClient(wagmiConfig);
+      if (!publicClient) {
+        throw new Error('Failed to get public client');
+      }
+
+      // Prepare the transaction
+      const { request } = await publicClient.simulateContract({
         address: FEE_COLLECTOR_ADDRESS,
         abi: FEE_COLLECTOR_ABI,
         functionName: 'collectAllFees',
+        args: [],
       });
+
+      // Send the transaction
+      const hash = await writeContract(wagmiConfig, request);
+      
+      if (!hash) {
+        throw new Error('Transaction hash not received');
+      }
       
       setTxHash(hash);
       
-      // Create a provider to get transaction details
-      const provider = new ethers.JsonRpcProvider(
-        chain?.id === 8453 ? 'https://mainnet.base.org' : undefined
-      );
+      // Wait for transaction with timeout
+      const receipt = await Promise.race([
+        publicClient.waitForTransactionReceipt({ hash }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
+        )
+      ]);
       
-      // Wait for transaction to be mined
-      const receipt = await provider.waitForTransaction(hash);
-      
-      if (receipt && receipt.status === 1) {
+      if (!receipt) {
+        throw new Error('Transaction receipt not received');
+      }
+
+      if (receipt.status === 'success' || receipt.status === 1) {
         // Transaction successful
         setTxResult({
           success: true,
-          hash: receipt.hash,
+          hash: receipt.transactionHash || receipt.hash,
           blockNumber: receipt.blockNumber,
-          gasUsed: receipt.gasUsed.toString(),
-          explorerUrl: getExplorerUrl(receipt.hash)
+          gasUsed: receipt.gasUsed?.toString() || '0',
+          explorerUrl: `https://basescan.org/tx/${receipt.transactionHash || receipt.hash}`
         });
-
-        // Generate shill text for the fee collection
+        
+        // Generate and show shill text
         const generatedShillText = generateFeeCollectionShillText();
         setShillText(generatedShillText);
         setShowShillText(true);
-        
-        // Play a sound effect
-        try {
-          const sound = new Audio('/Tarzan.mp3');
-          sound.volume = 0.7;
-          sound.play();
-        } catch (e) {
-          console.log("Error playing sound:", e);
-        }
       } else {
-        // Transaction failed
-        setTxResult({
-          success: false,
-          hash: hash,
-          status: 'Failed',
-          explorerUrl: getExplorerUrl(hash)
-        });
+        throw new Error('Transaction failed on-chain');
       }
-      
-      setIsExecuting(false);
     } catch (err) {
-      console.error('Transaction error:', err);
-      
-      // Try to extract useful error message
-      let errorMessage = err.message || 'Unknown error';
-      
-      // Check for common error patterns
-      if (errorMessage.includes('insufficient funds')) {
-        errorMessage = 'Insufficient funds for transaction. Please check your balance.';
-      } else if (errorMessage.includes('gas required exceeds allowance')) {
-        errorMessage = 'Gas required exceeds your set limit.';
-      } else if (errorMessage.includes('nonce')) {
-        errorMessage = 'Transaction nonce error. Try refreshing the page and reconnecting your wallet.';
-      } else if (errorMessage.includes('user denied') || errorMessage.includes('user rejected')) {
-        errorMessage = 'Transaction was rejected in your wallet.';
-      }
-      
-      setError('Transaction failed: ' + errorMessage);
+      console.error('Fee collection error:', err);
+      setError('Failed to collect fees: ' + (err.message || 'Unknown error'));
+    } finally {
       setIsExecuting(false);
     }
   };

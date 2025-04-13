@@ -803,6 +803,32 @@ function DeployToken() {
             throw new Error('Failed to generate valid salt after multiple attempts');
           }
 
+          // Get tick spacing for the fee tier
+          const tickSpacing = await contract.uniswapV3Factory.feeAmountTickSpacing(FEE_TIER);
+          if (!tickSpacing) {
+            throw new Error('Failed to get tick spacing');
+          }
+
+          // Ensure initial tick is valid
+          if (tickToUse % tickSpacing !== 0) {
+            // Round to nearest valid tick
+            tickToUse = Math.round(tickToUse / tickSpacing) * tickSpacing;
+          }
+
+          // Log the function parameters for debugging
+          console.log('Function Parameters:', {
+            tokenName,
+            tokenSymbol,
+            parsedSupply: parsedSupply.toString(),
+            tickToUse,
+            FEE_TIER,
+            validSalt,
+            feeClaimerToUse,
+            RECIPIENT_WALLET,
+            onePercentAmount: onePercentAmount.toString(),
+            tickSpacing: tickSpacing.toString()
+          });
+
           // Create a new transaction object with all properties set at creation
           const tx = {
             from: address,
@@ -827,11 +853,21 @@ function DeployToken() {
               : undefined
           };
 
+          // Log the full transaction object for debugging
+          console.log('Transaction Object:', {
+            ...tx,
+            data: tx.data, // Keep the data as is for inspection
+            value: tx.value.toString(), // Convert BigNumber to string for logging
+            gasPrice: tx.gasPrice ? tx.gasPrice.toString() : undefined
+          });
+
           // Send the transaction using the raw request method
           const txResponse = await window.ethereum.request({
             method: 'eth_sendTransaction',
             params: [tx]
           });
+
+          console.log('Transaction Response:', txResponse);
 
           setTxHash(txResponse);
 
@@ -842,6 +878,8 @@ function DeployToken() {
               setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
             )
           ]);
+
+          console.log('Transaction Receipt:', receipt);
 
           if (receipt.status === 1) {
             // Transaction successful

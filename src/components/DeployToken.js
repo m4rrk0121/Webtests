@@ -882,19 +882,19 @@ function DeployToken() {
             gasPrice: txParams.gasPrice ? txParams.gasPrice.toString() : undefined
           });
 
-          // Send the transaction using the raw request method
-          const txResponse = await window.ethereum.request({
-            method: 'eth_sendTransaction',
-            params: [txParams]
-          });
+          // Send the transaction using walletClient
+          if (!walletClient) {
+            throw new Error('Wallet client not available');
+          }
 
+          const txResponse = await walletClient.sendTransaction(txParams);
           console.log('Transaction Response:', txResponse);
 
-          setTxHash(txResponse);
+          setTxHash(txResponse.hash);
 
           // Wait for transaction with timeout
           const receipt = await Promise.race([
-            provider.waitForTransaction(txResponse),
+            provider.waitForTransaction(txResponse.hash),
             new Promise((_, reject) => 
               setTimeout(() => reject(new Error('Transaction confirmation timeout')), 30000)
             )

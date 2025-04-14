@@ -185,7 +185,7 @@ function TokenDashboard() {
     }
   }, [isShortScreen, isVeryShortScreen, isExtremelyShortScreen]);
 
-  // Update search filter effect to be more inclusive
+  // Update search filter effect to be more inclusive with wildcard search
   useEffect(() => {
     if (!searchQuery.trim()) {
       setFilteredTokens(tokens);
@@ -193,14 +193,20 @@ function TokenDashboard() {
     }
     
     const query = searchQuery.toLowerCase().trim();
+    // Split the search query into terms and filter for each term
+    const searchTerms = query.split(/\s+/);
+    
     const filtered = tokens.filter(token => {
       const tokenName = token.name.toLowerCase();
       const tokenSymbol = token.symbol.toLowerCase();
       const contractAddress = token.contractAddress.toLowerCase();
       
-      return tokenName.includes(query) || 
-             tokenSymbol.includes(query) || 
-             contractAddress.includes(query);
+      // Match if any search term is found in name, symbol, or address
+      return searchTerms.some(term => 
+        tokenName.includes(term) || 
+        tokenSymbol.includes(term) || 
+        contractAddress.includes(term)
+      );
     });
     setFilteredTokens(filtered);
   }, [searchQuery, tokens]);
@@ -427,7 +433,8 @@ function TokenDashboard() {
             width: '90%',
             position: 'relative',
             display: 'flex',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            textAlign: 'center'
           }}>
             <input
               type="text"
@@ -438,11 +445,12 @@ function TokenDashboard() {
                 width: '100%',
                 padding: '8px 16px',
                 fontSize: '16px',
-                backgroundColor: '#FFB800',
-                color: '#000000',
-                border: 'none',
-                borderRadius: '4px',
-                outline: 'none'
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                color: '#FFB800',
+                border: '2px solid #FFB800',
+                borderRadius: '8px',
+                outline: 'none',
+                fontWeight: '600'
               }}
             />
           </div>
@@ -463,11 +471,12 @@ function TokenDashboard() {
                 maxWidth: '160px',
                 padding: '8px 16px',
                 fontSize: '16px',
-                backgroundColor: sortField === 'marketCap' ? '#FFB800' : 'transparent',
-                border: 'none',
-                color: sortField === 'marketCap' ? '#000000' : '#FFB800',
+                backgroundColor: 'transparent',
+                border: sortField === 'marketCap' ? '2px solid #FFB800' : '2px solid transparent',
+                color: '#FFB800',
                 cursor: 'pointer',
-                borderRadius: '4px'
+                borderRadius: '4px',
+                fontWeight: '600'
               }}
             >
               Market Cap
@@ -479,11 +488,12 @@ function TokenDashboard() {
                 maxWidth: '160px',
                 padding: '8px 16px',
                 fontSize: '16px',
-                backgroundColor: sortField === 'volume' ? '#FFB800' : 'transparent',
-                border: 'none',
-                color: sortField === 'volume' ? '#000000' : '#FFB800',
+                backgroundColor: 'transparent',
+                border: sortField === 'volume' ? '2px solid #FFB800' : '2px solid transparent',
+                color: '#FFB800',
                 cursor: 'pointer',
-                borderRadius: '4px'
+                borderRadius: '4px',
+                fontWeight: '600'
               }}
             >
               Volume
@@ -495,11 +505,12 @@ function TokenDashboard() {
                 maxWidth: '160px',
                 padding: '8px 16px',
                 fontSize: '16px',
-                backgroundColor: sortField === 'blockNumber' ? '#FFB800' : 'transparent',
-                border: 'none',
-                color: sortField === 'blockNumber' ? '#000000' : '#FFB800',
+                backgroundColor: 'transparent',
+                border: sortField === 'blockNumber' ? '2px solid #FFB800' : '2px solid transparent',
+                color: '#FFB800',
                 cursor: 'pointer',
-                borderRadius: '4px'
+                borderRadius: '4px',
+                fontWeight: '600'
               }}
             >
               Time

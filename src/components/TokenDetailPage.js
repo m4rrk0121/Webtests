@@ -257,7 +257,7 @@ function TokenDetailPage() {
   }, [removeListener]);
 
   // Fetch token data via HTTP as fallback
-  const fetchTokenDataHttp = useCallback(async (address) => {
+  const fetchTokenDataHttp = useCallback(async (address, timeframe) => {
     try {
       console.log('[TokenDetailPage] Fetching token data via HTTP');
       const response = await axios.get(
@@ -474,7 +474,7 @@ function TokenDetailPage() {
         if (!tokenData || refreshPage.current) {
           try {
             console.log('[TokenDetailPage] Falling back to HTTP fetch');
-            const httpData = await fetchTokenDataHttp(contractAddress);
+            const httpData = await fetchTokenDataHttp(contractAddress, '15');
             
             if (httpData && isActive) {
               setTokenDetails(httpData);
@@ -643,7 +643,7 @@ function TokenDetailPage() {
             
             // Fallback to HTTP
             try {
-              const httpData = await fetchTokenDataHttp(contractAddress);
+              const httpData = await fetchTokenDataHttp(contractAddress, '15');
               setTokenDetails(httpData);
               setPoolAddress(httpData.main_pool_address || contractAddress);
               setDataSource('http');
@@ -659,7 +659,7 @@ function TokenDetailPage() {
           });
       } else {
         // Try HTTP directly
-        fetchTokenDataHttp(contractAddress)
+        fetchTokenDataHttp(contractAddress, '15')
           .then(data => {
             setTokenDetails(data);
             setPoolAddress(data.main_pool_address || contractAddress);

@@ -63,16 +63,14 @@ function Home() {
         setLoading(true);
         
         // Fetch top tokens for display
-        const tokensResponse = await axios.get('https://websocket-okv9.onrender.com/api/tokens', {
-          params: {
-            sort: 'marketCap',
-            direction: 'desc',
-            page: 1
-          }
-        });
+        const tokensResponse = await axios.get(
+          'https://websocketv2.onrender.com/api/tokens'
+        );
         
         // Fetch global statistics separately
-        const statsResponse = await axios.get('https://websocket-okv9.onrender.com/api/global-stats');
+        const statsResponse = await axios.get(
+          'https://websocketv2.onrender.com/api/global-stats'
+        );
         
         // Make sure we're not using stale data after resubscribing to WebSocket
         if (dataSource !== 'websocket') {

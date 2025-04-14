@@ -261,8 +261,8 @@ function TokenDetailPage() {
     try {
       console.log('[TokenDetailPage] Fetching token data via HTTP');
       const response = await axios.get(
-        `https://websocket-okv9.onrender.com/api/tokens/${address}`,
-        { timeout: 15000 }
+        `https://websocketv2.onrender.com/api/tokens/${address}`,
+        { params: { timeframe } }
       );
       
       if (response.data) {

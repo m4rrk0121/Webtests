@@ -297,7 +297,7 @@ function TokenDashboard() {
   // Original HTTP methods kept as fallbacks
   const fetchGlobalTopTokens = useCallback(async () => {
     try {
-      const response = await axios.get('https://website-4g84.onrender.com/api/global-top-tokens');
+      const response = await axios.get('https://websocketv2.onrender.com/api/global-top-tokens');
       
       setHighestMarketCapToken(response.data.topMarketCapToken);
       setHighestVolumeToken(response.data.topVolumeToken);

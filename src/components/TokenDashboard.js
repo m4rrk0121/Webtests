@@ -55,23 +55,19 @@ const formatCurrency = (value) => {
   const num = parseFloat(value);
   if (isNaN(num)) return 'N/A';
   
-  // Format with commas and no decimals for large numbers
+  // For very large numbers (billions), still use suffix
   if (num >= 1000000000) {
     return `$${Math.round(num / 1000000000).toLocaleString()}B`;
-  } else if (num >= 1000000) {
-    return `$${Math.round(num / 1000000).toLocaleString()}M`;
-  } else if (num >= 1000) {
-    return `$${Math.round(num / 1000).toLocaleString()}K`;
   }
   
-  // For smaller numbers, show decimals only if it's a price
+  // For prices (small numbers), show more decimals
   if (num < 0.01) {
     return `$${num.toFixed(8)}`;
   } else if (num < 1) {
     return `$${num.toFixed(4)}`;
   }
   
-  // For regular numbers, use comma formatting with no decimals
+  // For all other numbers (including market caps), show full number with commas
   return `$${Math.round(num).toLocaleString()}`;
 };
 
@@ -137,7 +133,7 @@ function TokenDashboard() {
   const [highestVolumeToken, setHighestVolumeToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [sortField, setSortField] = useState('marketCap');
+  const [sortField, setSortField] = useState('market_cap_usd');
   const [sortDirection, setSortDirection] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -279,7 +275,7 @@ function TokenDashboard() {
       console.log(`[TokenDashboard] Sort/page changed - Sending params: field=${sortField}, direction=${sortDirection}, page=${currentPage}`);
       
       emit('get-tokens', {
-        sort: sortField,
+        sort: sortField === 'marketCap' ? 'market_cap_usd' : 'volume_usd_24h',
         direction: sortDirection,
         page: currentPage
       });
@@ -335,10 +331,12 @@ function TokenDashboard() {
   }, []);
 
   const handleSort = (field) => {
-    if (field === sortField) {
+    // Update sort field to match the API field names
+    const apiField = field === 'marketCap' ? 'market_cap_usd' : 'volume_usd_24h';
+    if (apiField === sortField) {
       setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc');
     } else {
-      setSortField(field);
+      setSortField(apiField);
       setSortDirection('desc');
     }
     setCurrentPage(1);
@@ -412,15 +410,15 @@ function TokenDashboard() {
           <div className="sorting-controls">
             <button 
               onClick={() => handleSort('marketCap')}
-              className={sortField === 'marketCap' ? 'active' : ''}
+              className={sortField === 'market_cap_usd' ? 'active' : ''}
             >
-              Sort by Market Cap {sortField === 'marketCap' && (sortDirection === 'desc' ? '▼' : '▲')}
+              Sort by Market Cap {sortField === 'market_cap_usd' && (sortDirection === 'desc' ? '▼' : '▲')}
             </button>
             <button 
               onClick={() => handleSort('volume')}
-              className={sortField === 'volume' ? 'active' : ''}
+              className={sortField === 'volume_usd_24h' ? 'active' : ''}
             >
-              Sort by Volume {sortField === 'volume' && (sortDirection === 'desc' ? '▼' : '▲')}
+              Sort by Volume {sortField === 'volume_usd_24h' && (sortDirection === 'desc' ? '▼' : '▲')}
             </button>
           </div>
 

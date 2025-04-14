@@ -193,10 +193,15 @@ function TokenDashboard() {
     }
     
     const query = searchQuery.toLowerCase().trim();
-    const filtered = tokens.filter(token => 
-      token.name.toLowerCase().includes(query) || 
-      token.symbol.toLowerCase().includes(query)
-    );
+    const searchTerms = query.split(/\s+/);
+    
+    const filtered = tokens.filter(token => {
+      const tokenName = token.name.toLowerCase();
+      const tokenSymbol = token.symbol.toLowerCase();
+      return searchTerms.every(term => 
+        tokenName.includes(term) || tokenSymbol.includes(term)
+      );
+    });
     setFilteredTokens(filtered);
   }, [searchQuery, tokens]);
 
@@ -424,26 +429,19 @@ function TokenDashboard() {
           }}>
             <input
               type="text"
-              placeholder="Search by token name or symbol..."
+              placeholder="Search tokens..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 width: '100%',
                 padding: '12px 20px',
                 fontSize: '16px',
-                border: '2px solid #ffd700',
+                border: '2px solid #FFB800',
                 borderRadius: '25px',
                 backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                color: '#fff',
+                color: '#FFB800',
                 outline: 'none',
-                transition: 'all 0.3s ease',
-                '&:focus': {
-                  borderColor: '#ffed4a',
-                  boxShadow: '0 0 10px rgba(255, 215, 0, 0.3)'
-                },
-                '&::placeholder': {
-                  color: '#999'
-                }
+                transition: 'all 0.3s ease'
               }}
             />
           </div>
@@ -452,61 +450,58 @@ function TokenDashboard() {
           <div className="sorting-controls" style={{
             display: 'flex',
             justifyContent: 'center',
-            gap: '10px',
+            gap: '15px',
             margin: '20px auto',
             maxWidth: '600px',
             width: '90%'
           }}>
             <button 
               onClick={() => handleSort('marketCap')}
-              className={sortField === 'marketCap' ? 'active' : ''}
               style={{
                 flex: '1',
                 maxWidth: '160px',
-                padding: '10px 20px',
+                padding: '8px 16px',
                 fontSize: '16px',
-                border: '2px solid #ffd700',
-                borderRadius: '25px',
-                backgroundColor: sortField === 'marketCap' ? '#ffd700' : 'rgba(0, 0, 0, 0.7)',
-                color: sortField === 'marketCap' ? '#000' : '#ffd700',
+                backgroundColor: 'transparent',
+                border: sortField === 'marketCap' ? '2px solid #FFB800' : '2px solid transparent',
+                color: '#FFB800',
                 cursor: 'pointer',
-                transition: 'all 0.3s ease'
+                transition: 'all 0.3s ease',
+                borderRadius: '4px'
               }}
             >
               Market Cap
             </button>
             <button 
               onClick={() => handleSort('volume')}
-              className={sortField === 'volume' ? 'active' : ''}
               style={{
                 flex: '1',
                 maxWidth: '160px',
-                padding: '10px 20px',
+                padding: '8px 16px',
                 fontSize: '16px',
-                border: '2px solid #ffd700',
-                borderRadius: '25px',
-                backgroundColor: sortField === 'volume' ? '#ffd700' : 'rgba(0, 0, 0, 0.7)',
-                color: sortField === 'volume' ? '#000' : '#ffd700',
+                backgroundColor: 'transparent',
+                border: sortField === 'volume' ? '2px solid #FFB800' : '2px solid transparent',
+                color: '#FFB800',
                 cursor: 'pointer',
-                transition: 'all 0.3s ease'
+                transition: 'all 0.3s ease',
+                borderRadius: '4px'
               }}
             >
               Volume
             </button>
             <button 
               onClick={() => handleSort('blockNumber')}
-              className={sortField === 'blockNumber' ? 'active' : ''}
               style={{
                 flex: '1',
                 maxWidth: '160px',
-                padding: '10px 20px',
+                padding: '8px 16px',
                 fontSize: '16px',
-                border: '2px solid #ffd700',
-                borderRadius: '25px',
-                backgroundColor: sortField === 'blockNumber' ? '#ffd700' : 'rgba(0, 0, 0, 0.7)',
-                color: sortField === 'blockNumber' ? '#000' : '#ffd700',
+                backgroundColor: 'transparent',
+                border: sortField === 'blockNumber' ? '2px solid #FFB800' : '2px solid transparent',
+                color: '#FFB800',
                 cursor: 'pointer',
-                transition: 'all 0.3s ease'
+                transition: 'all 0.3s ease',
+                borderRadius: '4px'
               }}
             >
               Time

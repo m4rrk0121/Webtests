@@ -80,38 +80,6 @@ function TokenCard({ token, highlight = false }) {
   const navigate = useNavigate();
   const dexScreenerLink = `https://dexscreener.com/base/${token.contractAddress}`;
 
-  // Calculate market cap using price and total supply with proper scaling
-  const calculateMarketCap = (token) => {
-    if (!token.price_usd || !token.total_supply) return 0;
-    
-    // Log values for debugging
-    console.log(`Token ${token.symbol}:`, {
-      price_usd: token.price_usd,
-      total_supply: token.total_supply,
-      raw_market_cap: token.price_usd * token.total_supply
-    });
-
-    // Adjust calculation based on typical values (1.5K to 80K range)
-    const adjustedPrice = parseFloat(token.price_usd);
-    const adjustedSupply = parseFloat(token.total_supply) / 1e9; // Adjust divisor based on actual values
-    return adjustedPrice * adjustedSupply;
-  };
-
-  // Calculate adjusted volume
-  const calculateVolume = (token) => {
-    if (!token.volume_usd) return 0;
-    
-    // Log values for debugging
-    console.log(`Token ${token.symbol} volume:`, {
-      raw_volume: token.volume_usd,
-      parsed_volume: parseFloat(token.volume_usd)
-    });
-
-    // Parse and adjust volume if needed
-    const volume = parseFloat(token.volume_usd);
-    return volume;
-  };
-
   const handleCardClick = (e) => {
     // Prevent navigation if DexScreener link is clicked
     if (e.target.closest('.dexscreener-link')) return;
@@ -124,16 +92,13 @@ function TokenCard({ token, highlight = false }) {
           name: token.name,
           symbol: token.symbol,
           price_usd: token.price_usd,
-          total_supply: token.total_supply,
+          market_cap: token.market_cap,
           volume_usd: token.volume_usd,
           contractAddress: token.contractAddress
         }
       }
     });
   };
-
-  const marketCap = calculateMarketCap(token);
-  const volume = calculateVolume(token);
 
   return (
     <div 
@@ -155,8 +120,8 @@ function TokenCard({ token, highlight = false }) {
       </div>
       <p>Symbol: {token.symbol}</p>
       <p>Price: {formatCurrency(token.price_usd)}</p>
-      <p>Market Cap: {formatCurrency(marketCap)}</p>
-      <p>24h Volume: {formatCurrency(volume)}</p>
+      <p>Market Cap: {formatCurrency(token.market_cap)}</p>
+      <p>24h Volume: {formatCurrency(token.volume_usd)}</p>
       <small>CA: {token.contractAddress}</small>
     </div>
   );
@@ -231,6 +196,7 @@ function TokenDashboard() {
       
       // Register token list update listener
       const tokensListUpdateHandler = (data) => {
+        console.log('Received tokens list update:', data.tokens[0]); // Log first token as example
         setTokens(data.tokens);
         setTotalPages(data.totalPages);
         setLoading(false);
@@ -238,12 +204,17 @@ function TokenDashboard() {
       
       // Register top tokens update listener
       const topTokensUpdateHandler = (data) => {
+        console.log('Received top tokens update:', {
+          marketCap: data.topMarketCapToken,
+          volume: data.topVolumeToken
+        });
         setHighestMarketCapToken(data.topMarketCapToken);
         setHighestVolumeToken(data.topVolumeToken);
       };
       
       // Register individual token update listener
       const tokenUpdateHandler = (updatedToken) => {
+        console.log('Received token update:', updatedToken);
         // Update the token in our existing list if it's there
         setTokens(currentTokens => 
           currentTokens.map(token => 
@@ -351,6 +322,8 @@ function TokenDashboard() {
           page: page
         }
       });
+      
+      console.log('HTTP response data:', response.data.tokens[0]); // Log first token as example
       
       setTokens(response.data.tokens);
       setTotalPages(response.data.totalPages);

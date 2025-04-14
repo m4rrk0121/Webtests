@@ -277,7 +277,7 @@ function Home() {
   const calculateMarketCap = (token) => {
     if (!token.price_usd || !token.total_supply) return 0;
     const adjustedPrice = parseFloat(token.price_usd);
-    const adjustedSupply = parseFloat(token.total_supply) / 1e9; // Same scaling as TokenDashboard
+    const adjustedSupply = parseFloat(token.total_supply);
     return adjustedPrice * adjustedSupply;
   };
 

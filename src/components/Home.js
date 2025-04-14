@@ -285,6 +285,17 @@ function Home() {
     navigate(`/token/${contractAddress}`);
   };
 
+  const formatNumber = (value) => {
+    if (value === undefined || value === null) return '0';
+    if (value === 0) return '0';
+    if (value < 0.01) return value.toFixed(8);
+    if (value < 1) return value.toFixed(4);
+    if (value < 1000) return value.toFixed(2);
+    if (value < 1000000) return (value / 1000).toFixed(2) + 'K';
+    if (value < 1000000000) return (value / 1000000).toFixed(2) + 'M';
+    return (value / 1000000000).toFixed(2) + 'B';
+  };
+
   return (
     <div className="homepage">
       {/* Add this right after <div className="homepage"> (around line 165) */}
@@ -356,7 +367,7 @@ function Home() {
         <div className="stat-box">
           <h3>24h Total Volume</h3>
           <p>
-            {loading ? '...' : formatCurrency(stats.totalVolume)}
+            {loading ? '...' : `$${formatNumber(stats.total24hVolume)}`}
           </p>
         </div>
         <div className="stat-monkey">
@@ -365,7 +376,7 @@ function Home() {
         <div className="stat-box">
           <h3>Total Market Cap</h3>
           <p>
-            {loading ? '...' : formatCurrency(stats.totalMarketCap)}
+            {loading ? '...' : `$${formatNumber(stats.totalMarketCap)}`}
           </p>
         </div>
       </section>
@@ -385,13 +396,13 @@ function Home() {
               <h3>{featuredToken.name} ({featuredToken.symbol})</h3>
               <div>
                 <p>
-                  <strong>Price:</strong> {formatCurrency(featuredToken.price_usd, true)}
+                  <strong>Price:</strong> ${formatNumber(featuredToken.price_usd)}
                 </p>
                 <p>
-                  <strong>Market Cap:</strong> {formatCurrency(calculateMarketCap(featuredToken))}
+                  <strong>Market Cap:</strong> ${formatNumber(featuredToken.market_cap_usd)}
                 </p>
                 <p>
-                  <strong>24h Volume:</strong> {formatCurrency(featuredToken.volume_usd)}
+                  <strong>24h Volume:</strong> {featuredToken.volume_usd_24h ? `$${formatNumber(featuredToken.volume_usd_24h)}` : 'N/A'}
                 </p>
               </div>
               <p className="contract-address">
@@ -434,9 +445,9 @@ function Home() {
               >
                 <div>{index + 1}</div>
                 <div>{token.name} <span>({token.symbol})</span></div>
-                <div>{formatCurrency(token.price_usd, true)}</div>
-                <div>{formatCurrency(calculateMarketCap(token))}</div>
-                <div>{formatCurrency(token.volume_usd)}</div>
+                <div>${formatNumber(token.price_usd)}</div>
+                <div>${formatNumber(token.market_cap_usd)}</div>
+                <div>{token.volume_usd_24h ? `$${formatNumber(token.volume_usd_24h)}` : 'N/A'}</div>
               </div>
             ))}
             

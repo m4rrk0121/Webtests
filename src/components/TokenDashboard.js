@@ -259,76 +259,22 @@ function TokenDashboard() {
         removeListener('token-update', tokenUpdateHandler);
         removeListener('error', errorHandler);
       };
-    } else {
-      console.log("[TokenDashboard] WebSocket not yet connected");
-      
-      // Fall back to HTTP if WebSocket isn't connected
-      fallbackToHttpPolling();
     }
-  }, [isConnected]); // Only re-run when connection status changes
-  
-  // Request updated data when sort or page changes via WebSocket
+  }, [isConnected, sortField, sortDirection, currentPage]); // Added dependencies
+
+  // Request updated data when sort or page changes
   useEffect(() => {
     if (isConnected) {
       setLoading(true);
-      
       console.log(`[TokenDashboard] Sort/page changed - Sending params: field=${sortField}, direction=${sortDirection}, page=${currentPage}`);
       
       emit('get-tokens', {
-        sort: sortField === 'marketCap' ? 'market_cap_usd' : 'volume_usd_24h',
+        sort: sortField,
         direction: sortDirection,
         page: currentPage
       });
-    } else {
-      // If WebSocket is not connected, fall back to HTTP
-      fallbackToHttpPolling();
     }
   }, [sortField, sortDirection, currentPage, isConnected, emit]);
-
-  // Fallback to HTTP polling if WebSocket fails
-  const fallbackToHttpPolling = useCallback(() => {
-    console.log('[TokenDashboard] Falling back to HTTP polling');
-    
-    // Only proceed with HTTP polling if socket is not connected
-    if (!isConnected) {
-      fetchGlobalTopTokens();
-      fetchTokens(sortField, sortDirection, currentPage);
-    }
-  }, [sortField, sortDirection, currentPage, isConnected]);
-  
-  // Original HTTP methods kept as fallbacks
-  const fetchGlobalTopTokens = useCallback(async () => {
-    try {
-      const response = await axios.get('https://websocketv2.onrender.com/api/global-top-tokens');
-      
-      setHighestMarketCapToken(response.data.topMarketCapToken);
-      setHighestVolumeToken(response.data.topVolumeToken);
-    } catch (err) {
-      console.error('Failed to fetch global top tokens', err);
-    }
-  }, []);
-
-  const fetchTokens = useCallback(async (field, direction, page) => {
-    try {
-      setLoading(true);
-      const response = await axios.get('https://websocketv2.onrender.com/api/tokens', {
-        params: {
-          sort: field === 'marketCap' ? 'marketCap' : 'volume',
-          direction: direction,
-          page: page
-        }
-      });
-      
-      console.log('HTTP response data:', response.data.tokens[0]); // Log first token as example
-      
-      setTokens(response.data.tokens);
-      setTotalPages(response.data.totalPages);
-    } catch (err) {
-      setError('Failed to fetch tokens');
-    } finally {
-      setTimeout(() => setLoading(false), 300);
-    }
-  }, []);
 
   const handleSort = (field) => {
     // Update sort field to match the API field names

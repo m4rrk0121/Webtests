@@ -79,6 +79,24 @@ function TokenCard({ token, highlight = false }) {
   const navigate = useNavigate();
   const dexScreenerLink = `https://dexscreener.com/base/${token.contractAddress}`;
 
+  // Calculate market cap using price and total supply with proper scaling
+  const calculateMarketCap = (token) => {
+    if (!token.price_usd || !token.total_supply) return 0;
+    
+    // Log values for debugging
+    console.log(`Token ${token.symbol}:`, {
+      price_usd: token.price_usd,
+      total_supply: token.total_supply,
+      raw_market_cap: token.price_usd * token.total_supply
+    });
+
+    // Adjust calculation based on typical values (1.5K to 80K range)
+    // Assuming price_usd might be in wei or have extra decimals
+    const adjustedPrice = parseFloat(token.price_usd);
+    const adjustedSupply = parseFloat(token.total_supply) / 1e9; // Adjust divisor based on actual values
+    return adjustedPrice * adjustedSupply;
+  };
+
   const handleCardClick = (e) => {
     // Prevent navigation if DexScreener link is clicked
     if (e.target.closest('.dexscreener-link')) return;
@@ -87,18 +105,19 @@ function TokenCard({ token, highlight = false }) {
     navigate(`/token/${token.contractAddress}`, {
       state: { 
         fromDashboard: true,
-        // Optionally pass minimal token data to show immediately
         tokenPreview: {
           name: token.name,
           symbol: token.symbol,
           price_usd: token.price_usd,
-          fdv_usd: token.fdv_usd,
+          total_supply: token.total_supply,
           volume_usd: token.volume_usd,
           contractAddress: token.contractAddress
         }
       }
     });
   };
+
+  const marketCap = calculateMarketCap(token);
 
   return (
     <div 
@@ -120,7 +139,7 @@ function TokenCard({ token, highlight = false }) {
       </div>
       <p>Symbol: {token.symbol}</p>
       <p>Price: {formatCurrency(token.price_usd)}</p>
-      <p>Market Cap: {formatCurrency(token.fdv_usd)}</p>
+      <p>Market Cap: {formatCurrency(marketCap)}</p>
       <p>24h Volume: {formatCurrency(token.volume_usd)}</p>
       <small>CA: {token.contractAddress}</small>
     </div>
@@ -309,7 +328,7 @@ function TokenDashboard() {
   const fetchTokens = useCallback(async (field, direction, page) => {
     try {
       setLoading(true);
-      const response = await axios.get('https://website-4g84.onrender.com/api/tokens', {
+      const response = await axios.get('https://websocketv2.onrender.com/api/tokens', {
         params: {
           sort: field === 'marketCap' ? 'marketCap' : 'volume',
           direction: direction,

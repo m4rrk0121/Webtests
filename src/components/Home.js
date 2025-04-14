@@ -378,7 +378,7 @@ function Home() {
         <div className="stat-box">
           <h3>24h Total Volume</h3>
           <p>
-            {loading ? '...' : stats.total24hVolume === 0 ? 'N/A' : `$${formatNumber(stats.total24hVolume)}`}
+            {loading ? '...' : stats.totalVolume === 0 ? 'N/A' : `$${formatNumber(stats.totalVolume)}`}
           </p>
         </div>
         <div className="stat-monkey">

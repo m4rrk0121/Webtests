@@ -250,17 +250,35 @@ function Home() {
     const num = parseFloat(value);
     if (isNaN(num)) return 'N/A';
     
-    const decimals = isPrice ? 6 : 2; // Use 6 decimal places for price, 2 for others
-    
-    if (num >= 1000000000) {
-      return `$${(num / 1000000000).toFixed(decimals)}B`;
-    } else if (num >= 1000000) {
-      return `$${(num / 1000000).toFixed(decimals)}M`;
-    } else if (num >= 1000) {
-      return `$${(num / 1000).toFixed(decimals)}K`;
+    // For prices, maintain high precision
+    if (isPrice) {
+      if (num < 0.01) {
+        return `$${num.toFixed(8)}`;
+      } else if (num < 1) {
+        return `$${num.toFixed(4)}`;
+      }
+      return `$${num.toFixed(2)}`;
     }
     
-    return `$${num.toFixed(decimals)}`;
+    // For regular numbers (market cap, volume), use comma formatting
+    if (num >= 1000000000) {
+      return `$${Math.round(num / 1000000000).toLocaleString()}B`;
+    } else if (num >= 1000000) {
+      return `$${Math.round(num / 1000000).toLocaleString()}M`;
+    } else if (num >= 1000) {
+      return `$${Math.round(num / 1000).toLocaleString()}K`;
+    }
+    
+    // For regular numbers under 1000, use comma formatting with no decimals
+    return `$${Math.round(num).toLocaleString()}`;
+  };
+
+  // Calculate market cap using price and total supply
+  const calculateMarketCap = (token) => {
+    if (!token.price_usd || !token.total_supply) return 0;
+    const adjustedPrice = parseFloat(token.price_usd);
+    const adjustedSupply = parseFloat(token.total_supply) / 1e9; // Same scaling as TokenDashboard
+    return adjustedPrice * adjustedSupply;
   };
 
   const handleTokenClick = (contractAddress) => {
@@ -370,7 +388,7 @@ function Home() {
                   <strong>Price:</strong> {formatCurrency(featuredToken.price_usd, true)}
                 </p>
                 <p>
-                  <strong>Market Cap:</strong> {formatCurrency(featuredToken.fdv_usd)}
+                  <strong>Market Cap:</strong> {formatCurrency(calculateMarketCap(featuredToken))}
                 </p>
                 <p>
                   <strong>24h Volume:</strong> {formatCurrency(featuredToken.volume_usd)}
@@ -416,8 +434,8 @@ function Home() {
               >
                 <div>{index + 1}</div>
                 <div>{token.name} <span>({token.symbol})</span></div>
-                <div>{formatCurrency(token.price_usd,true)}</div>
-                <div>{formatCurrency(token.fdv_usd)}</div>
+                <div>{formatCurrency(token.price_usd, true)}</div>
+                <div>{formatCurrency(calculateMarketCap(token))}</div>
                 <div>{formatCurrency(token.volume_usd)}</div>
               </div>
             ))}

@@ -55,23 +55,24 @@ const formatCurrency = (value) => {
   const num = parseFloat(value);
   if (isNaN(num)) return 'N/A';
   
-  // Handle large numbers
+  // Format with commas and no decimals for large numbers
   if (num >= 1000000000) {
-    return `$${(num / 1000000000).toFixed(2)}B`;
+    return `$${Math.round(num / 1000000000).toLocaleString()}B`;
   } else if (num >= 1000000) {
-    return `$${(num / 1000000).toFixed(2)}M`;
+    return `$${Math.round(num / 1000000).toLocaleString()}M`;
   } else if (num >= 1000) {
-    return `$${(num / 1000).toFixed(2)}K`;
+    return `$${Math.round(num / 1000).toLocaleString()}K`;
   }
   
-  // Format based on value size
-  if (num >= 1) {
-    return `$${num.toFixed(2)}`;
-  } else if (num >= 0.01) {
-    return `$${num.toFixed(4)}`;
-  } else {
+  // For smaller numbers, show decimals only if it's a price
+  if (num < 0.01) {
     return `$${num.toFixed(8)}`;
+  } else if (num < 1) {
+    return `$${num.toFixed(4)}`;
   }
+  
+  // For regular numbers, use comma formatting with no decimals
+  return `$${Math.round(num).toLocaleString()}`;
 };
 
 // Token Card Component - Updated with state navigation
@@ -91,10 +92,24 @@ function TokenCard({ token, highlight = false }) {
     });
 
     // Adjust calculation based on typical values (1.5K to 80K range)
-    // Assuming price_usd might be in wei or have extra decimals
     const adjustedPrice = parseFloat(token.price_usd);
     const adjustedSupply = parseFloat(token.total_supply) / 1e9; // Adjust divisor based on actual values
     return adjustedPrice * adjustedSupply;
+  };
+
+  // Calculate adjusted volume
+  const calculateVolume = (token) => {
+    if (!token.volume_usd) return 0;
+    
+    // Log values for debugging
+    console.log(`Token ${token.symbol} volume:`, {
+      raw_volume: token.volume_usd,
+      parsed_volume: parseFloat(token.volume_usd)
+    });
+
+    // Parse and adjust volume if needed
+    const volume = parseFloat(token.volume_usd);
+    return volume;
   };
 
   const handleCardClick = (e) => {
@@ -118,6 +133,7 @@ function TokenCard({ token, highlight = false }) {
   };
 
   const marketCap = calculateMarketCap(token);
+  const volume = calculateVolume(token);
 
   return (
     <div 
@@ -140,7 +156,7 @@ function TokenCard({ token, highlight = false }) {
       <p>Symbol: {token.symbol}</p>
       <p>Price: {formatCurrency(token.price_usd)}</p>
       <p>Market Cap: {formatCurrency(marketCap)}</p>
-      <p>24h Volume: {formatCurrency(token.volume_usd)}</p>
+      <p>24h Volume: {formatCurrency(volume)}</p>
       <small>CA: {token.contractAddress}</small>
     </div>
   );

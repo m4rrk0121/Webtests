@@ -397,8 +397,8 @@ function TokenDashboard() {
               onClick={() => handleSort('marketCap')}
               className={`px-4 py-2 rounded-l-lg ${
                 sortField === 'marketCap' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? 'bg-yellow-500 text-black font-bold' 
+                  : 'bg-yellow-500/50 text-yellow-500 hover:bg-yellow-500/70'
               }`}
             >
               Market Cap
@@ -407,8 +407,8 @@ function TokenDashboard() {
               onClick={() => handleSort('volume')}
               className={`px-4 py-2 ${
                 sortField === 'volume' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? 'bg-yellow-500 text-black font-bold' 
+                  : 'bg-yellow-500/50 text-yellow-500 hover:bg-yellow-500/70'
               }`}
             >
               Volume
@@ -417,8 +417,8 @@ function TokenDashboard() {
               onClick={() => handleSort('blockNumber')}
               className={`px-4 py-2 rounded-r-lg ${
                 sortField === 'blockNumber' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? 'bg-yellow-500 text-black font-bold' 
+                  : 'bg-yellow-500/50 text-yellow-500 hover:bg-yellow-500/70'
               }`}
             >
               Time

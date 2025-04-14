@@ -185,7 +185,7 @@ function TokenDashboard() {
     }
   }, [isShortScreen, isVeryShortScreen, isExtremelyShortScreen]);
 
-  // Add search filter effect
+  // Update search filter effect to be more inclusive
   useEffect(() => {
     if (!searchQuery.trim()) {
       setFilteredTokens(tokens);
@@ -193,14 +193,14 @@ function TokenDashboard() {
     }
     
     const query = searchQuery.toLowerCase().trim();
-    const searchTerms = query.split(/\s+/);
-    
     const filtered = tokens.filter(token => {
       const tokenName = token.name.toLowerCase();
       const tokenSymbol = token.symbol.toLowerCase();
-      return searchTerms.every(term => 
-        tokenName.includes(term) || tokenSymbol.includes(term)
-      );
+      const contractAddress = token.contractAddress.toLowerCase();
+      
+      return tokenName.includes(query) || 
+             tokenSymbol.includes(query) || 
+             contractAddress.includes(query);
     });
     setFilteredTokens(filtered);
   }, [searchQuery, tokens]);
@@ -425,7 +425,9 @@ function TokenDashboard() {
             margin: '20px auto',
             maxWidth: '500px',
             width: '90%',
-            position: 'relative'
+            position: 'relative',
+            display: 'flex',
+            justifyContent: 'center'
           }}>
             <input
               type="text"
@@ -434,14 +436,13 @@ function TokenDashboard() {
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 width: '100%',
-                padding: '12px 20px',
+                padding: '8px 16px',
                 fontSize: '16px',
-                border: '2px solid #FFB800',
-                borderRadius: '25px',
-                backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                color: '#FFB800',
-                outline: 'none',
-                transition: 'all 0.3s ease'
+                backgroundColor: '#FFB800',
+                color: '#000000',
+                border: 'none',
+                borderRadius: '4px',
+                outline: 'none'
               }}
             />
           </div>
@@ -462,11 +463,10 @@ function TokenDashboard() {
                 maxWidth: '160px',
                 padding: '8px 16px',
                 fontSize: '16px',
-                backgroundColor: 'transparent',
-                border: sortField === 'marketCap' ? '2px solid #FFB800' : '2px solid transparent',
-                color: '#FFB800',
+                backgroundColor: sortField === 'marketCap' ? '#FFB800' : 'transparent',
+                border: 'none',
+                color: sortField === 'marketCap' ? '#000000' : '#FFB800',
                 cursor: 'pointer',
-                transition: 'all 0.3s ease',
                 borderRadius: '4px'
               }}
             >
@@ -479,11 +479,10 @@ function TokenDashboard() {
                 maxWidth: '160px',
                 padding: '8px 16px',
                 fontSize: '16px',
-                backgroundColor: 'transparent',
-                border: sortField === 'volume' ? '2px solid #FFB800' : '2px solid transparent',
-                color: '#FFB800',
+                backgroundColor: sortField === 'volume' ? '#FFB800' : 'transparent',
+                border: 'none',
+                color: sortField === 'volume' ? '#000000' : '#FFB800',
                 cursor: 'pointer',
-                transition: 'all 0.3s ease',
                 borderRadius: '4px'
               }}
             >
@@ -496,11 +495,10 @@ function TokenDashboard() {
                 maxWidth: '160px',
                 padding: '8px 16px',
                 fontSize: '16px',
-                backgroundColor: 'transparent',
-                border: sortField === 'blockNumber' ? '2px solid #FFB800' : '2px solid transparent',
-                color: '#FFB800',
+                backgroundColor: sortField === 'blockNumber' ? '#FFB800' : 'transparent',
+                border: 'none',
+                color: sortField === 'blockNumber' ? '#000000' : '#FFB800',
                 cursor: 'pointer',
-                transition: 'all 0.3s ease',
                 borderRadius: '4px'
               }}
             >

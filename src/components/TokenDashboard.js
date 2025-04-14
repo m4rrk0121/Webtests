@@ -92,8 +92,8 @@ function TokenCard({ token, highlight = false }) {
           name: token.name,
           symbol: token.symbol,
           price_usd: token.price_usd,
-          market_cap: token.market_cap,
-          volume_usd: token.volume_usd,
+          market_cap_usd: token.market_cap_usd,
+          volume_usd: token.volume_usd_24h,
           contractAddress: token.contractAddress
         }
       }
@@ -120,8 +120,8 @@ function TokenCard({ token, highlight = false }) {
       </div>
       <p>Symbol: {token.symbol}</p>
       <p>Price: {formatCurrency(token.price_usd)}</p>
-      <p>Market Cap: {formatCurrency(token.market_cap)}</p>
-      <p>24h Volume: {formatCurrency(token.volume_usd)}</p>
+      <p>Market Cap: {formatCurrency(token.market_cap_usd)}</p>
+      <p>24h Volume: {formatCurrency(token.volume_usd_24h)}</p>
       <small>CA: {token.contractAddress}</small>
     </div>
   );

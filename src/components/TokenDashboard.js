@@ -392,34 +392,22 @@ function TokenDashboard() {
           </div>
 
           {/* Sorting Controls */}
-          <div className="flex space-x-1">
+          <div className="sorting-controls">
             <button 
               onClick={() => handleSort('marketCap')}
-              className={`px-4 py-2 rounded-l-lg ${
-                sortField === 'marketCap' 
-                  ? 'bg-yellow-500 text-black font-bold' 
-                  : 'bg-yellow-500/50 text-yellow-500 hover:bg-yellow-500/70'
-              }`}
+              className={sortField === 'marketCap' ? 'active' : ''}
             >
               Market Cap
             </button>
             <button 
               onClick={() => handleSort('volume')}
-              className={`px-4 py-2 ${
-                sortField === 'volume' 
-                  ? 'bg-yellow-500 text-black font-bold' 
-                  : 'bg-yellow-500/50 text-yellow-500 hover:bg-yellow-500/70'
-              }`}
+              className={sortField === 'volume' ? 'active' : ''}
             >
               Volume
             </button>
             <button 
               onClick={() => handleSort('blockNumber')}
-              className={`px-4 py-2 rounded-r-lg ${
-                sortField === 'blockNumber' 
-                  ? 'bg-yellow-500 text-black font-bold' 
-                  : 'bg-yellow-500/50 text-yellow-500 hover:bg-yellow-500/70'
-              }`}
+              className={sortField === 'blockNumber' ? 'active' : ''}
             >
               Time
             </button>

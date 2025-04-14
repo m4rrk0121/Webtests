@@ -279,8 +279,11 @@ function TokenDashboard() {
   // Request updated data when sort or page changes
   useEffect(() => {
     if (isConnected) {
-      setLoading(true);
-      console.log(`[TokenDashboard] Sort/page changed - Sending params: field=${sortField}, direction=${sortDirection}, page=${currentPage}`);
+      console.log('Requesting tokens with sort:', {
+        sort: sortField,
+        direction: sortDirection,
+        page: currentPage
+      });
       
       emit('get-tokens', {
         sort: sortField,
@@ -288,7 +291,7 @@ function TokenDashboard() {
         page: currentPage
       });
     }
-  }, [sortField, sortDirection, currentPage, isConnected, emit]);
+  }, [isConnected, sortField, sortDirection, currentPage]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -391,9 +394,9 @@ function TokenDashboard() {
           {/* Sorting Controls */}
           <div className="sorting-controls">
             <button 
-              onClick={() => handleSort('market_cap_usd')}
+              onClick={() => handleSort('marketCap')}
               className={`px-4 py-2 rounded-l-lg ${
-                sortField === 'market_cap_usd' 
+                sortField === 'marketCap' 
                   ? 'bg-blue-600 text-white' 
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
@@ -401,9 +404,9 @@ function TokenDashboard() {
               Market Cap
             </button>
             <button 
-              onClick={() => handleSort('volume_usd_24h')}
+              onClick={() => handleSort('volume')}
               className={`px-4 py-2 rounded-r-lg ${
-                sortField === 'volume_usd_24h' 
+                sortField === 'volume' 
                   ? 'bg-blue-600 text-white' 
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}

@@ -204,8 +204,22 @@ function TokenDashboard() {
           marketCap: data.topMarketCapToken,
           volume: data.topVolumeToken
         });
-        setHighestMarketCapToken(data.topMarketCapToken);
-        setHighestVolumeToken(data.topVolumeToken);
+        
+        // Ensure we're using the correct field names
+        const marketCapToken = {
+          ...data.topMarketCapToken,
+          market_cap_usd: data.topMarketCapToken.market_cap_usd || 0,
+          volume_usd_24h: data.topMarketCapToken.volume_usd_24h || 0
+        };
+        
+        const volumeToken = {
+          ...data.topVolumeToken,
+          market_cap_usd: data.topVolumeToken.market_cap_usd || 0,
+          volume_usd_24h: data.topVolumeToken.volume_usd_24h || 0
+        };
+        
+        setHighestMarketCapToken(marketCapToken);
+        setHighestVolumeToken(volumeToken);
       };
       
       // Register individual token update listener
@@ -314,6 +328,30 @@ function TokenDashboard() {
     return '213px'; // Default height
   };
 
+  const formatNumber = (value) => {
+    if (value === undefined || value === null) return '0';
+    if (value === 0) return '0';
+    if (value < 0.01) return value.toFixed(8);
+    if (value < 1) return value.toFixed(4);
+    if (value < 1000) return value.toFixed(2);
+    if (value < 1000000) return (value / 1000).toFixed(2) + 'K';
+    if (value < 1000000000) return (value / 1000000).toFixed(2) + 'M';
+    return (value / 1000000000).toFixed(2) + 'B';
+  };
+
+  const getTokenValue = (token, field) => {
+    switch (field) {
+      case 'market_cap_usd':
+        return token.market_cap_usd || 0;
+      case 'volume_usd_24h':
+        return token.volume_usd_24h || 0;
+      case 'fdv_usd':
+        return token.fdv_usd || 0;
+      default:
+        return token.price_usd || 0;
+    }
+  };
+
   return (
     <div className={`app-container ${isShortScreen ? 'short-screen' : ''} ${isVeryShortScreen ? 'very-short-screen' : ''} ${isExtremelyShortScreen ? 'extremely-short-screen' : ''}`}>
       {/* Theme Toggle Component */}
@@ -353,9 +391,9 @@ function TokenDashboard() {
           {/* Sorting Controls */}
           <div className="sorting-controls">
             <button 
-              onClick={() => handleSort('marketCap')}
+              onClick={() => handleSort('market_cap_usd')}
               className={`px-4 py-2 rounded-l-lg ${
-                sortField === 'marketCap' 
+                sortField === 'market_cap_usd' 
                   ? 'bg-blue-600 text-white' 
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
@@ -363,9 +401,9 @@ function TokenDashboard() {
               Market Cap
             </button>
             <button 
-              onClick={() => handleSort('volume')}
+              onClick={() => handleSort('volume_usd_24h')}
               className={`px-4 py-2 rounded-r-lg ${
-                sortField === 'volume' 
+                sortField === 'volume_usd_24h' 
                   ? 'bg-blue-600 text-white' 
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}

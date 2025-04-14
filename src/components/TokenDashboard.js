@@ -277,12 +277,10 @@ function TokenDashboard() {
   }, [sortField, sortDirection, currentPage, isConnected, emit]);
 
   const handleSort = (field) => {
-    // Update sort field to match the API field names
-    const apiField = field === 'marketCap' ? 'market_cap_usd' : 'volume_usd_24h';
-    if (apiField === sortField) {
-      setSortDirection(sortDirection === 'desc' ? 'asc' : 'desc');
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      setSortField(apiField);
+      setSortField(field);
       setSortDirection('desc');
     }
     setCurrentPage(1);
@@ -356,15 +354,23 @@ function TokenDashboard() {
           <div className="sorting-controls">
             <button 
               onClick={() => handleSort('marketCap')}
-              className={sortField === 'market_cap_usd' ? 'active' : ''}
+              className={`px-4 py-2 rounded-l-lg ${
+                sortField === 'marketCap' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
             >
-              Sort by Market Cap {sortField === 'market_cap_usd' && (sortDirection === 'desc' ? '▼' : '▲')}
+              Market Cap
             </button>
             <button 
               onClick={() => handleSort('volume')}
-              className={sortField === 'volume_usd_24h' ? 'active' : ''}
+              className={`px-4 py-2 rounded-r-lg ${
+                sortField === 'volume' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
             >
-              Sort by Volume {sortField === 'volume_usd_24h' && (sortDirection === 'desc' ? '▼' : '▲')}
+              Volume
             </button>
           </div>
 

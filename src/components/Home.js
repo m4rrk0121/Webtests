@@ -296,6 +296,17 @@ function Home() {
     return (value / 1000000000).toFixed(2) + 'B';
   };
 
+  // Add console log to debug the stats data
+  useEffect(() => {
+    if (stats) {
+      console.log('Global Stats:', {
+        total24hVolume: stats.total24hVolume,
+        totalMarketCap: stats.totalMarketCap,
+        rawStats: stats
+      });
+    }
+  }, [stats]);
+
   return (
     <div className="homepage">
       {/* Add this right after <div className="homepage"> (around line 165) */}
@@ -367,7 +378,7 @@ function Home() {
         <div className="stat-box">
           <h3>24h Total Volume</h3>
           <p>
-            {loading ? '...' : `$${formatNumber(stats.total24hVolume)}`}
+            {loading ? '...' : stats.total24hVolume === 0 ? 'N/A' : `$${formatNumber(stats.total24hVolume)}`}
           </p>
         </div>
         <div className="stat-monkey">

@@ -125,10 +125,11 @@ function TokenCard({ token, highlight = false }) {
 
 // Main Token Dashboard Component
 function TokenDashboard() {
-  // Get the WebSocket context instead of creating a new connection
   const { isConnected, emit, addListener, removeListener } = useWebSocket();
   
   const [tokens, setTokens] = useState([]);
+  const [filteredTokens, setFilteredTokens] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [highestMarketCapToken, setHighestMarketCapToken] = useState(null);
   const [highestVolumeToken, setHighestVolumeToken] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -184,6 +185,21 @@ function TokenDashboard() {
     }
   }, [isShortScreen, isVeryShortScreen, isExtremelyShortScreen]);
 
+  // Add search filter effect
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredTokens(tokens);
+      return;
+    }
+    
+    const query = searchQuery.toLowerCase().trim();
+    const filtered = tokens.filter(token => 
+      token.name.toLowerCase().includes(query) || 
+      token.symbol.toLowerCase().includes(query)
+    );
+    setFilteredTokens(filtered);
+  }, [searchQuery, tokens]);
+
   // Setup event listeners for WebSocket
   useEffect(() => {
     if (isConnected) {
@@ -192,8 +208,12 @@ function TokenDashboard() {
       
       // Register token list update listener
       const tokensListUpdateHandler = (data) => {
-        console.log('Received tokens list update:', data.tokens[0]); // Log first token as example
-        setTokens(data.tokens);
+        console.log('Received tokens list update:', data.tokens[0]);
+        const filteredTokens = data.tokens.filter(token => 
+          token.symbol !== 'WETH' && token.symbol !== 'UNI-V3-POS'
+        );
+        setTokens(filteredTokens);
+        setFilteredTokens(filteredTokens);
         setTotalPages(data.totalPages);
         setLoading(false);
       };
@@ -225,6 +245,10 @@ function TokenDashboard() {
       // Register individual token update listener
       const tokenUpdateHandler = (updatedToken) => {
         console.log('Received token update:', updatedToken);
+        // Skip updates for WETH and UNI-V3-POS tokens
+        if (updatedToken.symbol === 'WETH' || updatedToken.symbol === 'UNI-V3-POS') {
+          return;
+        }
         // Update the token in our existing list if it's there
         setTokens(currentTokens => 
           currentTokens.map(token => 
@@ -391,23 +415,99 @@ function TokenDashboard() {
             {isConnected ? 'Live' : 'Offline'}
           </div>
 
+          {/* Search Bar */}
+          <div className="search-container" style={{
+            margin: '20px auto',
+            maxWidth: '500px',
+            width: '90%',
+            position: 'relative'
+          }}>
+            <input
+              type="text"
+              placeholder="Search by token name or symbol..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px 20px',
+                fontSize: '16px',
+                border: '2px solid #ffd700',
+                borderRadius: '25px',
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                color: '#fff',
+                outline: 'none',
+                transition: 'all 0.3s ease',
+                '&:focus': {
+                  borderColor: '#ffed4a',
+                  boxShadow: '0 0 10px rgba(255, 215, 0, 0.3)'
+                },
+                '&::placeholder': {
+                  color: '#999'
+                }
+              }}
+            />
+          </div>
+
           {/* Sorting Controls */}
-          <div className="sorting-controls">
+          <div className="sorting-controls" style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '10px',
+            margin: '20px auto',
+            maxWidth: '600px',
+            width: '90%'
+          }}>
             <button 
               onClick={() => handleSort('marketCap')}
               className={sortField === 'marketCap' ? 'active' : ''}
+              style={{
+                flex: '1',
+                maxWidth: '160px',
+                padding: '10px 20px',
+                fontSize: '16px',
+                border: '2px solid #ffd700',
+                borderRadius: '25px',
+                backgroundColor: sortField === 'marketCap' ? '#ffd700' : 'rgba(0, 0, 0, 0.7)',
+                color: sortField === 'marketCap' ? '#000' : '#ffd700',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
             >
               Market Cap
             </button>
             <button 
               onClick={() => handleSort('volume')}
               className={sortField === 'volume' ? 'active' : ''}
+              style={{
+                flex: '1',
+                maxWidth: '160px',
+                padding: '10px 20px',
+                fontSize: '16px',
+                border: '2px solid #ffd700',
+                borderRadius: '25px',
+                backgroundColor: sortField === 'volume' ? '#ffd700' : 'rgba(0, 0, 0, 0.7)',
+                color: sortField === 'volume' ? '#000' : '#ffd700',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
             >
               Volume
             </button>
             <button 
               onClick={() => handleSort('blockNumber')}
               className={sortField === 'blockNumber' ? 'active' : ''}
+              style={{
+                flex: '1',
+                maxWidth: '160px',
+                padding: '10px 20px',
+                fontSize: '16px',
+                border: '2px solid #ffd700',
+                borderRadius: '25px',
+                backgroundColor: sortField === 'blockNumber' ? '#ffd700' : 'rgba(0, 0, 0, 0.7)',
+                color: sortField === 'blockNumber' ? '#000' : '#ffd700',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
             >
               Time
             </button>
@@ -484,7 +584,7 @@ function TokenDashboard() {
         ) : (
           <>
             <div className="token-grid">
-              {tokens.map((token) => (
+              {filteredTokens.map((token) => (
                 <TokenCard key={token.contractAddress} token={token} />
               ))}
             </div>

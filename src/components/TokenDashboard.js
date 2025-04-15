@@ -188,28 +188,16 @@ function TokenDashboard() {
   // Update search filter effect to be more inclusive with wildcard search
   useEffect(() => {
     if (!searchQuery.trim()) {
+      // When search is empty, show paginated results
       setFilteredTokens(tokens);
       return;
     }
     
-    const query = searchQuery.toLowerCase().trim();
-    // Split the search query into terms and filter for each term
-    const searchTerms = query.split(/\s+/);
-    
-    const filtered = tokens.filter(token => {
-      const tokenName = token.name.toLowerCase();
-      const tokenSymbol = token.symbol.toLowerCase();
-      const contractAddress = token.contractAddress.toLowerCase();
-      
-      // Match if any search term is found in name, symbol, or address
-      return searchTerms.some(term => 
-        tokenName.includes(term) || 
-        tokenSymbol.includes(term) || 
-        contractAddress.includes(term)
-      );
-    });
-    setFilteredTokens(filtered);
-  }, [searchQuery, tokens]);
+    // Emit search event to server when search query changes
+    if (isConnected) {
+      emit('search-tokens', { query: searchQuery.toLowerCase().trim() });
+    }
+  }, [searchQuery, isConnected]);
 
   // Setup event listeners for WebSocket
   useEffect(() => {
@@ -224,8 +212,21 @@ function TokenDashboard() {
           token.symbol !== 'WETH' && token.symbol !== 'UNI-V3-POS'
         );
         setTokens(filteredTokens);
-        setFilteredTokens(filteredTokens);
+        // Only set filtered tokens if there's no active search
+        if (!searchQuery.trim()) {
+          setFilteredTokens(filteredTokens);
+        }
         setTotalPages(data.totalPages);
+        setLoading(false);
+      };
+
+      // Register search results handler
+      const searchResultsHandler = (data) => {
+        console.log('Received search results:', data.tokens.length);
+        const filteredResults = data.tokens.filter(token => 
+          token.symbol !== 'WETH' && token.symbol !== 'UNI-V3-POS'
+        );
+        setFilteredTokens(filteredResults);
         setLoading(false);
       };
       
@@ -289,6 +290,7 @@ function TokenDashboard() {
       
       // Add all event listeners
       addListener('tokens-list-update', tokensListUpdateHandler);
+      addListener('search-results', searchResultsHandler);
       addListener('top-tokens-update', topTokensUpdateHandler);
       addListener('token-update', tokenUpdateHandler);
       addListener('error', errorHandler);
@@ -304,6 +306,7 @@ function TokenDashboard() {
       return () => {
         console.log("[TokenDashboard] Cleaning up event listeners");
         removeListener('tokens-list-update', tokensListUpdateHandler);
+        removeListener('search-results', searchResultsHandler);
         removeListener('top-tokens-update', topTokensUpdateHandler);
         removeListener('token-update', tokenUpdateHandler);
         removeListener('error', errorHandler);
@@ -466,54 +469,36 @@ function TokenDashboard() {
           }}>
             <button 
               onClick={() => handleSort('marketCap')}
-              style={{
-                flex: '1',
-                maxWidth: '160px',
-                padding: '8px 16px',
-                fontSize: '16px',
-                backgroundColor: 'transparent',
-                border: sortField === 'marketCap' ? '2px solid #FFB800' : '2px solid transparent',
-                color: '#FFB800',
-                cursor: 'pointer',
-                borderRadius: '4px',
-                fontWeight: '600'
-              }}
+              className={`dexscreener-link ${sortField === 'marketCap' ? 'active' : ''}`}
             >
               Market Cap
+              {sortField === 'marketCap' && (
+                <span className="sort-arrow">
+                  {sortDirection === 'desc' ? '▼' : '▲'}
+                </span>
+              )}
             </button>
             <button 
               onClick={() => handleSort('volume')}
-              style={{
-                flex: '1',
-                maxWidth: '160px',
-                padding: '8px 16px',
-                fontSize: '16px',
-                backgroundColor: 'transparent',
-                border: sortField === 'volume' ? '2px solid #FFB800' : '2px solid transparent',
-                color: '#FFB800',
-                cursor: 'pointer',
-                borderRadius: '4px',
-                fontWeight: '600'
-              }}
+              className={`dexscreener-link ${sortField === 'volume' ? 'active' : ''}`}
             >
               Volume
+              {sortField === 'volume' && (
+                <span className="sort-arrow">
+                  {sortDirection === 'desc' ? '▼' : '▲'}
+                </span>
+              )}
             </button>
             <button 
               onClick={() => handleSort('blockNumber')}
-              style={{
-                flex: '1',
-                maxWidth: '160px',
-                padding: '8px 16px',
-                fontSize: '16px',
-                backgroundColor: 'transparent',
-                border: sortField === 'blockNumber' ? '2px solid #FFB800' : '2px solid transparent',
-                color: '#FFB800',
-                cursor: 'pointer',
-                borderRadius: '4px',
-                fontWeight: '600'
-              }}
+              className={`dexscreener-link ${sortField === 'blockNumber' ? 'active' : ''}`}
             >
               Time
+              {sortField === 'blockNumber' && (
+                <span className="sort-arrow">
+                  {sortDirection === 'desc' ? '▼' : '▲'}
+                </span>
+              )}
             </button>
           </div>
 

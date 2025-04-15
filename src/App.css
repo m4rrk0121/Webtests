@@ -228,30 +228,38 @@ body {
 .sorting-controls {
   display: flex;
   justify-content: center;
-  margin-bottom: 40px; /* Increased for better visual hierarchy */
+  gap: 15px;
+  margin: 20px auto;
+  max-width: 600px;
+  width: 90%;
+}
+
+.sorting-controls .dexscreener-link {
+  flex: 1;
+  max-width: 160px;
 }
 
 .sorting-controls button {
-  margin: 0 10px;
   padding: 8px 16px;
-  background-color: #ffb300;
-  border: 1px solid #ffb300;
-  color: #000000;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
   font-family: 'Chewy', cursive;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 .sorting-controls button.active {
   background-color: #ffb300;
   color: #000000;
-  font-weight: bold;
 }
 
-.sorting-controls button:hover {
-  background-color: #666666;
+.sorting-controls button:not(.active) {
+  background-color: rgba(255, 179, 0, 0.5);
   color: #000000;
+}
+
+.sorting-controls button:hover:not(.active) {
+  background-color: rgba(255, 179, 0, 0.7);
 }
 
 .loading-overlay {
@@ -340,18 +348,62 @@ body {
 }
 
 .dexscreener-link {
-  display: inline-block;
-  padding: 6px 12px;
-  background-color: #ffb300;
-  color: rgb(0, 0, 0);
-  text-decoration: none;
+  background-color: #FFB800;
+  color: #000000;
+  padding: 8px 16px;
   border-radius: 4px;
-  transition: background-color 0.3s ease;
-  font-family: 'Chewy', cursive;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  min-width: 100px;
+}
+
+.sort-arrow {
+  display: inline-block;
+  font-size: 12px;
+  line-height: 1;
+  margin-left: 4px;
+  color: #000000;
+  font-weight: bold;
 }
 
 .dexscreener-link:hover {
-  background-color: #ffb300;
+  background-color: #e6a200;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.dexscreener-link.active {
+  background-color: #e6a200;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Update sorting controls container */
+.sorting-controls {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin: 20px auto;
+  max-width: 600px;
+  width: 90%;
+}
+
+.sorting-controls .dexscreener-link {
+  flex: 1;
+  max-width: 160px;
+}
+
+/* Ensure arrows stay black in dark mode */
+.dark-mode .sort-arrow {
+  color: #000000;
 }
 
 .pagination-controls {
@@ -3358,7 +3410,6 @@ body.on-homepage {
     flex-direction: column;
     gap: 8px;
   }
-
 }
 /* Additional styles for Home page with monkey images - add to your existing homepage styles */
 

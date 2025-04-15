@@ -134,7 +134,7 @@ function TokenDashboard() {
   const [highestVolumeToken, setHighestVolumeToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [sortField, setSortField] = useState('market_cap_usd');
+  const [sortField, setSortField] = useState('marketCap');
   const [sortDirection, setSortDirection] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);

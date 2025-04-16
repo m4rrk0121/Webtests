@@ -101,6 +101,7 @@ function TokenCard({ token, highlight = false }) {
       className={`token-card ${highlight ? 'highlight-card' : ''}`}
       onClick={handleCardClick}
       style={{ cursor: 'pointer' }}
+      data-token-address={token.contractAddress}
     >
       <div className="token-card-header">
         <h3>{token.name}</h3>
@@ -199,6 +200,18 @@ function TokenDashboard() {
     }
   }, [searchQuery, isConnected]);
 
+  // Add this function to check if a token is in viewport
+  const isTokenInViewport = (tokenElement) => {
+    if (!tokenElement) return false;
+    const rect = tokenElement.getBoundingClientRect();
+    return (
+      rect.top >= 0 &&
+      rect.left >= 0 &&
+      rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+      rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+    );
+  };
+
   // Setup event listeners for WebSocket
   useEffect(() => {
     if (isConnected) {
@@ -218,6 +231,28 @@ function TokenDashboard() {
         }
         setTotalPages(data.totalPages);
         setLoading(false);
+      };
+
+      // Modified token update handler for batched updates
+      const tokenUpdateHandler = (updates) => {
+        // Updates is now an array of token updates
+        updates.forEach(updatedToken => {
+          setTokens(currentTokens => 
+            currentTokens.map(token => 
+              token.contractAddress === updatedToken.contractAddress 
+                ? { ...token, ...updatedToken } 
+                : token
+            )
+          );
+          
+          // Update highlighted tokens if needed
+          if (highestMarketCapToken?.contractAddress === updatedToken.contractAddress) {
+            setHighestMarketCapToken(prev => ({ ...prev, ...updatedToken }));
+          }
+          if (highestVolumeToken?.contractAddress === updatedToken.contractAddress) {
+            setHighestVolumeToken(prev => ({ ...prev, ...updatedToken }));
+          }
+        });
       };
 
       // Register search results handler
@@ -254,45 +289,33 @@ function TokenDashboard() {
         setHighestVolumeToken(volumeToken);
       };
       
-      // Register individual token update listener
-      const tokenUpdateHandler = (updatedToken) => {
-        console.log('Received token update:', updatedToken);
-        // Skip updates for WETH and UNI-V3-POS tokens
-        if (updatedToken.symbol === 'WETH' || updatedToken.symbol === 'UNI-V3-POS') {
-          return;
-        }
-        // Update the token in our existing list if it's there
-        setTokens(currentTokens => 
-          currentTokens.map(token => 
-            token.contractAddress === updatedToken.contractAddress 
-              ? { ...token, ...updatedToken } 
-              : token
-          )
-        );
-        
-        // Check if we need to update highlighted tokens
-        if (highestMarketCapToken && 
-            highestMarketCapToken.contractAddress === updatedToken.contractAddress) {
-          setHighestMarketCapToken({ ...highestMarketCapToken, ...updatedToken });
-        }
-        
-        if (highestVolumeToken && 
-            highestVolumeToken.contractAddress === updatedToken.contractAddress) {
-          setHighestVolumeToken({ ...highestVolumeToken, ...updatedToken });
-        }
-      };
-      
       // Register error handler
       const errorHandler = (errorData) => {
         console.error('[TokenDashboard] Socket error:', errorData);
         setError(`Error: ${errorData.message || 'Unknown error'}`);
       };
       
+      // Add viewport update handler
+      const handleViewportUpdate = () => {
+        const visibleTokens = Array.from(document.querySelectorAll('.token-card'))
+          .filter(card => isTokenInViewport(card))
+          .map(card => card.dataset.tokenAddress);
+
+        emit('viewport-tokens', visibleTokens);
+      };
+
+      // Set up viewport update listener
+      window.addEventListener('scroll', handleViewportUpdate);
+      window.addEventListener('resize', handleViewportUpdate);
+
+      // Initial viewport update
+      handleViewportUpdate();
+
       // Add all event listeners
       addListener('tokens-list-update', tokensListUpdateHandler);
+      addListener('token-updates', tokenUpdateHandler);
       addListener('search-results', searchResultsHandler);
       addListener('top-tokens-update', topTokensUpdateHandler);
-      addListener('token-update', tokenUpdateHandler);
       addListener('error', errorHandler);
       
       // Request initial data
@@ -302,17 +325,18 @@ function TokenDashboard() {
         page: currentPage
       });
       
-      // Clean up function to remove all event listeners
+      // Cleanup function
       return () => {
-        console.log("[TokenDashboard] Cleaning up event listeners");
+        window.removeEventListener('scroll', handleViewportUpdate);
+        window.removeEventListener('resize', handleViewportUpdate);
         removeListener('tokens-list-update', tokensListUpdateHandler);
+        removeListener('token-updates', tokenUpdateHandler);
         removeListener('search-results', searchResultsHandler);
         removeListener('top-tokens-update', topTokensUpdateHandler);
-        removeListener('token-update', tokenUpdateHandler);
         removeListener('error', errorHandler);
       };
     }
-  }, [isConnected, sortField, sortDirection, currentPage]); // Added dependencies
+  }, [isConnected, sortField, sortDirection, currentPage, searchQuery]);
 
   // Request updated data when sort or page changes
   useEffect(() => {

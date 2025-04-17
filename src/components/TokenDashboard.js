@@ -88,31 +88,30 @@ function TokenCard({ token, highlight = false }) {
       style={{ cursor: 'pointer' }}
     >
       <h3>{token.name}</h3>
-      <p>Symbol: {token.symbol} 
-        <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <a 
-            href={dexScreenerLink} 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="dexscreener-link"
-            onClick={(e) => e.stopPropagation()}
-          >
-            DexScreener
-          </a>
-          {token.image?.url && (
-            <img 
-              src={token.image.url}
-              alt={`${token.name} logo`}
-              style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: '50%',
-                objectFit: 'cover'
-              }}
-            />
-          )}
-        </span>
-      </p>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+        <a 
+          href={dexScreenerLink} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="dexscreener-link"
+          onClick={(e) => e.stopPropagation()}
+        >
+          DexScreener
+        </a>
+        {token.image?.url && (
+          <img 
+            src={token.image.url}
+            alt={`${token.name} logo`}
+            style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              objectFit: 'cover'
+            }}
+          />
+        )}
+      </div>
+      <p>Symbol: {token.symbol}</p>
       <p>Price: {formatCurrency(token.price_usd)}</p>
       <p>Market Cap: {formatCurrency(token.market_cap_usd)}</p>
       <p>24h Volume: {formatCurrency(token.volume_usd_24h)}</p>

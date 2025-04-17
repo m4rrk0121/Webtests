@@ -6,14 +6,17 @@ import { useAccount, useChainId, useWalletClient } from 'wagmi';
 import { appKitInstance } from '../App'; // Import appKitInstance
 import { useWebSocket } from '../context/WebSocketContext';
 import './modal.css';
+import { BigInt } from '@ethersproject/bignumber';
+import { WETH_ADDRESS, UNISWAP_ROUTER } from '../constants';
 
 /* global BigInt */
 
 // Constants
-const WETH_ADDRESS = "0x4200000000000000000000000000000000000006"; // WETH on Base
-const UNISWAP_ROUTER = "0x2626664c2603336E57B271c5C0b26F421741e481"; // Correct Uniswap V3 Router on Base
 const FEE_TIER = 10000; // Fixed 1% fee tier
 const BASE_CHAIN_ID = 8453; // Base network chain ID
+
+// Default token image if none is provided
+const defaultTokenImage = 'https://res.cloudinary.com/dtzqgftjk/image/upload/v1706964461/token_images/default-token_pngg2c.png';
 
 // Simple ERC20 ABI for token balance and approval
 const ERC20_ABI = [

@@ -375,7 +375,7 @@ function UpdateTokenInfo() {
 
   // Handle form submission
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     console.log('Form submission started');
     
     if (!tokenInfo?.contractAddress) {
@@ -519,7 +519,7 @@ function UpdateTokenInfo() {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{
+    <div style={{
       padding: '2rem',
       maxWidth: '800px',
       margin: '0 auto',
@@ -549,7 +549,6 @@ function UpdateTokenInfo() {
           }}
         />
         <button
-          type="button"
           onClick={handleFetchToken}
           style={{
             padding: '0.75rem 1.5rem',
@@ -578,107 +577,237 @@ function UpdateTokenInfo() {
         }}>
           <div style={{
             display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-            width: '100%'
+            alignItems: 'center',
+            gap: '1.5rem',
+            marginBottom: '2rem'
           }}>
-            <input
-              type="text"
-              value={tokenInfo.name || ''}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              placeholder="Token Name"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                borderRadius: '8px',
-                border: '1px solid #ffa500',
-                background: 'transparent',
-                color: '#fff'
-              }}
-            />
-            <input
-              type="text"
-              value={tokenInfo.symbol || ''}
-              onChange={(e) => handleInputChange('symbol', e.target.value)}
-              placeholder="Token Symbol"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                borderRadius: '8px',
-                border: '1px solid #ffa500',
-                background: 'transparent',
-                color: '#fff'
-              }}
-            />
-            <input
-              type="text"
-              value={tokenInfo.description || ''}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Token Description"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                borderRadius: '8px',
-                border: '1px solid #ffa500',
-                background: 'transparent',
-                color: '#fff'
-              }}
-            />
-            <input
-              type="text"
-              value={tokenInfo.website || ''}
-              onChange={(e) => handleInputChange('website', e.target.value)}
-              placeholder="Website URL"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                borderRadius: '8px',
-                border: '1px solid #ffa500',
-                background: 'transparent',
-                color: '#fff'
-              }}
-            />
-            <input
-              type="text"
-              value={tokenInfo.twitter || ''}
-              onChange={(e) => handleInputChange('twitter', e.target.value)}
-              placeholder="Twitter URL"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                borderRadius: '8px',
-                border: '1px solid #ffa500',
-                background: 'transparent',
-                color: '#fff'
-              }}
-            />
-            <input
-              type="text"
-              value={tokenInfo.telegram || ''}
-              onChange={(e) => handleInputChange('telegram', e.target.value)}
-              placeholder="Telegram URL"
-              style={{
-                width: '100%',
-                padding: '0.75rem',
-                borderRadius: '8px',
-                border: '1px solid #ffa500',
-                background: 'transparent',
-                color: '#fff'
-              }}
-            />
-            <div>
-              <input
-                type="file"
-                onChange={handleFileChange}
-                accept="image/*"
+            {tokenInfo.image?.url && (
+              <img
+                src={tokenInfo.image.url}
+                alt={`${tokenInfo.name} logo`}
                 style={{
-                  marginBottom: '1rem'
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '12px',
+                  border: '2px solid #ffa500'
                 }}
               />
-              {selectedFile && (
-                <p style={{ color: '#ffa500' }}>Selected file: {selectedFile.name}</p>
-              )}
+            )}
+            <div>
+              <h2 style={{ margin: '0', color: '#ffa500' }}>{tokenInfo.name}</h2>
+              <p style={{ margin: '0.5rem 0 0', opacity: 0.8 }}>{tokenInfo.symbol}</p>
             </div>
+          </div>
+
+          {/* Add deployer wallet info */}
+          <div style={{
+            background: 'rgba(255, 165, 0, 0.05)',
+            padding: '1rem',
+            borderRadius: '8px',
+            marginBottom: '2rem',
+            border: '1px solid rgba(255, 165, 0, 0.2)'
+          }}>
+            <p style={{ 
+              margin: '0',
+              color: '#ffa500',
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <span style={{ opacity: 0.8 }}>Only deployer wallet</span>
+              <code style={{ 
+                background: 'rgba(255, 165, 0, 0.1)',
+                padding: '0.25rem 0.5rem',
+                borderRadius: '4px',
+                fontFamily: 'monospace'
+              }}>
+                {tokenInfo.deployer || 'Unknown'}
+              </code>
+              <span style={{ opacity: 0.8 }}>is able to update token information.</span>
+            </p>
+          </div>
+
+          {/* Add permission warning if needed */}
+          {!hasPermission && connectedWallet && (
+            <div style={{
+              background: 'rgba(255, 0, 0, 0.1)',
+              border: '1px solid rgba(255, 0, 0, 0.3)',
+              borderRadius: '8px',
+              padding: '1rem',
+              marginBottom: '2rem',
+              color: '#ff4444',
+              textAlign: 'center'
+            }}>
+              You are unable to update this token because you did not deploy the token - please contact support
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gap: '1.5rem', width: '100%' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: '#ffa500' }}>
+                Description
+              </label>
+              <textarea
+                value={tokenInfo.description || ''}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                placeholder="Enter token description"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid #ffa500',
+                  background: 'transparent',
+                  color: '#fff',
+                  minHeight: '100px',
+                  fontSize: '1rem',
+                  boxSizing: 'border-box',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+              gap: '1.5rem',
+              width: '100%'
+            }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#ffa500' }}>
+                  Website URL
+                </label>
+                <input
+                  type="url"
+                  value={tokenInfo.website || ''}
+                  onChange={(e) => handleInputChange('website', e.target.value)}
+                  placeholder="https://example.com"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ffa500',
+                    background: 'transparent',
+                    color: '#fff',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#ffa500' }}>
+                  Twitter URL
+                </label>
+                <input
+                  type="url"
+                  value={tokenInfo.twitter || ''}
+                  onChange={(e) => handleInputChange('twitter', e.target.value)}
+                  placeholder="https://twitter.com/username"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ffa500',
+                    background: 'transparent',
+                    color: '#fff',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#ffa500' }}>
+                  Telegram URL
+                </label>
+                <input
+                  type="url"
+                  value={tokenInfo.telegram || ''}
+                  onChange={(e) => handleInputChange('telegram', e.target.value)}
+                  placeholder="https://t.me/username"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ffa500',
+                    background: 'transparent',
+                    color: '#fff',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: '#ffa500' }}>
+                Token Image
+              </label>
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: '1rem',
+                padding: '1.5rem',
+                border: '1px dashed #ffa500',
+                borderRadius: '8px',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}>
+                <p style={{ margin: '0', opacity: 0.8 }}>You can upload a new image in two ways:</p>
+                <ol style={{ margin: '0', paddingLeft: '1.5rem', opacity: 0.8 }}>
+                  <li>Upload an image file directly (JPG, PNG, GIF, WebP)</li>
+                  <li>Provide an image URL</li>
+                </ol>
+                <div style={{ fontSize: '0.875rem', opacity: 0.6 }}>
+                  <p style={{ margin: '0 0 0.5rem 0' }}>Requirements:</p>
+                  <ul style={{ margin: '0', paddingLeft: '1.5rem' }}>
+                    <li>Maximum file size: 256KB</li>
+                    <li>Image must be square (equal width and height)</li>
+                    <li>Supported formats: JPG, PNG, GIF, WebP</li>
+                  </ul>
+                </div>
+                
+                <div style={{ 
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(auto, 1fr) auto minmax(auto, 1fr)',
+                  gap: '1rem',
+                  alignItems: 'center',
+                  width: '100%'
+                }}>
+                  <input
+                    type="file"
+                    onChange={handleFileChange}
+                    accept="image/*"
+                    style={{
+                      color: '#fff',
+                      width: '100%'
+                    }}
+                  />
+                  <span style={{ opacity: 0.6 }}>or</span>
+                  <input
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="Enter image URL"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid #ffa500',
+                      background: 'transparent',
+                      color: '#fff',
+                      fontSize: '1rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: '2rem', width: '100%' }}>
+            {renderSubmitButton()}
           </div>
         </div>
       )}
@@ -706,28 +835,7 @@ function UpdateTokenInfo() {
           Token information updated successfully!
         </div>
       )}
-
-      <button
-        type="submit"
-        disabled={isProcessing || !hasPermission}
-        style={{
-          width: '100%',
-          padding: '1rem',
-          borderRadius: '8px',
-          border: 'none',
-          background: !hasPermission ? '#666' : '#ffa500',
-          color: !hasPermission ? '#999' : '#000',
-          cursor: !hasPermission ? 'not-allowed' : (isProcessing ? 'not-allowed' : 'pointer'),
-          fontWeight: 'bold',
-          fontSize: '1rem',
-          opacity: isProcessing ? 0.7 : 1
-        }}
-      >
-        {isProcessing ? 'Updating...' : (
-          !hasPermission ? 'No Permission to Update' : 'Update Token Information'
-        )}
-      </button>
-    </form>
+    </div>
   );
 }
 

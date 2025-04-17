@@ -1110,7 +1110,7 @@ function TokenDetailPage() {
           
           <div style={{
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             gap: '20px',
             marginBottom: '20px'
           }}>
@@ -1127,60 +1127,83 @@ function TokenDetailPage() {
                 }}
               />
             )}
-            <div>
-              <h1 className="token-detail-title">{tokenDetails.name} ({tokenDetails.symbol})</h1>
+            <div style={{ flex: 1 }}>
               <div style={{
                 display: 'flex',
-                gap: '15px',
-                marginTop: '10px'
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                gap: '20px'
               }}>
-                {tokenDetails.website && (
-                  <a
-                    href={tokenDetails.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: '#ffb300',
-                      textDecoration: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}
-                  >
-                    🌐 Website
-                  </a>
-                )}
-                {tokenDetails.twitter && (
-                  <a
-                    href={tokenDetails.twitter}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: '#ffb300',
-                      textDecoration: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}
-                  >
-                    🐦 Twitter
-                  </a>
-                )}
-                {tokenDetails.telegram && (
-                  <a
-                    href={tokenDetails.telegram}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: '#ffb300',
-                      textDecoration: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}
-                  >
-                    📱 Telegram
-                  </a>
+                <div>
+                  <h1 className="token-detail-title">{tokenDetails.name} ({tokenDetails.symbol})</h1>
+                  <div style={{
+                    display: 'flex',
+                    gap: '15px',
+                    marginTop: '10px'
+                  }}>
+                    {tokenDetails.website && (
+                      <a
+                        href={tokenDetails.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: '#ffb300',
+                          textDecoration: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}
+                      >
+                        🌐 Website
+                      </a>
+                    )}
+                    {tokenDetails.twitter && (
+                      <a
+                        href={tokenDetails.twitter}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: '#ffb300',
+                          textDecoration: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}
+                      >
+                        🐦 Twitter
+                      </a>
+                    )}
+                    {tokenDetails.telegram && (
+                      <a
+                        href={tokenDetails.telegram}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: '#ffb300',
+                          textDecoration: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        }}
+                      >
+                        📱 Telegram
+                      </a>
+                    )}
+                  </div>
+                </div>
+                {tokenDetails.description && (
+                  <div style={{
+                    maxWidth: '400px',
+                    padding: '15px',
+                    background: 'rgba(255, 179, 0, 0.1)',
+                    border: '1px solid rgba(255, 179, 0, 0.2)',
+                    borderRadius: '8px',
+                    color: '#ffb300',
+                    fontSize: '14px',
+                    lineHeight: '1.5'
+                  }}>
+                    {tokenDetails.description}
+                  </div>
                 )}
               </div>
             </div>

@@ -1108,7 +1108,83 @@ function TokenDetailPage() {
             ← Back to Dashboard
           </button>
           
-          <h1 className="token-detail-title">{tokenDetails.name} ({tokenDetails.symbol})</h1>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '20px',
+            marginBottom: '20px'
+          }}>
+            {tokenDetails.image?.url && (
+              <img
+                src={tokenDetails.image.url}
+                alt={`${tokenDetails.name} logo`}
+                style={{
+                  width: '100px',
+                  height: '100px',
+                  borderRadius: '50%',
+                  border: '3px solid #ffb300',
+                  objectFit: 'cover'
+                }}
+              />
+            )}
+            <div>
+              <h1 className="token-detail-title">{tokenDetails.name} ({tokenDetails.symbol})</h1>
+              <div style={{
+                display: 'flex',
+                gap: '15px',
+                marginTop: '10px'
+              }}>
+                {tokenDetails.website && (
+                  <a
+                    href={tokenDetails.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: '#ffb300',
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                  >
+                    🌐 Website
+                  </a>
+                )}
+                {tokenDetails.twitter && (
+                  <a
+                    href={tokenDetails.twitter}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: '#ffb300',
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                  >
+                    🐦 Twitter
+                  </a>
+                )}
+                {tokenDetails.telegram && (
+                  <a
+                    href={tokenDetails.telegram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: '#ffb300',
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                  >
+                    📱 Telegram
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
           
           <div className="token-details-summary">
             <div className="token-detail-data">

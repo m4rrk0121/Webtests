@@ -1100,200 +1100,82 @@ function TokenDetailPage() {
   if (tokenDetails) {
     return (
       <div className="token-detail-page">
-        <div className="token-detail-header">
-          <button 
-            onClick={() => navigate('/')} 
-            className="back-button"
-          >
-            ← Back to Dashboard
-          </button>
-          
-          <div style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '20px',
-            marginBottom: '20px'
-          }}>
-            {tokenDetails.image?.url && (
-              <img
-                src={tokenDetails.image.url}
-                alt={`${tokenDetails.name} logo`}
-                style={{
-                  width: '100px',
-                  height: '100px',
-                  borderRadius: '50%',
-                  border: '3px solid #ffb300',
-                  objectFit: 'cover'
-                }}
-              />
-            )}
+        <div className="token-detail-header" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%',
+          padding: '20px',
+          background: '#1a1a1a',
+          borderRadius: '12px',
+          marginBottom: '20px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+            <img
+              src={tokenDetails.image?.url || defaultTokenImage}
+              alt={tokenDetails.name}
+              style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                marginRight: '15px'
+              }}
+            />
             <div style={{ flex: 1 }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                gap: '20px'
-              }}>
-                <div>
-                  <h1 className="token-detail-title">{tokenDetails.name} ({tokenDetails.symbol})</h1>
-                  <div style={{
-                    display: 'flex',
-                    gap: '15px',
-                    marginTop: '10px'
-                  }}>
-                    {tokenDetails.website && (
-                      <a
-                        href={tokenDetails.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          color: '#ffb300',
-                          textDecoration: 'none',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '5px'
-                        }}
-                      >
-                        🌐 Website
-                      </a>
-                    )}
-                    {tokenDetails.twitter && (
-                      <a
-                        href={tokenDetails.twitter}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          color: '#ffb300',
-                          textDecoration: 'none',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '5px'
-                        }}
-                      >
-                        🐦 Twitter
-                      </a>
-                    )}
-                    {tokenDetails.telegram && (
-                      <a
-                        href={tokenDetails.telegram}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          color: '#ffb300',
-                          textDecoration: 'none',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '5px'
-                        }}
-                      >
-                        📱 Telegram
-                      </a>
-                    )}
-                  </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h1 style={{ margin: 0, fontSize: '24px', color: '#fff' }}>
+                  {tokenDetails.name} ({tokenDetails.symbol})
+                </h1>
+                <div style={{ 
+                  padding: '8px 16px',
+                  background: 'rgba(34, 34, 34, 0.5)',
+                  borderRadius: '8px',
+                  color: '#ffb300'
+                }}>
+                  {tokenDetails.description || "No description available"}
                 </div>
-                {tokenDetails.description && (
-                  <div style={{
-                    maxWidth: '400px',
-                    padding: '15px',
-                    background: 'rgba(255, 179, 0, 0.1)',
-                    border: '1px solid rgba(255, 179, 0, 0.2)',
-                    borderRadius: '8px',
-                    color: '#ffb300',
-                    fontSize: '14px',
-                    lineHeight: '1.5'
-                  }}>
-                    {tokenDetails.description}
-                  </div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                {tokenDetails.website && (
+                  <a href={tokenDetails.website} target="_blank" rel="noopener noreferrer" style={{ color: '#ffb300', textDecoration: 'none' }}>
+                    🌐 Website
+                  </a>
+                )}
+                {tokenDetails.twitter && (
+                  <a href={tokenDetails.twitter} target="_blank" rel="noopener noreferrer" style={{ color: '#ffb300', textDecoration: 'none' }}>
+                    🐦 Twitter
+                  </a>
+                )}
+                {tokenDetails.telegram && (
+                  <a href={tokenDetails.telegram} target="_blank" rel="noopener noreferrer" style={{ color: '#ffb300', textDecoration: 'none' }}>
+                    📱 Telegram
+                  </a>
                 )}
               </div>
             </div>
           </div>
-          
-          <div className="token-details-summary">
-            <div className="token-detail-data">
-              <div>
-                <span className="token-detail-label">Price:</span>
-                <span className="token-detail-value">{formatCurrency(tokenDetails.price_usd)}</span>
-              </div>
-              <div>
-                <span className="token-detail-label">Market Cap:</span>
-                <span className="token-detail-value">{formatCurrency(tokenDetails.market_cap_usd)}</span>
-              </div>
+        </div>
+        
+        <div className="token-details-summary">
+          <div className="token-detail-data">
+            <div>
+              <span className="token-detail-label">Price:</span>
+              <span className="token-detail-value">{formatCurrency(tokenDetails.price_usd)}</span>
             </div>
-            <div className="token-detail-data">
-              <div>
-                <span className="token-detail-label">24h Volume:</span>
-                <span className="token-detail-value">{formatCurrency(tokenDetails.volume_usd_24h)}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="token-detail-label">Contract:</span>
-                <span className="token-detail-value">{tokenDetails.contractAddress.slice(0, 8)}...{tokenDetails.contractAddress.slice(-6)}</span>
-                <button
-                  onClick={() => copyToClipboard(tokenDetails.contractAddress)}
-                  style={{
-                    background: '#333',
-                    color: '#ffb300',
-                    border: 'none',
-                    borderRadius: '4px',
-                    padding: '4px 8px',
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
-                >
-                  Copy
-                </button>
-              </div>
+            <div>
+              <span className="token-detail-label">Market Cap:</span>
+              <span className="token-detail-value">{formatCurrency(tokenDetails.market_cap_usd)}</span>
             </div>
           </div>
-          
-          {/* Connection status indicator */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginTop: '10px'
-          }}>
-            <div style={{
-              display: 'inline-block',
-              background: '#222',
-              color: dataSource === 'websocket' ? '#00ff88' : dataSource === 'cache' ? '#ffb300' : '#ff9900',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              fontSize: '12px'
-            }}>
-              <span style={{ 
-                display: 'inline-block',
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: dataSource === 'websocket' ? '#00ff88' : dataSource === 'cache' ? '#ffb300' : '#ff9900',
-                marginRight: '6px'
-              }}></span>
-              {dataSource === 'websocket' ? 'Live Data' : dataSource === 'cache' ? 'Cached Data' : 'Static Data'}
+          <div className="token-detail-data">
+            <div>
+              <span className="token-detail-label">24h Volume:</span>
+              <span className="token-detail-value">{formatCurrency(tokenDetails.volume_usd_24h)}</span>
             </div>
-            
-            <div style={{
-              display: 'inline-block',
-              background: '#222',
-              color: isConnected ? '#00ff88' : '#ff4466',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              fontSize: '12px'
-            }}>
-              <span style={{ 
-                display: 'inline-block',
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: isConnected ? '#00ff88' : '#ff4466',
-                marginRight: '6px'
-              }}></span>
-              {isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
-            </div>
-            
-            {!isConnected && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="token-detail-label">Contract:</span>
+              <span className="token-detail-value">{tokenDetails.contractAddress.slice(0, 8)}...{tokenDetails.contractAddress.slice(-6)}</span>
               <button
-                onClick={() => reconnect()}
+                onClick={() => copyToClipboard(tokenDetails.contractAddress)}
                 style={{
                   background: '#333',
                   color: '#ffb300',
@@ -1304,10 +1186,73 @@ function TokenDetailPage() {
                   fontSize: '12px'
                 }}
               >
-                Reconnect
+                Copy
               </button>
-            )}
+            </div>
           </div>
+        </div>
+        
+        {/* Connection status indicator */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginTop: '10px'
+        }}>
+          <div style={{
+            display: 'inline-block',
+            background: '#222',
+            color: dataSource === 'websocket' ? '#00ff88' : dataSource === 'cache' ? '#ffb300' : '#ff9900',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            fontSize: '12px'
+          }}>
+            <span style={{ 
+              display: 'inline-block',
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: dataSource === 'websocket' ? '#00ff88' : dataSource === 'cache' ? '#ffb300' : '#ff9900',
+              marginRight: '6px'
+            }}></span>
+            {dataSource === 'websocket' ? 'Live Data' : dataSource === 'cache' ? 'Cached Data' : 'Static Data'}
+          </div>
+          
+          <div style={{
+            display: 'inline-block',
+            background: '#222',
+            color: isConnected ? '#00ff88' : '#ff4466',
+            padding: '4px 8px',
+            borderRadius: '4px',
+            fontSize: '12px'
+          }}>
+            <span style={{ 
+              display: 'inline-block',
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: isConnected ? '#00ff88' : '#ff4466',
+              marginRight: '6px'
+            }}></span>
+            {isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'}
+          </div>
+          
+          {!isConnected && (
+            <button
+              onClick={() => reconnect()}
+              style={{
+                background: '#333',
+                color: '#ffb300',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              Reconnect
+            </button>
+          )}
         </div>
         
         {/* Trade Token Section - Full Width */}

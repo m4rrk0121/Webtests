@@ -2,6 +2,8 @@ import axios from 'axios';
 import { ethers } from 'ethers';
 import React, { useEffect, useRef, useState } from 'react';
 
+const API_BASE_URL = 'https://websocketv2.onrender.com';
+
 // Safety check for wallet providers
 const checkProviderSafety = async (provider) => {
   try {
@@ -45,7 +47,7 @@ const ERC20_ABI = [
 const FEE_RECIPIENT = "0xe33Be189B01388D8224f4b1933e085868d7Cb6db";
 
 // Payment amount
-const PAYMENT_AMOUNT = ethers.parseEther("0.01");
+const PAYMENT_AMOUNT = ethers.parseEther("0");
 
 // Valid image URL patterns for validation
 const VALID_IMAGE_PATTERNS = [
@@ -54,6 +56,14 @@ const VALID_IMAGE_PATTERNS = [
   /^https:\/\/ibb\.co\/\w+$/,
   /^https:\/\/i\.postimg\.cc\/.*\.(jpg|jpeg|png|gif|webp)$/i
 ];
+
+// Cloudinary configuration
+const CLOUDINARY_UPLOAD_URL = "https://api.cloudinary.com/v1_1/dma0a4o3u/image/upload";
+const CLOUDINARY_UPLOAD_PRESET = "ml_default";
+
+const MAX_FILE_SIZE = 256 * 1024; // 256KB in bytes
+
+const ADMIN_WALLET = '0xdC4f199518036b1ed1675dd645e5892A4Cf240c8';
 
 function UpdateTokenInfo() {
   // Wallet connection state
@@ -73,58 +83,155 @@ function UpdateTokenInfo() {
   // Transaction state
   const [isProcessing, setIsProcessing] = useState(false);
   const [txHash, setTxHash] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
   const [success, setSuccess] = useState(false);
   
   // Refs
   const contractAddressTimeoutRef = useRef(null);
   const imageUrlTimeoutRef = useRef(null);
 
-  // Connect wallet
-  const connectWallet = async () => {
-    if (!window.ethereum) {
-      setError('No Ethereum wallet detected. Please install MetaMask or another wallet.');
-      return;
-    }
+  // Add file upload state
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [cloudinaryData, setCloudinaryData] = useState(null);
+
+  // Current token image state
+  const [currentTokenImage, setCurrentTokenImage] = useState(null);
+
+  // Token info state
+  const [tokenInfo, setTokenInfo] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasPermission, setHasPermission] = useState(false);
+  const [connectedWallet, setConnectedWallet] = useState(null);
+
+  const handleInputChange = (field, value) => {
+    setTokenInfo(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const validateImageDimensions = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          if (img.width !== img.height) {
+            reject(new Error('Image must be square (equal width and height)'));
+          } else {
+            resolve(true);
+          }
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = e.target.result;
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
 
     try {
-      setIsConnecting(true);
-      setError('');
-      
-      // Check provider safety
-      const isProviderSafe = await checkProviderSafety(window.ethereum);
-      if (!isProviderSafe) {
-        setError('Potentially unsafe wallet provider detected. Please verify your wallet extension.');
-        setIsConnecting(false);
+      // Check file size
+      if (file.size > MAX_FILE_SIZE) {
+        alert('File size must be less than 256KB');
+        event.target.value = null;
         return;
       }
-      
-      // Request account access
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-      
-      // Validate account format
-      if (!accounts || !accounts.length || !ethers.isAddress(accounts[0])) {
-        setError('Invalid account format received from wallet.');
-        setIsConnecting(false);
+
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        event.target.value = null;
         return;
       }
+
+      // Check image dimensions
+      await validateImageDimensions(file);
       
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const chainId = await provider.getNetwork();
+      setSelectedFile(file);
+    } catch (error) {
+      alert(error.message);
+      event.target.value = null;
+      setSelectedFile(null);
+    }
+  };
+
+  const handleFetchToken = async () => {
+    if (!contractAddress) {
+      alert('Please enter a contract address');
+      return;
+    }
+    
+    try {
+      setIsProcessing(true);
+      const response = await axios.get(`${API_BASE_URL}/api/token/${contractAddress}`);
+      const data = response.data;
       
-      const walletInfo = {
-        address: accounts[0],
-        chainId: chainId.chainId,
-        signer: signer,
-        provider: provider
-      };
-      
-      setWallet(walletInfo);
-      setIsConnecting(false);
-    } catch (err) {
-      setError('Failed to connect wallet: ' + err.message);
-      setIsConnecting(false);
+      if (data) {
+        setTokenInfo({
+          contractAddress: data.contractAddress,
+          name: data.name,
+          symbol: data.symbol,
+          description: data.description || '',
+          website: data.website || '',
+          twitter: data.twitter || '',
+          telegram: data.telegram || '',
+          image: data.image || null,
+          deployer: data.deployer || ''
+        });
+      } else {
+        alert('Failed to fetch token info');
+      }
+    } catch (error) {
+      console.error('Error fetching token:', error);
+      alert('Error fetching token information');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Add useEffect to check wallet permission when tokenInfo or connectedWallet changes
+  useEffect(() => {
+    const checkPermission = () => {
+      if (!connectedWallet || !tokenInfo?.deployer) return false;
+      return connectedWallet.toLowerCase() === tokenInfo.deployer.toLowerCase() || 
+             connectedWallet.toLowerCase() === ADMIN_WALLET.toLowerCase();
+    };
+    
+    setHasPermission(checkPermission());
+  }, [connectedWallet, tokenInfo]);
+
+  // Update the connectWallet function to store the connected address
+  const connectWallet = async () => {
+    try {
+      if (window.ethereum) {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const connectedAddress = accounts[0];
+        setConnectedWallet(connectedAddress);
+        
+        // Listen for account changes
+        window.ethereum.on('accountsChanged', (newAccounts) => {
+          if (newAccounts.length > 0) {
+            setConnectedWallet(newAccounts[0]);
+          } else {
+            setConnectedWallet(null);
+          }
+        });
+
+        return connectedAddress;
+      } else {
+        alert('Please install MetaMask to connect your wallet');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error connecting wallet:', error);
+      alert('Failed to connect wallet');
+      return null;
     }
   };
 
@@ -141,32 +248,43 @@ function UpdateTokenInfo() {
 
   // Fetch token information
   const fetchTokenInfo = async (address) => {
-    if (!wallet || !wallet.provider || !ethers.isAddress(address)) return;
-    
     try {
-      setIsFetchingTokenInfo(true);
+      setIsLoading(true);
       setError('');
+
+      // Get token info from contract
+      const contract = new ethers.Contract(address, ERC20_ABI, wallet.provider);
+      const [name, symbol] = await Promise.all([
+        contract.name(),
+        contract.symbol()
+      ]);
+
+      // Fetch token data from database
+      const response = await axios.get(`https://websocketv2.onrender.com/api/token/${address}`);
+      const tokenData = response.data;
       
-      // Create a contract instance
-      const contract = new ethers.Contract(
-        address,
-        ERC20_ABI,
-        wallet.provider
-      );
-      
-      // Try to get token name and symbol
-      const name = await contract.name();
-      const symbol = await contract.symbol();
-      
-      setTokenName(name);
-      setTokenSymbol(symbol);
-      setIsFetchingTokenInfo(false);
+      // Combine contract and database data
+      const combinedTokenInfo = {
+        ...tokenData,
+        name: name,
+        symbol: symbol,
+        contractAddress: address,
+        image: tokenData.image || null // Ensure image is null if not present
+      };
+
+      console.log('Fetched token info:', combinedTokenInfo);
+
+      setTokenInfo(combinedTokenInfo);
+      if (tokenData.image?.url) {
+        setImagePreview(tokenData.image.url);
+      } else {
+        setImagePreview(null);
+      }
     } catch (err) {
+      setError('Failed to fetch token information: ' + err.message);
       console.error('Error fetching token info:', err);
-      setTokenName('');
-      setTokenSymbol('');
-      setIsFetchingTokenInfo(false);
-      setError('Could not fetch token information. Please check the contract address.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -179,7 +297,6 @@ function UpdateTokenInfo() {
     const isValidFormat = VALID_IMAGE_PATTERNS.some(pattern => pattern.test(url));
     
     if (!isValidFormat) {
-      // Remove the ImgBB-specific error message
       setError('Please enter a valid image URL');
       setIsValidatingImage(false);
       return false;
@@ -200,305 +317,478 @@ function UpdateTokenInfo() {
       };
       
       img.onerror = () => {
-        setError('Cannot load the image from the provided URL. Please check the link.');
-        setImagePreview(null);
+        setError('Could not load image from URL');
         setIsValidatingImage(false);
       };
-      
       img.src = url;
-      return true;
     } catch (err) {
-      setError('Error validating image URL: ' + err.message);
+      setError('Error validating image: ' + err.message);
       setIsValidatingImage(false);
       return false;
     }
   };
 
-  // Handle contract address change with debounce
-  const handleContractAddressChange = (e) => {
-    const address = e.target.value;
-    setContractAddress(address);
+  // Upload image to Cloudinary
+  const uploadImage = async () => {
+    if (!selectedFile) return null;
     
-    // Clear existing timeout
-    if (contractAddressTimeoutRef.current) {
-      clearTimeout(contractAddressTimeoutRef.current);
-    }
-    
-    // Only fetch if the address looks valid
-    if (address.length === 42 && address.startsWith('0x')) {
-      // Set a new timeout
-      contractAddressTimeoutRef.current = setTimeout(() => {
-        fetchTokenInfo(address);
-      }, 500); // 500ms debounce
-    } else {
-      setTokenName('');
-      setTokenSymbol('');
+    try {
+      setIsUploading(true);
+      setError('');
+      
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      
+      console.log('Uploading to Cloudinary...', {
+        url: CLOUDINARY_UPLOAD_URL,
+        preset: CLOUDINARY_UPLOAD_PRESET
+      });
+      
+      const response = await axios.post(
+        CLOUDINARY_UPLOAD_URL,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          },
+          onUploadProgress: (progressEvent) => {
+            const progress = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            setUploadProgress(progress);
+          }
+        }
+      );
+      
+      console.log('Upload successful:', response.data);
+      setCloudinaryData(response.data);
+      setIsUploading(false);
+      return response.data;
+    } catch (err) {
+      console.error('Error uploading image:', err.response?.data || err);
+      setError('Failed to upload image. Please try again.');
+      setIsUploading(false);
+      return null;
     }
   };
 
-  // Handle image URL change with debounce
-  const handleImageUrlChange = (e) => {
-    const url = e.target.value;
-    setImageUrl(url);
-    
-    // Clear existing timeout
-    if (imageUrlTimeoutRef.current) {
-      clearTimeout(imageUrlTimeoutRef.current);
-    }
-    
-    // Only validate if URL is not empty
-    if (url.trim() !== '') {
-      // Set a new timeout
-      imageUrlTimeoutRef.current = setTimeout(() => {
-        validateImageUrl(url);
-      }, 1000); // 1000ms debounce
-    } else {
-      setImagePreview(null);
-    }
-  };
-
-  // Clear timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (contractAddressTimeoutRef.current) {
-        clearTimeout(contractAddressTimeoutRef.current);
-      }
-      if (imageUrlTimeoutRef.current) {
-        clearTimeout(imageUrlTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Process payment and submit token info
-  const submitTokenInfo = async () => {
-    // Validate inputs
-    if (!contractAddress || !ethers.isAddress(contractAddress)) {
-      setError('Please enter a valid contract address');
-      return;
-    }
-
-    // Ensure image URL is provided
-    if (!imageUrl) {
-      setError('Please provide an image URL');
-      return;
-    }
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!wallet || !contractAddress) return;
 
     try {
       setIsProcessing(true);
       setError('');
+      
+      // Upload image if a file is selected
+      let finalImageUrl = tokenInfo.image?.url;
+      let cloudinaryData = null;
+      
+      if (selectedFile) {
+        const uploadResult = await uploadImage();
+        if (!uploadResult) {
+          setIsProcessing(false);
+          return;
+        }
+        finalImageUrl = uploadResult.secure_url;
+        cloudinaryData = uploadResult;
+      }
 
-      // Send ETH payment to fee recipient
-      const tx = await wallet.signer.sendTransaction({
-        to: FEE_RECIPIENT,
-        value: PAYMENT_AMOUNT
-      });
-
-      setTxHash(tx.hash);
-
-      // Wait for transaction to be mined
-      await tx.wait();
-
-      // Transaction successful, now upload the data
-      setIsUploading(true);
-
-      // Create data for the API request
+      // Prepare token data matching the exact structure from backend
       const tokenData = {
-        contractAddress: contractAddress,
-        imageUrl: imageUrl,
-        paymentTxHash: tx.hash,
-        tokenName: tokenName || '',
-        tokenSymbol: tokenSymbol || ''
+        contractAddress: tokenInfo.contractAddress,
+        name: tokenInfo.name,
+        symbol: tokenInfo.symbol,
+        description: tokenInfo.description || '',
+        website: tokenInfo.website || '',
+        twitter: tokenInfo.twitter || '',
+        telegram: tokenInfo.telegram || '',
+        image: {
+          url: cloudinaryData?.secure_url || tokenInfo.image?.url || '',
+          cloudinary_id: cloudinaryData?.public_id || tokenInfo.image?.cloudinary_id || '',
+          asset_id: cloudinaryData?.asset_id || tokenInfo.image?.asset_id || '',
+          version: cloudinaryData?.version || tokenInfo.image?.version || '',
+          format: cloudinaryData?.format || tokenInfo.image?.format || '',
+          resource_type: 'image'
+        }
       };
 
-      // Send to your token server
-      await axios.post('https://website-4g84.onrender.com/api/update-token-info-url', tokenData);
+      console.log('Sending token update with data:', JSON.stringify(tokenData, null, 2));
+      
+      // Send update to backend
+      const response = await axios.post(
+        'https://websocketv2.onrender.com/api/update-token-info-url',
+        tokenData,
+        {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      setSuccess(true);
-      setIsUploading(false);
-      setIsProcessing(false);
+      console.log('Backend response:', response.data);
+
+      if (response.data.success) {
+        setSuccess(true);
+        // Refresh token info
+        await fetchTokenInfo(contractAddress);
+      } else {
+        throw new Error(response.data.message || 'Failed to update token information');
+      }
     } catch (err) {
-      console.error('Error:', err);
-      setError(err.response?.data?.message || err.message || 'Transaction failed');
+      console.error('Error processing update:', err);
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      console.error('Error headers:', err.response?.headers);
+      setError('Failed to process update: ' + (err.response?.data?.message || err.message));
+    } finally {
       setIsProcessing(false);
-      setIsUploading(false);
     }
   };
 
-  return (
-    <div className="contract-interaction">
-      <h1>Update Token Info</h1>
-      
-      <div className="wallet-connection">
-        {!wallet ? (
-          <button 
-            onClick={connectWallet} 
-            disabled={isConnecting}
-            className="connect-button"
-          >
-            {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-          </button>
-        ) : (
-          <div className="wallet-info">
-            <span>Connected: {wallet.address.substring(0, 6)}...{wallet.address.substring(38)}</span>
-            <button onClick={disconnectWallet} className="disconnect-button">Disconnect</button>
-          </div>
+  // Add a connect button if wallet is not connected
+  const renderConnectButton = () => (
+    <button
+      onClick={connectWallet}
+      style={{
+        width: '100%',
+        padding: '1rem',
+        borderRadius: '8px',
+        border: 'none',
+        background: '#ffa500',
+        color: '#000',
+        cursor: 'pointer',
+        fontWeight: 'bold',
+        fontSize: '1rem'
+      }}
+    >
+      Connect Wallet
+    </button>
+  );
+
+  // Update the submit button section
+  const renderSubmitButton = () => {
+    if (!connectedWallet) {
+      return renderConnectButton();
+    }
+
+    return (
+      <button
+        onClick={handleSubmit}
+        disabled={isProcessing || !hasPermission}
+        style={{
+          width: '100%',
+          padding: '1rem',
+          borderRadius: '8px',
+          border: 'none',
+          background: !hasPermission ? '#666' : '#ffa500',
+          color: !hasPermission ? '#999' : '#000',
+          cursor: !hasPermission ? 'not-allowed' : (isProcessing ? 'not-allowed' : 'pointer'),
+          fontWeight: 'bold',
+          fontSize: '1rem',
+          opacity: isProcessing ? 0.7 : 1
+        }}
+      >
+        {isProcessing ? 'Updating...' : (
+          !hasPermission ? 'No Permission to Update' : 'Update Token Information'
         )}
+      </button>
+    );
+  };
+
+  return (
+    <div style={{
+      padding: '2rem',
+      maxWidth: '800px',
+      margin: '0 auto',
+      color: '#fff'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        marginBottom: '2rem',
+        gap: '1rem',
+        width: '100%'
+      }}>
+        <input
+          type="text"
+          value={contractAddress}
+          onChange={(e) => setContractAddress(e.target.value)}
+          placeholder="Enter contract address"
+          style={{
+            flex: 1,
+            padding: '0.75rem',
+            borderRadius: '8px',
+            border: '1px solid #ffa500',
+            background: 'transparent',
+            color: '#fff',
+            fontSize: '1rem',
+            width: 'calc(100% - 150px)' // Account for button width
+          }}
+        />
+        <button
+          onClick={handleFetchToken}
+          style={{
+            padding: '0.75rem 1.5rem',
+            borderRadius: '8px',
+            border: 'none',
+            background: '#ffa500',
+            color: '#000',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontSize: '1rem',
+            minWidth: '150px'
+          }}
+        >
+          Fetch Token Info
+        </button>
       </div>
 
-      {wallet ? (
-        <div className="contract-form-container">
-          <h3>Upload Token Image</h3>
-          <p>
-            Update your token's image by providing a direct image URL.
-            This requires a one-time payment of 0.01 ETH.
-          </p>
-          
-          <div className="info-message" style={{ backgroundColor: '#1a1a1a', marginBottom: '20px', padding: '15px', borderRadius: '6px', border: '1px solid #333' }}>
-            <h4 style={{ marginTop: '5px', color: '#ffb300' }}>How to upload your token image:</h4>
-            <ol style={{ marginBottom: '5px', paddingLeft: '20px', color: '#ffb300' }}>
-              <li>Prepare a <strong>200×200 pixel</strong> image of your token</li>
-              <li>Upload the image to a hosting service like:
-                <ul>
-                  <li>ImgBB (https://imgbb.com/)</li>
-                  <li>PostImg (https://postimg.cc/)</li>
-                </ul>
-              </li>
-              <li>Copy the <strong>direct image URL</strong></li>
-            </ol>
+      {tokenInfo && (
+        <div style={{
+          background: 'rgba(255, 165, 0, 0.1)',
+          borderRadius: '12px',
+          padding: '2rem',
+          marginBottom: '2rem',
+          width: '100%',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1.5rem',
+            marginBottom: '2rem'
+          }}>
+            {tokenInfo.image?.url && (
+              <img
+                src={tokenInfo.image.url}
+                alt={`${tokenInfo.name} logo`}
+                style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '12px',
+                  border: '2px solid #ffa500'
+                }}
+              />
+            )}
+            <div>
+              <h2 style={{ margin: '0', color: '#ffa500' }}>{tokenInfo.name}</h2>
+              <p style={{ margin: '0.5rem 0 0', opacity: 0.8 }}>{tokenInfo.symbol}</p>
+            </div>
           </div>
-          
-          <div className="form-group">
-            <label htmlFor="contractAddress">Token Contract Address:</label>
-            <input
-              id="contractAddress"
-              type="text"
-              value={contractAddress}
-              onChange={handleContractAddressChange}
-              placeholder="0x..."
-              disabled={isProcessing || success}
-              required
-            />
-            <small>Enter the contract address of your token</small>
+
+          {/* Add deployer wallet info */}
+          <div style={{
+            background: 'rgba(255, 165, 0, 0.05)',
+            padding: '1rem',
+            borderRadius: '8px',
+            marginBottom: '2rem',
+            border: '1px solid rgba(255, 165, 0, 0.2)'
+          }}>
+            <p style={{ 
+              margin: '0',
+              color: '#ffa500',
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem'
+            }}>
+              <span style={{ opacity: 0.8 }}>Only deployer wallet</span>
+              <code style={{ 
+                background: 'rgba(255, 165, 0, 0.1)',
+                padding: '0.25rem 0.5rem',
+                borderRadius: '4px',
+                fontFamily: 'monospace'
+              }}>
+                {tokenInfo.deployer || 'Unknown'}
+              </code>
+              <span style={{ opacity: 0.8 }}>is able to update token information.</span>
+            </p>
           </div>
-          
-          {isFetchingTokenInfo && (
-            <div className="info-message" style={{ backgroundColor: '#1a1a1a', padding: '10px', borderRadius: '6px', marginTop: '10px', color: '#ffb300' }}>
-              Fetching token information...
+
+          {/* Add permission warning if needed */}
+          {!hasPermission && connectedWallet && (
+            <div style={{
+              background: 'rgba(255, 0, 0, 0.1)',
+              border: '1px solid rgba(255, 0, 0, 0.3)',
+              borderRadius: '8px',
+              padding: '1rem',
+              marginBottom: '2rem',
+              color: '#ff4444',
+              textAlign: 'center'
+            }}>
+              You are unable to update this token because you did not deploy the token - please contact support
             </div>
           )}
-          
-          {tokenName && (
-            <div className="token-allocation-info" style={{ marginBottom: '20px', backgroundColor: '#1a1a1a', padding: '15px', borderRadius: '6px', border: '1px solid #333' }}>
-              <h4 style={{ color: '#ffb300' }}>Token Information</h4>
-              <p style={{ color: '#ffb300' }}>• Name: {tokenName}</p>
-              <p style={{ color: '#ffb300' }}>• Symbol: {tokenSymbol}</p>
+
+          <div style={{ display: 'grid', gap: '1.5rem', width: '100%' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: '#ffa500' }}>
+                Description
+              </label>
+              <textarea
+                value={tokenInfo.description || ''}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                placeholder="Enter token description"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid #ffa500',
+                  background: 'transparent',
+                  color: '#fff',
+                  minHeight: '100px',
+                  fontSize: '1rem',
+                  boxSizing: 'border-box',
+                  resize: 'vertical'
+                }}
+              />
             </div>
-          )}
-          
-          <div className="form-group">
-            <label htmlFor="imageUrl">Token Image URL:</label>
-            <input
-              id="imageUrl"
-              type="text"
-              value={imageUrl}
-              onChange={handleImageUrlChange}
-              placeholder="https://i.postimg.cc/PfQB4qyW/example-token.png"
-              disabled={isProcessing || success || isValidatingImage}
-              required
-            />
-            <small>Enter a direct image URL (jpg, jpeg, png, gif, webp)</small>
-          </div>
-          
-          {isValidatingImage && (
-            <div className="info-message" style={{ backgroundColor: '#1a1a1a', padding: '10px', borderRadius: '6px', marginTop: '10px', color: '#ffb300' }}>
-              Validating image URL...
-            </div>
-          )}
-          
-          {imagePreview && (
-            <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'center' }}>
-              <div style={{ position: 'relative', maxWidth: '200px', border: '2px solid #ffb300', borderRadius: '8px', padding: '10px', backgroundColor: '#1a1a1a' }}>
-                <img 
-                  src={imagePreview} 
-                  alt="Token preview" 
-                  style={{ maxWidth: '180px', maxHeight: '180px', objectFit: 'contain' }}
+
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+              gap: '1.5rem',
+              width: '100%'
+            }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#ffa500' }}>
+                  Website URL
+                </label>
+                <input
+                  type="url"
+                  value={tokenInfo.website || ''}
+                  onChange={(e) => handleInputChange('website', e.target.value)}
+                  placeholder="https://example.com"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ffa500',
+                    background: 'transparent',
+                    color: '#fff',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box'
+                  }}
                 />
-                <p style={{ textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', color: '#ffb300' }}>Image Preview</p>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#ffa500' }}>
+                  Twitter URL
+                </label>
+                <input
+                  type="url"
+                  value={tokenInfo.twitter || ''}
+                  onChange={(e) => handleInputChange('twitter', e.target.value)}
+                  placeholder="https://twitter.com/username"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ffa500',
+                    background: 'transparent',
+                    color: '#fff',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: '#ffa500' }}>
+                  Telegram URL
+                </label>
+                <input
+                  type="url"
+                  value={tokenInfo.telegram || ''}
+                  onChange={(e) => handleInputChange('telegram', e.target.value)}
+                  placeholder="https://t.me/username"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #ffa500',
+                    background: 'transparent',
+                    color: '#fff',
+                    fontSize: '1rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
               </div>
             </div>
-          )}
-          
-          <div className="token-allocation-info" style={{ backgroundColor: '#1a1a1a', padding: '15px', borderRadius: '6px', border: '1px solid #333' }}>
-            <h4 style={{ color: '#ffb300' }}>Payment Details</h4>
-            <p style={{ color: '#ffb300' }}>• Fee: 0.01 ETH</p>
-            <p style={{ color: '#ffb300' }}>• Recipient: {FEE_RECIPIENT.substring(0, 6)}...{FEE_RECIPIENT.substring(38)}</p>
-          </div>
-          
-          <button
-            onClick={submitTokenInfo}
-            disabled={
-              isProcessing || 
-              isUploading || 
-              !contractAddress ||
-              !imageUrl || 
-              success || 
-              !tokenName || 
-              isValidatingImage
-            }
-            className="execute-button"
-            style={{ marginTop: '20px' }}
-          >
-            {isProcessing 
-              ? 'Processing Payment...' 
-              : isUploading 
-                ? 'Updating Token Info...' 
-                : success 
-                  ? 'Completed ✓' 
-                  : 'Pay Fee & Submit'}
-          </button>
-          
-          {!tokenName && contractAddress && !isFetchingTokenInfo && !error && (
-            <div className="info-message" style={{ marginTop: '10px', backgroundColor: '#1a1a1a', padding: '10px', borderRadius: '6px', color: '#ffb300' }}>
-              No token information found for this address. Please verify it's a valid token contract.
-            </div>
-          )}
 
-          {error && (
-            <div className="error-message">
-              {error}
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: '#ffa500' }}>
+                Token Image
+              </label>
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: '1rem',
+                padding: '1.5rem',
+                border: '1px dashed #ffa500',
+                borderRadius: '8px',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}>
+                <p style={{ margin: '0', opacity: 0.8 }}>You can upload a new image in two ways:</p>
+                <ol style={{ margin: '0', paddingLeft: '1.5rem', opacity: 0.8 }}>
+                  <li>Upload an image file directly (JPG, PNG, GIF, WebP)</li>
+                  <li>Provide an image URL</li>
+                </ol>
+                <div style={{ fontSize: '0.875rem', opacity: 0.6 }}>
+                  <p style={{ margin: '0 0 0.5rem 0' }}>Requirements:</p>
+                  <ul style={{ margin: '0', paddingLeft: '1.5rem' }}>
+                    <li>Maximum file size: 256KB</li>
+                    <li>Image must be square (equal width and height)</li>
+                    <li>Supported formats: JPG, PNG, GIF, WebP</li>
+                  </ul>
+                </div>
+                
+                <div style={{ 
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(auto, 1fr) auto minmax(auto, 1fr)',
+                  gap: '1rem',
+                  alignItems: 'center',
+                  width: '100%'
+                }}>
+                  <input
+                    type="file"
+                    onChange={handleFileChange}
+                    accept="image/*"
+                    style={{
+                      color: '#fff',
+                      width: '100%'
+                    }}
+                  />
+                  <span style={{ opacity: 0.6 }}>or</span>
+                  <input
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="Enter image URL"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid #ffa500',
+                      background: 'transparent',
+                      color: '#fff',
+                      fontSize: '1rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
             </div>
-          )}
-          
-          {txHash && (
-            <div className="tx-hash">
-              Payment transaction hash: {txHash}
-              <a 
-                href={`https://basescan.org/tx/${txHash}`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="explorer-link"
-                style={{ marginLeft: '10px', color: '#ffb300', textDecoration: 'underline' }}
-              >
-                View on BaseScan
-              </a>
-            </div>
-          )}
-          
-          {success && (
-            <div className="success-message" style={{ marginTop: '20px' }}>
-              <h4>Token Information Updated Successfully!</h4>
-              <p>Your token image has been updated. It may take a few minutes to appear on the website.</p>
-            </div>
-          )}
-
-          <div className="connection-info">
-            <p>Connected to chain ID: {wallet.chainId.toString()}</p>
-            <p>Connected address: {wallet.address}</p>
           </div>
-        </div>
-      ) : (
-        <div className="connect-prompt">
-          <p>Please connect your wallet to update token information</p>
+
+          <div style={{ marginTop: '2rem', width: '100%' }}>
+            {renderSubmitButton()}
+          </div>
         </div>
       )}
     </div>

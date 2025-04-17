@@ -24,7 +24,7 @@ export const WebSocketProvider = ({ children }) => {
 
   useEffect(() => {
     // Keep the WebSocket URL consistent
-    const SOCKET_URL = 'https://websocketv2.onrender.com';
+    const SOCKET_URL = 'wss://websocketv2.onrender.com';
       
     console.log(`[WebSocketContext] Connecting to WebSocket server at: ${SOCKET_URL}`);
     

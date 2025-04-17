@@ -23,6 +23,7 @@ import Home from './components/Home';
 import Navbar from './components/Navbar';
 import TokenDashboard from './components/TokenDashboard';
 import TokenDetailPage from './components/TokenDetailPage';
+import UpdateTokenInfo from './components/UpdateTokenInfo';
 import { WebSocketProvider } from './context/WebSocketContext';
 
 // Create query client
@@ -214,7 +215,7 @@ function App() {
                   <Route path="/token/:contractAddress" element={<TokenDetailPage />} />
                   <Route path="/collect-fees" element={<CollectFees />} />
                   <Route path="/deploy-token" element={<DeployToken />} />
-                  <Route path="/update-token-info" element={<div className="placeholder-page"><h1>Token Info Updates Coming Soon</h1></div>} />
+                  <Route path="/update-token-info" element={<UpdateTokenInfo />} />
                 </Routes>
               </div>
               <AIAssistantChat />

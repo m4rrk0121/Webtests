@@ -2074,6 +2074,353 @@ html, body, #root, .app-container {
     padding: 15px;
   }
 }
+/* Fix for Safari and some Chrome versions */
+html, body, #root, .app-container {
+  height: 100%;
+  min-height: 100%;
+  min-height: -webkit-fill-available;
+}
+
+/* Use this to diagnose height issues */
+.height-debug {
+  position: fixed;
+  top: 0;
+  right: 0;
+  background: rgba(255, 0, 0, 0.8);
+  color: white;
+  padding: 4px;
+  font-size: 12px;
+  z-index: 10000;
+}
+
+/* Navbar Styles */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #000000;
+  border-bottom: 3px solid #ffb300;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.navbar-brand h2 {
+  color: #ffb300;
+  font-family: 'Chewy', cursive;
+  font-size: 1.5rem;
+  margin: 0;
+  padding: 10px 0;
+}
+
+.navbar-menu {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.navbar-item {
+  color: #ffb300;
+  text-decoration: none;
+  font-family: 'Chewy', cursive;
+  font-size: 1rem;
+  padding: 10px 15px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.navbar-item:hover {
+  background-color: rgba(255, 179, 0, 0.2);
+  transform: scale(1.05);
+}
+
+.navbar-item.active {
+  background-color: #ffb300;
+  color: #000000;
+}
+
+/* Content container to account for navbar */
+.content-container {
+  padding-top: 0px;
+  min-height: calc(100vh - 60px);
+}
+
+/* Placeholder pages */
+.placeholder-page {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #000000;
+  color: #ffb300;
+  font-family: 'Chewy', cursive;
+  text-align: center;
+  padding: 0 20px;
+}
+
+.placeholder-page h1 {
+  font-size: 2.5rem;
+  border: 3px solid #ffb300;
+  padding: 30px;
+  border-radius: 10px;
+  background-color: rgba(255, 179, 0, 0.1);
+}
+
+/* Responsive navbar styles */
+@media screen and (max-width: 992px) {
+  .navbar {
+    flex-direction: column;
+    padding: 10px;
+  }
+  
+  .navbar-menu {
+    width: 100%;
+    justify-content: center;
+    padding-bottom: 10px;
+  }
+  
+  .navbar-item {
+    font-size: 0.9rem;
+    padding: 8px 12px;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .navbar-menu {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .navbar-item {
+    font-size: 0.85rem;
+    padding: 6px 10px;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .navbar-menu {
+    gap: 5px;
+  }
+  
+  .navbar-item {
+    font-size: 0.8rem;
+    padding: 5px 8px;
+  }
+  
+  .content-container {
+    padding-top: 10px;
+  }
+}
+
+/* CollectFees Component Styles */
+.contract-interaction {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 30px 20px;
+  background-color: #000000;
+  color: #ffb300;
+  min-height: 100vh;
+  font-family: 'Chewy', cursive;
+}
+
+.contract-interaction h1 {
+  text-align: center;
+  color: #ffb300;
+  margin-bottom: 30px;
+  font-size: 2.5rem;
+}
+
+.wallet-connection {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+.connect-button {
+  background-color: #ffb300;
+  color: #000000;
+  font-family: 'Chewy', cursive;
+  font-size: 1.2rem;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.connect-button:hover {
+  background-color: #e6a200;
+  transform: scale(1.05);
+}
+
+.connect-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.wallet-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  font-size: 1.2rem;
+}
+
+.disconnect-button {
+  background-color: #333;
+  color: #ffb300;
+  font-family: 'Chewy', cursive;
+  padding: 8px 16px;
+  border: 1px solid #ffb300;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.contract-form-container {
+  background-color: #1a1a1a;
+  border: 3px solid #ffb300;
+  border-radius: 10px;
+  padding: 25px;
+  margin-bottom: 30px;
+}
+
+.contract-form-container h2 {
+  color: #ffb300;
+  margin-top: 0;
+  font-size: 1.5rem;
+  word-break: break-all;
+}
+
+.contract-form-container h3 {
+  color: #ffb300;
+  margin-top: 20px;
+  font-size: 1.3rem;
+}
+
+.gas-info {
+  background-color: #333;
+  color: #ffb300;
+  padding: 12px;
+  border-radius: 6px;
+  margin: 20px 0;
+  font-size: 0.9rem;
+}
+
+.execute-button {
+  background-color: #ffb300;
+  color: #000000;
+  font-family: 'Chewy', cursive;
+  font-size: 1.1rem;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 100%;
+  margin: 20px 0;
+  transition: background-color 0.3s ease;
+}
+
+.execute-button:hover {
+  background-color: #e6a200;
+}
+
+.execute-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.error-message {
+  background-color: rgba(255, 0, 0, 0.2);
+  color: #ff6666;
+  padding: 15px;
+  border-radius: 6px;
+  margin: 20px 0;
+  border: 1px solid #ff6666;
+}
+
+.tx-hash {
+  background-color: #333;
+  color: #ffb300;
+  padding: 15px;
+  border-radius: 6px;
+  margin: 20px 0;
+  word-break: break-all;
+}
+
+.pending-indicator {
+  margin-top: 10px;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.success-message {
+  background-color: rgba(0, 255, 0, 0.1);
+  color: #00ff88;
+  padding: 15px;
+  border-radius: 6px;
+  margin: 20px 0;
+  border: 1px solid #00ff88;
+}
+
+.success-message h4 {
+  margin-top: 0;
+  color: #00ff88;
+}
+
+.tx-details {
+  margin-top: 10px;
+  color: #ffb300;
+}
+
+.tx-details p {
+  margin: 5px 0;
+  word-break: break-all;
+}
+
+.connection-info {
+  margin-top: 30px;
+  padding-top: 15px;
+  border-top: 1px solid #333;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.connection-info p {
+  margin: 5px 0;
+}
+
+.connect-prompt {
+  text-align: center;
+  padding: 30px;
+  font-size: 1.2rem;
+  color: #ffb300;
+  background-color: #1a1a1a;
+  border: 3px solid #ffb300;
+  border-radius: 10px;
+}
+
+/* Responsive styles for smaller screens */
+@media screen and (max-width: 768px) {
+  .contract-interaction {
+    padding: 20px 15px;
+  }
+  
+  .contract-interaction h1 {
+    font-size: 2rem;
+  }
+  
+  .wallet-info {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .contract-form-container {
+    padding: 15px;
+  }
+}
 /* DeployToken Component Enhanced Styles */
 .deploy-token-container {
   max-width: 800px;
@@ -4573,5 +4920,119 @@ body.on-homepage nav {
     overflow: hidden;
     text-overflow: ellipsis;
     display: inline-block;
+  }
+}
+
+/* File Upload Styles */
+.file-upload {
+  margin-bottom: 1rem;
+}
+
+.upload-label {
+  display: inline-block;
+  padding: 8px 16px;
+  background-color: #FFB800;
+  color: black;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upload-label:hover {
+  background-color: #e6a200;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.selected-file {
+  margin-left: 1rem;
+  color: #666;
+}
+
+.upload-progress {
+  margin: 1rem 0;
+}
+
+.upload-progress progress {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.upload-progress progress::-webkit-progress-bar {
+  background-color: #f0f0f0;
+}
+
+.upload-progress progress::-webkit-progress-value {
+  background-color: #FFB800;
+  transition: width 0.3s ease;
+}
+
+.upload-progress span {
+  display: block;
+  text-align: center;
+  margin-top: 0.5rem;
+  color: #666;
+}
+
+.image-preview {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.image-preview img {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.upload-options {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.url-upload input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.url-upload input:focus {
+  outline: none;
+  border-color: #FFB800;
+  box-shadow: 0 0 0 2px rgba(255, 184, 0, 0.1);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .upload-label {
+    background-color: #FFB800;
+    color: black;
+  }
+  
+  .selected-file {
+    color: #999;
+  }
+  
+  .upload-progress progress::-webkit-progress-bar {
+    background-color: #333;
+  }
+  
+  .upload-progress span {
+    color: #999;
+  }
+  
+  .url-upload input {
+    background-color: #1a1a1a;
+    border-color: #333;
+    color: #fff;
+  }
+  
+  .url-upload input:focus {
+    border-color: #FFB800;
   }
 }

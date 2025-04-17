@@ -1,53 +1,7 @@
 import axios from 'axios';
-import { ethers } from 'ethers';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 const API_BASE_URL = 'https://websocketv2.onrender.com';
-
-// Safety check for wallet providers
-const checkProviderSafety = async (provider) => {
-  try {
-    // Check for suspicious provider properties
-    const suspiciousProps = ['_handleAccountsChanged', '_handleConnect', '_handleChainChanged']
-      .filter(prop => typeof provider[prop] !== 'function');
-    
-    if (suspiciousProps.length > 0) {
-      console.warn('Potentially unsafe provider detected: Missing standard methods');
-      return false;
-    }
-    
-    // Verify chainId is accessible and returns a valid response
-    const chainId = await provider.request({ method: 'eth_chainId' });
-    if (!chainId || typeof chainId !== 'string' || !chainId.startsWith('0x')) {
-      console.warn('Potentially unsafe provider detected: Invalid chainId response');
-      return false;
-    }
-    
-    // Check if the provider follows EIP-1193 standard
-    if (typeof provider.request !== 'function' || 
-        typeof provider.on !== 'function') {
-      console.warn('Potentially unsafe provider: Not EIP-1193 compliant');
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Error checking provider safety:', error);
-    return false;
-  }
-};
-
-// Basic ERC20 ABI for name and symbol
-const ERC20_ABI = [
-  "function name() view returns (string)",
-  "function symbol() view returns (string)"
-];
-
-// Fee recipient address
-const FEE_RECIPIENT = "0xe33Be189B01388D8224f4b1933e085868d7Cb6db";
-
-// Payment amount
-const PAYMENT_AMOUNT = ethers.parseEther("0");
 
 // Valid image URL patterns for validation
 const VALID_IMAGE_PATTERNS = [
@@ -66,24 +20,16 @@ const MAX_FILE_SIZE = 256 * 1024; // 256KB in bytes
 const ADMIN_WALLET = '0xdC4f199518036b1ed1675dd645e5892A4Cf240c8';
 
 function UpdateTokenInfo() {
-  // Wallet connection state
-  const [wallet, setWallet] = useState(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [error, setError] = useState('');
-  
   // Form state
   const [contractAddress, setContractAddress] = useState('');
-  const [tokenName, setTokenName] = useState('');
-  const [tokenSymbol, setTokenSymbol] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imagePreview, setImagePreview] = useState(null);
-  const [isFetchingTokenInfo, setIsFetchingTokenInfo] = useState(false);
   const [isValidatingImage, setIsValidatingImage] = useState(false);
   
   // Transaction state
   const [isProcessing, setIsProcessing] = useState(false);
-  const [txHash, setTxHash] = useState('');
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
   
   // Refs
   const contractAddressTimeoutRef = useRef(null);
@@ -94,9 +40,6 @@ function UpdateTokenInfo() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [cloudinaryData, setCloudinaryData] = useState(null);
-
-  // Current token image state
-  const [currentTokenImage, setCurrentTokenImage] = useState(null);
 
   // Token info state
   const [tokenInfo, setTokenInfo] = useState(null);
@@ -246,13 +189,9 @@ function UpdateTokenInfo() {
 
   // Disconnect wallet
   const disconnectWallet = () => {
-    setWallet(null);
-    setTxHash('');
+    setConnectedWallet(null);
+    setHasPermission(false);
     setSuccess(false);
-    setTokenName('');
-    setTokenSymbol('');
-    setImageUrl('');
-    setImagePreview(null);
   };
 
   // Fetch token information

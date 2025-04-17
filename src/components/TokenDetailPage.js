@@ -6,9 +6,6 @@ import { useAccount, useChainId, useWalletClient } from 'wagmi';
 import { appKitInstance } from '../App'; // Import appKitInstance
 import { useWebSocket } from '../context/WebSocketContext';
 import './modal.css';
-import { BigInt } from '@ethersproject/bignumber';
-
-/* global BigInt */
 
 // Default token image if none is provided
 const defaultTokenImage = 'https://res.cloudinary.com/dtzqgftjk/image/upload/v1706964461/token_images/default-token_pngg2c.png';

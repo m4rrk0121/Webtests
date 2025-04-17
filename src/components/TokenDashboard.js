@@ -88,7 +88,7 @@ function TokenCard({ token, highlight = false }) {
       style={{ cursor: 'pointer' }}
     >
       <h3>{token.name}</h3>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
         <a 
           href={dexScreenerLink} 
           target="_blank" 

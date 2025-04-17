@@ -88,7 +88,7 @@ function TokenCard({ token, highlight = false }) {
       style={{ cursor: 'pointer' }}
     >
       <h3>{token.name}</h3>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
         <a 
           href={dexScreenerLink} 
           target="_blank" 
@@ -98,18 +98,20 @@ function TokenCard({ token, highlight = false }) {
         >
           DexScreener
         </a>
-        {token.image?.url && (
-          <img 
-            src={token.image.url}
-            alt={`${token.name} logo`}
-            style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: '50%',
-              objectFit: 'cover'
-            }}
-          />
-        )}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+          {token.image?.url && (
+            <img 
+              src={token.image.url}
+              alt={`${token.name} logo`}
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                objectFit: 'cover'
+              }}
+            />
+          )}
+        </div>
       </div>
       <p>Symbol: {token.symbol}</p>
       <p>Price: {formatCurrency(token.price_usd)}</p>

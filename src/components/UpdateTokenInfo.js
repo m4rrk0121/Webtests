@@ -163,12 +163,13 @@ function UpdateTokenInfo() {
 
   const handleFetchToken = async () => {
     if (!contractAddress) {
-      alert('Please enter a contract address');
+      setError('Please enter a contract address');
       return;
     }
     
     try {
       setIsProcessing(true);
+      setError('');
       const response = await axios.get(`${API_BASE_URL}/api/token/${contractAddress}`);
       const data = response.data;
       
@@ -184,12 +185,20 @@ function UpdateTokenInfo() {
           image: data.image || null,
           deployer: data.deployer || ''
         });
+
+        // Check permission only if wallet is connected
+        if (connectedWallet) {
+          const hasAccess = data.deployer?.toLowerCase() === connectedWallet?.toLowerCase();
+          setHasPermission(hasAccess);
+        } else {
+          setHasPermission(false);
+        }
       } else {
-        alert('Failed to fetch token info');
+        setError('Failed to fetch token info');
       }
     } catch (error) {
       console.error('Error fetching token:', error);
-      alert('Error fetching token information');
+      setError('Error fetching token information');
     } finally {
       setIsProcessing(false);
     }

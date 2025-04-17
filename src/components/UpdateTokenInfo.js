@@ -259,39 +259,31 @@ function UpdateTokenInfo() {
   const fetchTokenInfo = async (address) => {
     try {
       setIsLoading(true);
-      setError('');
-
-      // Get token info from contract
-      const contract = new ethers.Contract(address, ERC20_ABI, wallet.provider);
-      const [name, symbol] = await Promise.all([
-        contract.name(),
-        contract.symbol()
-      ]);
-
-      // Fetch token data from database
-      const response = await axios.get(`https://websocketv2.onrender.com/api/token/${address}`);
-      const tokenData = response.data;
+      const response = await axios.get(`${API_BASE_URL}/api/token/${address}`);
+      const data = response.data;
       
-      // Combine contract and database data
-      const combinedTokenInfo = {
-        ...tokenData,
-        name: name,
-        symbol: symbol,
-        contractAddress: address,
-        image: tokenData.image || null // Ensure image is null if not present
-      };
+      if (data) {
+        setTokenInfo({
+          contractAddress: data.contractAddress,
+          name: data.name,
+          symbol: data.symbol,
+          description: data.description || '',
+          website: data.website || '',
+          twitter: data.twitter || '',
+          telegram: data.telegram || '',
+          image: data.image || null,
+          deployer: data.deployer || ''
+        });
 
-      console.log('Fetched token info:', combinedTokenInfo);
-
-      setTokenInfo(combinedTokenInfo);
-      if (tokenData.image?.url) {
-        setImagePreview(tokenData.image.url);
-      } else {
-        setImagePreview(null);
+        // Only check permission if we have a connected wallet
+        if (connectedWallet) {
+          const hasAccess = data.deployer?.toLowerCase() === connectedWallet?.toLowerCase();
+          setHasPermission(hasAccess);
+        }
       }
-    } catch (err) {
-      setError('Failed to fetch token information: ' + err.message);
-      console.error('Error fetching token info:', err);
+    } catch (error) {
+      console.error('Error fetching token info:', error);
+      setError('Failed to fetch token information');
     } finally {
       setIsLoading(false);
     }

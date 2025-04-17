@@ -77,23 +77,8 @@ function TokenCard({ token, highlight = false }) {
   const dexScreenerLink = `https://dexscreener.com/base/${token.contractAddress}`;
 
   const handleCardClick = (e) => {
-    // Prevent navigation if DexScreener link is clicked
     if (e.target.closest('.dexscreener-link')) return;
-    
-    // Navigate with state information to indicate this came from the dashboard
-    navigate(`/token/${token.contractAddress}`, {
-      state: { 
-        fromDashboard: true,
-        tokenPreview: {
-          name: token.name,
-          symbol: token.symbol,
-          price_usd: token.price_usd,
-          market_cap_usd: token.market_cap_usd,
-          volume_usd: token.volume_usd_24h,
-          contractAddress: token.contractAddress
-        }
-      }
-    });
+    navigate(`/token/${token.contractAddress}`);
   };
 
   return (
@@ -101,21 +86,33 @@ function TokenCard({ token, highlight = false }) {
       className={`token-card ${highlight ? 'highlight-card' : ''}`}
       onClick={handleCardClick}
       style={{ cursor: 'pointer' }}
-      data-token-address={token.contractAddress}
     >
-      <div className="token-card-header">
-        <h3>{token.name}</h3>
-        <a 
-          href={dexScreenerLink} 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="dexscreener-link"
-          onClick={(e) => e.stopPropagation()}
-        >
-          DexScreener
-        </a>
-      </div>
-      <p>Symbol: {token.symbol}</p>
+      <h3>{token.name}</h3>
+      <p>Symbol: {token.symbol} 
+        <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <a 
+            href={dexScreenerLink} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="dexscreener-link"
+            onClick={(e) => e.stopPropagation()}
+          >
+            DexScreener
+          </a>
+          {token.image?.url && (
+            <img 
+              src={token.image.url}
+              alt={`${token.name} logo`}
+              style={{
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                objectFit: 'cover'
+              }}
+            />
+          )}
+        </span>
+      </p>
       <p>Price: {formatCurrency(token.price_usd)}</p>
       <p>Market Cap: {formatCurrency(token.market_cap_usd)}</p>
       <p>24h Volume: {formatCurrency(token.volume_usd_24h)}</p>

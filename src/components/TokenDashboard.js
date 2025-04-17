@@ -103,8 +103,8 @@ function TokenCard({ token, highlight = false }) {
             src={token.image.url}
             alt={`${token.name} logo`}
             style={{
-              width: '54px',
-              height: '54px',
+              width: '80px',
+              height: '80px',
               borderRadius: '50%',
               objectFit: 'cover'
             }}
